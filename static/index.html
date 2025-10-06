@@ -41,6 +41,16 @@
             margin-left: 5px;
         }
 
+        .filter-select {
+            background: #333;
+            border: none;
+            color: #fff;
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-left: 5px;
+        }
+
         .gallery-container {
             position: fixed;
             top: 30px;
@@ -63,6 +73,21 @@
             cursor: pointer;
             overflow: hidden;
             position: relative;
+        }
+
+        .grid-item.selected {
+            border: 2px solid #0066cc;
+            box-sizing: border-box;
+        }
+
+        .selection-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 100, 200, 0.3);
+            pointer-events: none;
         }
 
         .grid-item img, .grid-item video {
@@ -192,14 +217,27 @@
 <body>
     <div class="toolbar">
         <div>
-            <span>mediabrowser</span>
             <span id="pathIndicator">/</span>
         </div>
         <div>
             <button class="toolbar-btn" onclick="triggerUpload()">upload</button>
             <button class="toolbar-btn" onclick="createFolder()">folder</button>
-            <button class="toolbar-btn" onclick="refreshView()">refresh</button>
-            <button class="toolbar-btn" onclick="toggleFilter()">filter</button>
+            <select class="filter-select" onchange="changeSort(this.value)">
+                <option value="name">name</option>
+                <option value="date">date</option>
+                <option value="size">size</option>
+                <option value="type">type</option>
+            </select>
+            <select class="filter-select" onchange="changeFilter(this.value)">
+                <option value="all">all</option>
+                <option value="image">image</option>
+                <option value="video">video</option>
+                <option value="audio">audio</option>
+                <option value="text">text</option>
+            </select>
+            <button class="toolbar-btn" onclick="downloadSelected()" id="downloadBtn" style="display:none">download</button>
+            <button class="toolbar-btn" onclick="deleteSelected()" id="deleteBtn" style="display:none">delete</button>
+            <button class="toolbar-btn" onclick="clearSelection()" id="clearBtn" style="display:none">clear</button>
         </div>
     </div>
 
@@ -231,10 +269,15 @@
         let selectedFile = null;
         let currentMediaIndex = -1;
         let currentFilter = 'all';
+        let currentSort = 'name';
+        let selectedFiles = new Set();
 
         function loadDirectory(path = currentPath, pushState = true) {
             currentPath = path;
             document.getElementById('pathIndicator').textContent = path.replace('/data', '') || '/';
+
+            // Clear selection when changing directories
+            clearSelection();
 
             if (pushState) {
                 const pathHash = path === '/data' ? '' : path.replace('/data', '');
@@ -257,29 +300,35 @@
             grid.innerHTML = '';
 
             const filteredFiles = filterFiles(files);
+            const sortedFiles = sortFiles(filteredFiles);
 
-            filteredFiles.forEach(file => {
+            sortedFiles.forEach(file => {
                 const item = document.createElement('div');
                 item.className = 'grid-item';
-                item.onclick = () => openMedia(file);
+                item.dataset.filePath = file.path;
+                item.onclick = (e) => handleFileClick(e, file);
                 item.oncontextmenu = (e) => showContextMenu(e, file);
+
+                if (selectedFiles.has(file.path)) {
+                    item.classList.add('selected');
+                }
 
                 if (file.is_dir) {
                     item.innerHTML = `<div class="file-name">${file.name}</div>`;
                     item.style.background = '#444';
                 } else if (file.file_type === 'image') {
-                    item.innerHTML = `
-                        <img src="/api/file?path=${encodeURIComponent(file.path)}" alt="${file.name}">
-                        <div class="file-name">${file.name}</div>
-                    `;
+                    item.innerHTML = `<img src="/api/file?path=${encodeURIComponent(file.path)}" alt="${file.name}">`;
                 } else if (file.file_type === 'video') {
-                    item.innerHTML = `
-                        <video src="/api/file?path=${encodeURIComponent(file.path)}" muted></video>
-                        <div class="file-name">${file.name}</div>
-                    `;
+                    item.innerHTML = `<video src="/api/file?path=${encodeURIComponent(file.path)}" muted></video>`;
                 } else {
                     item.innerHTML = `<div class="file-name">${file.name}</div>`;
                     item.style.background = '#333';
+                }
+
+                if (selectedFiles.has(file.path)) {
+                    const overlay = document.createElement('div');
+                    overlay.className = 'selection-overlay';
+                    item.appendChild(overlay);
                 }
 
                 grid.appendChild(item);
@@ -290,15 +339,117 @@
             if (currentFilter === 'all') return files;
             if (currentFilter === 'image') return files.filter(f => f.is_dir || f.file_type === 'image');
             if (currentFilter === 'video') return files.filter(f => f.is_dir || f.file_type === 'video');
+            if (currentFilter === 'audio') return files.filter(f => f.is_dir || f.file_type === 'audio');
             if (currentFilter === 'text') return files.filter(f => f.is_dir || f.file_type === 'text');
             return files;
         }
 
-        function toggleFilter() {
-            const filters = ['all', 'image', 'video', 'text'];
-            const currentIndex = filters.indexOf(currentFilter);
-            currentFilter = filters[(currentIndex + 1) % filters.length];
+        function changeFilter(filterType) {
+            currentFilter = filterType;
             renderGallery(currentFiles);
+        }
+
+        function changeSort(sortType) {
+            currentSort = sortType;
+            renderGallery(currentFiles);
+        }
+
+        function sortFiles(files) {
+            const sorted = [...files];
+
+            sorted.sort((a, b) => {
+                // Always put .. at the top
+                if (a.name === '..') return -1;
+                if (b.name === '..') return 1;
+
+                // Then directories before files
+                if (a.is_dir !== b.is_dir) {
+                    return a.is_dir ? -1 : 1;
+                }
+
+                // Then sort by selected criteria
+                switch (currentSort) {
+                    case 'name':
+                        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                    case 'date':
+                        return new Date(b.modified) - new Date(a.modified); // Newest first
+                    case 'size':
+                        return b.size - a.size; // Largest first
+                    case 'type':
+                        if (a.file_type !== b.file_type) {
+                            return a.file_type.localeCompare(b.file_type);
+                        }
+                        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                    default:
+                        return 0;
+                }
+            });
+
+            return sorted;
+        }
+
+        function handleFileClick(e, file) {
+            if (e.ctrlKey || e.metaKey) {
+                // Multi-select mode
+                e.preventDefault();
+                toggleFileSelection(file);
+            } else if (selectedFiles.size > 0) {
+                // Clear selection and open file
+                clearSelection();
+                openMedia(file);
+            } else {
+                // Normal single file open
+                openMedia(file);
+            }
+        }
+
+        function toggleFileSelection(file) {
+            if (selectedFiles.has(file.path)) {
+                selectedFiles.delete(file.path);
+            } else {
+                selectedFiles.add(file.path);
+            }
+            updateSelectionUI();
+            renderGallery(currentFiles);
+        }
+
+        function updateSelectionUI() {
+            const hasSelection = selectedFiles.size > 0;
+            document.getElementById('downloadBtn').style.display = hasSelection ? 'inline-block' : 'none';
+            document.getElementById('deleteBtn').style.display = hasSelection ? 'inline-block' : 'none';
+            document.getElementById('clearBtn').style.display = hasSelection ? 'inline-block' : 'none';
+        }
+
+        function clearSelection() {
+            selectedFiles.clear();
+            updateSelectionUI();
+            renderGallery(currentFiles);
+        }
+
+        function downloadSelected() {
+            if (selectedFiles.size === 0) return;
+
+            selectedFiles.forEach(filePath => {
+                window.open(`/api/download?path=${encodeURIComponent(filePath)}`);
+            });
+        }
+
+        function deleteSelected() {
+            if (selectedFiles.size === 0) return;
+
+            const fileCount = selectedFiles.size;
+            if (!confirm(`Delete ${fileCount} selected file(s)?`)) return;
+
+            const deletePromises = Array.from(selectedFiles).map(filePath =>
+                fetch(`/api/delete?path=${encodeURIComponent(filePath)}`, { method: 'DELETE' })
+            );
+
+            Promise.all(deletePromises)
+                .then(() => {
+                    clearSelection();
+                    loadDirectory(currentPath, false);
+                })
+                .catch(() => alert('Some files failed to delete'));
         }
 
         let zoomLevel = 1;
@@ -335,6 +486,8 @@
                 updateImageTransform();
             } else if (file.file_type === 'video') {
                 content.innerHTML = `<video src="/api/file?path=${encodeURIComponent(file.path)}" controls></video>`;
+            } else if (file.file_type === 'audio') {
+                content.innerHTML = `<audio src="/api/file?path=${encodeURIComponent(file.path)}" controls></audio>`;
             } else {
                 // Show text content for non-media files
                 fetch(`/api/file?path=${encodeURIComponent(file.path)}`)
@@ -348,16 +501,40 @@
             }
 
             viewer.classList.add('active');
-            // Store current directory state before opening viewer
-            const currentDirHash = currentPath === '/data' ? '#' : `#dir${currentPath.replace('/data', '')}`;
-            window.history.replaceState({ path: currentPath }, '', currentDirHash);
-            window.history.pushState({ viewer: true, path: currentPath }, '', '#view');
+
+            // Don't modify history when opening from direct URL
+            if (!window.location.hash.startsWith('#file')) {
+                // Store current directory state before opening viewer
+                const currentDirHash = currentPath === '/data' ? '#' : `#dir${currentPath.replace('/data', '')}`;
+                window.history.replaceState({ path: currentPath }, '', currentDirHash);
+                const fileHash = `#file${file.path.replace('/data', '')}`;
+                window.history.pushState({ viewer: true, path: currentPath, file: file.path }, '', fileHash);
+            }
         }
 
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+
+        function nextMedia() {
+            const mediaFiles = currentFiles.filter(f => !f.is_dir);
+            if (mediaFiles.length === 0) return;
+
+            const currentMediaFile = mediaFiles.find(f => f.path === selectedFile.path);
+            const currentIndex = mediaFiles.indexOf(currentMediaFile);
+            const nextIndex = currentIndex < mediaFiles.length - 1 ? currentIndex + 1 : 0;
+
+            currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[nextIndex].path);
+
+            // Update URL with new file
+            const file = currentFiles[currentMediaIndex];
+            const fileHash = `#file${file.path.replace('/data', '')}`;
+            window.history.replaceState({ viewer: true, path: currentPath, file: file.path }, '', fileHash);
+
+            showCurrentMedia();
         }
 
         function previousMedia() {
@@ -369,18 +546,12 @@
             const prevIndex = currentIndex > 0 ? currentIndex - 1 : mediaFiles.length - 1;
 
             currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[prevIndex].path);
-            showCurrentMedia();
-        }
 
-        function nextMedia() {
-            const mediaFiles = currentFiles.filter(f => !f.is_dir);
-            if (mediaFiles.length === 0) return;
+            // Update URL with new file
+            const file = currentFiles[currentMediaIndex];
+            const fileHash = `#file${file.path.replace('/data', '')}`;
+            window.history.replaceState({ viewer: true, path: currentPath, file: file.path }, '', fileHash);
 
-            const currentMediaFile = mediaFiles.find(f => f.path === selectedFile.path);
-            const currentIndex = mediaFiles.indexOf(currentMediaFile);
-            const nextIndex = currentIndex < mediaFiles.length - 1 ? currentIndex + 1 : 0;
-
-            currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[nextIndex].path);
             showCurrentMedia();
         }
 
@@ -455,11 +626,29 @@
         }
 
         function closeViewer() {
+            // Stop any playing videos or audio
+            const video = document.querySelector('#viewerContent video');
+            if (video) {
+                video.pause();
+                video.src = '';
+                video.load();
+            }
+
+            const audio = document.querySelector('#viewerContent audio');
+            if (audio) {
+                audio.pause();
+                audio.src = '';
+                audio.load();
+            }
+
             document.getElementById('viewer').classList.remove('active');
             selectedFile = null;
             resetZoom();
-            if (window.location.hash === '#view') {
-                window.history.back();
+
+            if (window.location.hash.startsWith('#file')) {
+                // Navigate to the directory instead of going back
+                const currentDirHash = currentPath === '/data' ? '#' : `#dir${currentPath.replace('/data', '')}`;
+                window.location.hash = currentDirHash;
             }
         }
 
@@ -551,6 +740,21 @@
 
         window.addEventListener('popstate', (e) => {
             if (document.getElementById('viewer').classList.contains('active')) {
+                // Stop any playing videos or audio
+                const video = document.querySelector('#viewerContent video');
+                if (video) {
+                    video.pause();
+                    video.src = '';
+                    video.load();
+                }
+
+                const audio = document.querySelector('#viewerContent audio');
+                if (audio) {
+                    audio.pause();
+                    audio.src = '';
+                    audio.load();
+                }
+
                 // Close viewer without triggering another history change
                 document.getElementById('viewer').classList.remove('active');
                 selectedFile = null;
@@ -558,17 +762,66 @@
                 return;
             }
 
-            if (e.state && e.state.path) {
-                loadDirectory(e.state.path, false);
+            handleUrlChange();
+        });
+
+        function handleUrlChange() {
+            if (window.location.hash.startsWith('#file')) {
+                const fileHashPath = decodeURIComponent(window.location.hash.replace('#file', ''));
+                const filePath = '/data' + fileHashPath;
+
+                // Calculate directory path correctly
+                let dirPath;
+                if (fileHashPath.includes('/')) {
+                    // File is in a subdirectory
+                    const lastSlashIndex = fileHashPath.lastIndexOf('/');
+                    dirPath = '/data' + fileHashPath.substring(0, lastSlashIndex);
+                } else {
+                    // File is in root directory
+                    dirPath = '/data';
+                }
+
+                // Load directory first and then open file
+                loadDirectoryAndOpenFile(dirPath, filePath);
+
             } else if (window.location.hash.startsWith('#dir')) {
-                const path = '/data' + window.location.hash.replace('#dir', '');
+                const path = '/data' + decodeURIComponent(window.location.hash.replace('#dir', ''));
                 loadDirectory(path, false);
             } else if (!window.location.hash || window.location.hash === '#') {
                 loadDirectory('/data', false);
             }
-        });
+        }
 
-        loadDirectory();
+        function loadDirectoryAndOpenFile(dirPath, filePath) {
+            currentPath = dirPath;
+            document.getElementById('pathIndicator').textContent = dirPath.replace('/data', '') || '/';
+
+            fetch(`/api/list?path=${encodeURIComponent(dirPath)}`)
+                .then(response => response.json())
+                .then(files => {
+                    currentFiles = files;
+                    renderGallery(files);
+
+                    // Now find and open the file
+                    const file = currentFiles.find(f => f.path === filePath);
+                    if (file) {
+                        selectedFile = file;
+                        currentMediaIndex = currentFiles.findIndex(f => f.path === file.path);
+                        resetZoom();
+                        showCurrentMedia();
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('galleryGrid').innerHTML = '<div>error loading directory</div>';
+                });
+        }
+
+        // Handle initial URL on page load
+        if (window.location.hash) {
+            handleUrlChange();
+        } else {
+            loadDirectory();
+        }
     </script>
 </body>
 </html>
