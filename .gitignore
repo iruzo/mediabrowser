@@ -5,6 +5,7 @@
 !Cargo.lock
 !Cargo.toml
 !Dockerfile
+!LICENSE
 !README.md
 !docker-compose.yml
 !src/
