@@ -1,0 +1,11 @@
+/*
+
+!.dockerignore
+!.gitignore
+!Cargo.lock
+!Cargo.toml
+!Dockerfile
+!README.md
+!docker-compose.yml
+!src/
+!static/

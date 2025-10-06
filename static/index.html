@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>mediabrowser</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: monospace;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: #111;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .toolbar-btn {
+            background: #333;
+            border: none;
+            color: #fff;
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-left: 5px;
+        }
+
+        .gallery-container {
+            position: fixed;
+            top: 30px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow-y: auto;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 1px;
+            padding: 1px;
+        }
+
+        .grid-item {
+            aspect-ratio: 1;
+            background: #222;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .grid-item img, .grid-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .grid-item .file-name {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #000;
+            color: #fff;
+            font-size: 8px;
+            padding: 1px 2px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .viewer.active {
+            display: flex;
+        }
+
+        .viewer img, .viewer video {
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+            cursor: grab;
+            pointer-events: auto;
+            position: relative;
+            z-index: 5;
+        }
+
+        .viewer img.zoomed {
+            cursor: move;
+            max-width: none;
+            max-height: none;
+            pointer-events: auto;
+        }
+
+        .text-viewer {
+            max-width: 90vw;
+            max-height: 90vh;
+            background: #222;
+            color: #fff;
+            padding: 20px;
+            overflow: auto;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            border: 1px solid #555;
+        }
+
+        .viewer-controls {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #333;
+            padding: 5px;
+            z-index: 15;
+            pointer-events: auto;
+        }
+
+        .viewer-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            padding: 2px;
+            margin: 0 2px;
+            font-size: 11px;
+        }
+
+        .context-menu {
+            position: fixed;
+            background: #333;
+            border: 1px solid #555;
+            display: none;
+            min-width: 80px;
+        }
+
+        .context-menu-item {
+            padding: 5px 8px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .nav-zone {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 30%;
+            cursor: pointer;
+            z-index: 10;
+            pointer-events: auto;
+        }
+
+        .nav-left {
+            left: 0;
+        }
+
+        .nav-right {
+            right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div>
+            <span>mediabrowser</span>
+            <span id="pathIndicator">/</span>
+        </div>
+        <div>
+            <button class="toolbar-btn" onclick="triggerUpload()">upload</button>
+            <button class="toolbar-btn" onclick="createFolder()">folder</button>
+            <button class="toolbar-btn" onclick="refreshView()">refresh</button>
+            <button class="toolbar-btn" onclick="toggleFilter()">filter</button>
+        </div>
+    </div>
+
+    <div class="gallery-container">
+        <div class="gallery-grid" id="galleryGrid"></div>
+    </div>
+
+    <div class="viewer" id="viewer">
+        <div class="viewer-controls">
+            <button class="viewer-btn" onclick="closeViewer()">close</button>
+            <button class="viewer-btn" onclick="downloadCurrent()">download</button>
+            <button class="viewer-btn" onclick="resetZoom()">reset</button>
+        </div>
+        <div class="nav-zone nav-left" onclick="previousMedia()"></div>
+        <div class="nav-zone nav-right" onclick="nextMedia()"></div>
+        <div id="viewerContent"></div>
+    </div>
+
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" onclick="downloadFile()">download</div>
+        <div class="context-menu-item" onclick="deleteFile()">delete</div>
+    </div>
+
+    <input type="file" id="fileInput" multiple onchange="uploadFiles(this.files)">
+
+    <script>
+        let currentPath = '/data';
+        let currentFiles = [];
+        let selectedFile = null;
+        let currentMediaIndex = -1;
+        let currentFilter = 'all';
+
+        function loadDirectory(path = currentPath, pushState = true) {
+            currentPath = path;
+            document.getElementById('pathIndicator').textContent = path.replace('/data', '') || '/';
+
+            if (pushState) {
+                const pathHash = path === '/data' ? '' : path.replace('/data', '');
+                window.history.pushState({ path: path }, '', pathHash ? `#dir${pathHash}` : '#');
+            }
+
+            fetch(`/api/list?path=${encodeURIComponent(path)}`)
+                .then(response => response.json())
+                .then(files => {
+                    currentFiles = files;
+                    renderGallery(files);
+                })
+                .catch(() => {
+                    document.getElementById('galleryGrid').innerHTML = '<div>error</div>';
+                });
+        }
+
+        function renderGallery(files) {
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = '';
+
+            const filteredFiles = filterFiles(files);
+
+            filteredFiles.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'grid-item';
+                item.onclick = () => openMedia(file);
+                item.oncontextmenu = (e) => showContextMenu(e, file);
+
+                if (file.is_dir) {
+                    item.innerHTML = `<div class="file-name">${file.name}</div>`;
+                    item.style.background = '#444';
+                } else if (file.file_type === 'image') {
+                    item.innerHTML = `
+                        <img src="/api/file?path=${encodeURIComponent(file.path)}" alt="${file.name}">
+                        <div class="file-name">${file.name}</div>
+                    `;
+                } else if (file.file_type === 'video') {
+                    item.innerHTML = `
+                        <video src="/api/file?path=${encodeURIComponent(file.path)}" muted></video>
+                        <div class="file-name">${file.name}</div>
+                    `;
+                } else {
+                    item.innerHTML = `<div class="file-name">${file.name}</div>`;
+                    item.style.background = '#333';
+                }
+
+                grid.appendChild(item);
+            });
+        }
+
+        function filterFiles(files) {
+            if (currentFilter === 'all') return files;
+            if (currentFilter === 'image') return files.filter(f => f.is_dir || f.file_type === 'image');
+            if (currentFilter === 'video') return files.filter(f => f.is_dir || f.file_type === 'video');
+            if (currentFilter === 'text') return files.filter(f => f.is_dir || f.file_type === 'text');
+            return files;
+        }
+
+        function toggleFilter() {
+            const filters = ['all', 'image', 'video', 'text'];
+            const currentIndex = filters.indexOf(currentFilter);
+            currentFilter = filters[(currentIndex + 1) % filters.length];
+            renderGallery(currentFiles);
+        }
+
+        let zoomLevel = 1;
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let imagePos = { x: 0, y: 0 };
+
+        function openMedia(file) {
+            if (file.is_dir) {
+                loadDirectory(file.path, true);
+                return;
+            }
+
+            selectedFile = file;
+            currentMediaIndex = currentFiles.findIndex(f => f.path === file.path);
+            // Reset zoom when opening a new image from gallery
+            resetZoom();
+            showCurrentMedia();
+        }
+
+        function showCurrentMedia() {
+            if (currentMediaIndex < 0 || currentMediaIndex >= currentFiles.length) return;
+
+            const file = currentFiles[currentMediaIndex];
+            selectedFile = file;
+            const viewer = document.getElementById('viewer');
+            const content = document.getElementById('viewerContent');
+
+            if (file.file_type === 'image') {
+                content.innerHTML = `<img src="/api/file?path=${encodeURIComponent(file.path)}" alt="${file.name}" id="viewerImage">`;
+                setupImageZoom();
+                // Keep current zoom level but reset position
+                imagePos = { x: 0, y: 0 };
+                updateImageTransform();
+            } else if (file.file_type === 'video') {
+                content.innerHTML = `<video src="/api/file?path=${encodeURIComponent(file.path)}" controls></video>`;
+            } else {
+                // Show text content for non-media files
+                fetch(`/api/file?path=${encodeURIComponent(file.path)}`)
+                    .then(response => response.text())
+                    .then(text => {
+                        content.innerHTML = `<div class="text-viewer">${escapeHtml(text)}</div>`;
+                    })
+                    .catch(() => {
+                        content.innerHTML = `<div class="text-viewer">Failed to load file content</div>`;
+                    });
+            }
+
+            viewer.classList.add('active');
+            // Store current directory state before opening viewer
+            const currentDirHash = currentPath === '/data' ? '#' : `#dir${currentPath.replace('/data', '')}`;
+            window.history.replaceState({ path: currentPath }, '', currentDirHash);
+            window.history.pushState({ viewer: true, path: currentPath }, '', '#view');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function previousMedia() {
+            const mediaFiles = currentFiles.filter(f => !f.is_dir);
+            if (mediaFiles.length === 0) return;
+
+            const currentMediaFile = mediaFiles.find(f => f.path === selectedFile.path);
+            const currentIndex = mediaFiles.indexOf(currentMediaFile);
+            const prevIndex = currentIndex > 0 ? currentIndex - 1 : mediaFiles.length - 1;
+
+            currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[prevIndex].path);
+            showCurrentMedia();
+        }
+
+        function nextMedia() {
+            const mediaFiles = currentFiles.filter(f => !f.is_dir);
+            if (mediaFiles.length === 0) return;
+
+            const currentMediaFile = mediaFiles.find(f => f.path === selectedFile.path);
+            const currentIndex = mediaFiles.indexOf(currentMediaFile);
+            const nextIndex = currentIndex < mediaFiles.length - 1 ? currentIndex + 1 : 0;
+
+            currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[nextIndex].path);
+            showCurrentMedia();
+        }
+
+        function setupImageZoom() {
+            const img = document.getElementById('viewerImage');
+            if (!img) return;
+
+            img.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                zoomLevel *= delta;
+                updateImageTransform();
+            });
+
+            img.addEventListener('mousedown', (e) => {
+                if (zoomLevel > 1) {
+                    e.stopPropagation();
+                    isDragging = true;
+                    dragStart.x = e.clientX - imagePos.x;
+                    dragStart.y = e.clientY - imagePos.y;
+                    img.classList.add('zoomed');
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    imagePos.x = e.clientX - dragStart.x;
+                    imagePos.y = e.clientY - dragStart.y;
+                    updateImageTransform();
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                const img = document.getElementById('viewerImage');
+                if (img && zoomLevel <= 1) {
+                    img.classList.remove('zoomed');
+                }
+            });
+
+            img.addEventListener('dblclick', (e) => {
+                if (zoomLevel === 1) {
+                    e.stopPropagation();
+                    zoomLevel = 2;
+                    updateImageTransform();
+                } else {
+                    e.stopPropagation();
+                    resetZoom();
+                }
+            });
+        }
+
+        function updateImageTransform() {
+            const img = document.getElementById('viewerImage');
+            if (!img) return;
+
+            if (zoomLevel > 1) {
+                img.classList.add('zoomed');
+                img.style.transform = `scale(${zoomLevel}) translate(${imagePos.x / zoomLevel}px, ${imagePos.y / zoomLevel}px)`;
+            } else {
+                img.classList.remove('zoomed');
+                img.style.transform = 'scale(1) translate(0, 0)';
+                imagePos = { x: 0, y: 0 };
+            }
+        }
+
+        function resetZoom() {
+            zoomLevel = 1;
+            imagePos = { x: 0, y: 0 };
+            isDragging = false;
+            updateImageTransform();
+        }
+
+        function closeViewer() {
+            document.getElementById('viewer').classList.remove('active');
+            selectedFile = null;
+            resetZoom();
+            if (window.location.hash === '#view') {
+                window.history.back();
+            }
+        }
+
+        function goUp() {
+            const parent = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/data';
+            if (parent !== '/data' || currentPath !== '/data') {
+                loadDirectory(parent, true);
+            }
+        }
+
+        function triggerUpload() {
+            document.getElementById('fileInput').click();
+        }
+
+        function uploadFiles(files) {
+            const formData = new FormData();
+            for (const file of files) {
+                formData.append('file', file);
+            }
+
+            fetch(`/api/upload?path=${encodeURIComponent(currentPath)}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(() => loadDirectory(currentPath, false))
+            .catch(() => alert('upload failed'));
+        }
+
+        function createFolder() {
+            const name = prompt('folder name:');
+            if (name) {
+                const folderPath = `${currentPath}/${name}`;
+                fetch(`/api/mkdir?path=${encodeURIComponent(folderPath)}`, { method: 'POST' })
+                    .then(() => loadDirectory(currentPath, false))
+                    .catch(() => alert('failed to create folder'));
+            }
+        }
+
+        function refreshView() {
+            loadDirectory(currentPath, false);
+        }
+
+        function showContextMenu(e, file) {
+            e.preventDefault();
+            selectedFile = file;
+            const menu = document.getElementById('contextMenu');
+            menu.style.display = 'block';
+            menu.style.left = e.pageX + 'px';
+            menu.style.top = e.pageY + 'px';
+        }
+
+        function downloadFile() {
+            if (selectedFile) {
+                window.open(`/api/download?path=${encodeURIComponent(selectedFile.path)}`);
+            }
+            hideContextMenu();
+        }
+
+        function deleteFile() {
+            if (selectedFile && confirm(`delete ${selectedFile.name}?`)) {
+                fetch(`/api/delete?path=${encodeURIComponent(selectedFile.path)}`, { method: 'DELETE' })
+                    .then(() => loadDirectory(currentPath, false))
+                    .catch(() => alert('delete failed'));
+            }
+            hideContextMenu();
+        }
+
+        function downloadCurrent() {
+            if (selectedFile) {
+                window.open(`/api/download?path=${encodeURIComponent(selectedFile.path)}`);
+            }
+        }
+
+        function hideContextMenu() {
+            document.getElementById('contextMenu').style.display = 'none';
+        }
+
+        document.addEventListener('click', hideContextMenu);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeViewer();
+                hideContextMenu();
+            } else if (e.key === 'ArrowLeft') {
+                previousMedia();
+            } else if (e.key === 'ArrowRight') {
+                nextMedia();
+            }
+        });
+
+        window.addEventListener('popstate', (e) => {
+            if (document.getElementById('viewer').classList.contains('active')) {
+                // Close viewer without triggering another history change
+                document.getElementById('viewer').classList.remove('active');
+                selectedFile = null;
+                resetZoom();
+                return;
+            }
+
+            if (e.state && e.state.path) {
+                loadDirectory(e.state.path, false);
+            } else if (window.location.hash.startsWith('#dir')) {
+                const path = '/data' + window.location.hash.replace('#dir', '');
+                loadDirectory(path, false);
+            } else if (!window.location.hash || window.location.hash === '#') {
+                loadDirectory('/data', false);
+            }
+        });
+
+        loadDirectory();
+    </script>
+</body>
+</html>
