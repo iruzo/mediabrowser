@@ -51,6 +51,21 @@
             margin-left: 5px;
         }
 
+        .search-bar {
+            flex: 1;
+            background: #222;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 2px 8px;
+            font-size: 11px;
+            margin: 0 10px;
+        }
+
+        .search-bar:focus {
+            outline: none;
+            border-color: #777;
+        }
+
         .gallery-container {
             position: fixed;
             top: 30px;
@@ -219,6 +234,7 @@
         <div>
             <span id="pathIndicator">/</span>
         </div>
+        <input type="text" class="search-bar" placeholder="Search files..." id="searchInput" oninput="filterBySearch(this.value)">
         <div>
             <button class="toolbar-btn" onclick="triggerUpload()">upload</button>
             <button class="toolbar-btn" onclick="createFolder()">folder</button>
@@ -273,14 +289,17 @@
         let currentSort = 'name';
         let selectedFiles = new Set();
         let selectionMode = false;
+        let searchTerm = '';
 
         function loadDirectory(path = currentPath, pushState = true) {
             currentPath = path;
             document.getElementById('pathIndicator').textContent = path.replace('/data', '') || '/';
 
-            // Clear selection when changing directories
+            // Clear selection and search when changing directories
             selectedFiles.clear();
             selectionMode = false;
+            searchTerm = '';
+            document.getElementById('searchInput').value = '';
             updateSelectionUI();
 
             if (pushState) {
@@ -303,7 +322,8 @@
             const grid = document.getElementById('galleryGrid');
             grid.innerHTML = '';
 
-            const filteredFiles = filterFiles(files);
+            let filteredFiles = filterFiles(files);
+            filteredFiles = filterBySearchTerm(filteredFiles);
             const sortedFiles = sortFiles(filteredFiles);
 
             sortedFiles.forEach(file => {
@@ -356,6 +376,18 @@
         function changeSort(sortType) {
             currentSort = sortType;
             renderGallery(currentFiles);
+        }
+
+        function filterBySearch(term) {
+            searchTerm = term.toLowerCase();
+            renderGallery(currentFiles);
+        }
+
+        function filterBySearchTerm(files) {
+            if (!searchTerm) return files;
+            return files.filter(file =>
+                file.name.toLowerCase().includes(searchTerm)
+            );
         }
 
         function sortFiles(files) {
