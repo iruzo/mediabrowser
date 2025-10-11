@@ -152,7 +152,7 @@
             z-index: 5;
         }
 
-        .viewer img.zoomed {
+        .viewer img.zoomed, .viewer video.zoomed {
             cursor: move;
             max-width: none;
             max-height: none;
@@ -176,6 +176,16 @@
             position: absolute;
             top: 5px;
             right: 5px;
+            background: #333;
+            padding: 5px;
+            z-index: 15;
+            pointer-events: auto;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 5px;
+            left: 5px;
             background: #333;
             padding: 5px;
             z-index: 15;
@@ -266,6 +276,10 @@
         <div class="viewer-controls">
             <button class="viewer-btn" onclick="closeViewer()">close</button>
             <button class="viewer-btn" onclick="downloadCurrent()">download</button>
+        </div>
+        <div class="zoom-controls" id="zoomControls" style="display:none;">
+            <button class="viewer-btn" onclick="zoomIn()">+</button>
+            <button class="viewer-btn" onclick="zoomOut()">-</button>
             <button class="viewer-btn" onclick="resetZoom()">reset</button>
         </div>
         <div class="nav-zone nav-left" onclick="previousMedia()"></div>
@@ -530,17 +544,25 @@
             selectedFile = file;
             const viewer = document.getElementById('viewer');
             const content = document.getElementById('viewerContent');
+            const zoomControls = document.getElementById('zoomControls');
 
             if (file.file_type === 'image') {
                 content.innerHTML = `<img src="/api/file?path=${encodeURIComponent(file.path)}" alt="${file.name}" id="viewerImage">`;
-                setupImageZoom();
+                setupMediaZoom();
                 // Keep current zoom level but reset position
                 imagePos = { x: 0, y: 0 };
-                updateImageTransform();
+                updateMediaTransform();
+                zoomControls.style.display = 'block';
             } else if (file.file_type === 'video') {
                 content.innerHTML = `<video src="/api/file?path=${encodeURIComponent(file.path)}" controls></video>`;
+                setupMediaZoom();
+                // Keep current zoom level but reset position
+                imagePos = { x: 0, y: 0 };
+                updateMediaTransform();
+                zoomControls.style.display = 'block';
             } else if (file.file_type === 'audio') {
                 content.innerHTML = `<audio src="/api/file?path=${encodeURIComponent(file.path)}" controls></audio>`;
+                zoomControls.style.display = 'none';
             } else {
                 // Show text content for non-media files
                 fetch(`/api/file?path=${encodeURIComponent(file.path)}`)
@@ -551,6 +573,7 @@
                     .catch(() => {
                         content.innerHTML = `<div class="text-viewer">Failed to load file content</div>`;
                     });
+                zoomControls.style.display = 'none';
             }
 
             viewer.classList.add('active');
@@ -608,24 +631,27 @@
             showCurrentMedia();
         }
 
-        function setupImageZoom() {
+        function setupMediaZoom() {
             const img = document.getElementById('viewerImage');
-            if (!img) return;
+            const video = document.querySelector('#viewerContent video');
+            const element = img || video;
 
-            img.addEventListener('wheel', (e) => {
+            if (!element) return;
+
+            element.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 const delta = e.deltaY > 0 ? 0.9 : 1.1;
                 zoomLevel *= delta;
-                updateImageTransform();
+                updateMediaTransform();
             });
 
-            img.addEventListener('mousedown', (e) => {
+            element.addEventListener('mousedown', (e) => {
                 if (zoomLevel > 1) {
                     e.stopPropagation();
                     isDragging = true;
                     dragStart.x = e.clientX - imagePos.x;
                     dragStart.y = e.clientY - imagePos.y;
-                    img.classList.add('zoomed');
+                    element.classList.add('zoomed');
                 }
             });
 
@@ -633,23 +659,23 @@
                 if (isDragging) {
                     imagePos.x = e.clientX - dragStart.x;
                     imagePos.y = e.clientY - dragStart.y;
-                    updateImageTransform();
+                    updateMediaTransform();
                 }
             });
 
             document.addEventListener('mouseup', () => {
                 isDragging = false;
-                const img = document.getElementById('viewerImage');
-                if (img && zoomLevel <= 1) {
-                    img.classList.remove('zoomed');
+                const currentElement = document.getElementById('viewerImage') || document.querySelector('#viewerContent video');
+                if (currentElement && zoomLevel <= 1) {
+                    currentElement.classList.remove('zoomed');
                 }
             });
 
-            img.addEventListener('dblclick', (e) => {
+            element.addEventListener('dblclick', (e) => {
                 if (zoomLevel === 1) {
                     e.stopPropagation();
                     zoomLevel = 2;
-                    updateImageTransform();
+                    updateMediaTransform();
                 } else {
                     e.stopPropagation();
                     resetZoom();
@@ -657,25 +683,40 @@
             });
         }
 
-        function updateImageTransform() {
-            const img = document.getElementById('viewerImage');
-            if (!img) return;
 
-            if (zoomLevel > 1) {
-                img.classList.add('zoomed');
-                img.style.transform = `scale(${zoomLevel}) translate(${imagePos.x / zoomLevel}px, ${imagePos.y / zoomLevel}px)`;
-            } else {
-                img.classList.remove('zoomed');
-                img.style.transform = 'scale(1) translate(0, 0)';
-                imagePos = { x: 0, y: 0 };
-            }
+        function zoomIn() {
+            zoomLevel *= 1.2;
+            updateMediaTransform();
+        }
+
+        function zoomOut() {
+            zoomLevel *= 0.8;
+            if (zoomLevel < 1) zoomLevel = 1;
+            updateMediaTransform();
         }
 
         function resetZoom() {
             zoomLevel = 1;
             imagePos = { x: 0, y: 0 };
             isDragging = false;
-            updateImageTransform();
+            updateMediaTransform();
+        }
+
+        function updateMediaTransform() {
+            const img = document.getElementById('viewerImage');
+            const video = document.querySelector('#viewerContent video');
+            const element = img || video;
+
+            if (!element) return;
+
+            if (zoomLevel > 1) {
+                element.classList.add('zoomed');
+                element.style.transform = `scale(${zoomLevel}) translate(${imagePos.x / zoomLevel}px, ${imagePos.y / zoomLevel}px)`;
+            } else {
+                element.classList.remove('zoomed');
+                element.style.transform = 'scale(1) translate(0, 0)';
+                imagePos = { x: 0, y: 0 };
+            }
         }
 
         function closeViewer() {
@@ -693,6 +734,9 @@
                 audio.src = '';
                 audio.load();
             }
+
+            // Hide zoom controls
+            document.getElementById('zoomControls').style.display = 'none';
 
             document.getElementById('viewer').classList.remove('active');
             selectedFile = null;
@@ -807,6 +851,9 @@
                     audio.src = '';
                     audio.load();
                 }
+
+                // Hide zoom controls
+                document.getElementById('zoomControls').style.display = 'none';
 
                 // Close viewer without triggering another history change
                 document.getElementById('viewer').classList.remove('active');
