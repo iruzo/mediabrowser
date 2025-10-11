@@ -278,22 +278,24 @@
             display: none;
         }
 
-        .nav-zone {
+        .nav-controls-left {
             position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 30%;
-            cursor: pointer;
-            z-index: 10;
+            bottom: 5px;
+            left: 5px;
+            background: var(--bg-quaternary);
+            padding: 5px;
+            z-index: 15;
             pointer-events: auto;
         }
 
-        .nav-left {
-            left: 0;
-        }
-
-        .nav-right {
-            right: 0;
+        .nav-controls-right {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: var(--bg-quaternary);
+            padding: 5px;
+            z-index: 15;
+            pointer-events: auto;
         }
     </style>
 </head>
@@ -340,8 +342,12 @@
             <button class="viewer-btn" onclick="zoomOut()">-</button>
             <button class="viewer-btn" onclick="resetZoom()">reset</button>
         </div>
-        <div class="nav-zone nav-left" onclick="previousMedia()"></div>
-        <div class="nav-zone nav-right" onclick="nextMedia()"></div>
+        <div class="nav-controls-left">
+            <button class="viewer-btn" onclick="previousMedia()">left</button>
+        </div>
+        <div class="nav-controls-right">
+            <button class="viewer-btn" onclick="nextMedia()">right</button>
+        </div>
         <div id="viewerContent"></div>
     </div>
 
