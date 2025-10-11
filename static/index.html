@@ -134,6 +134,19 @@
             background: var(--bg-quaternary);
         }
 
+        .grid-item.lazy-load {
+            background: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grid-item.lazy-load .file-name {
+            position: static;
+            background: transparent;
+            text-align: center;
+        }
+
         .grid-item.selected {
             border: 2px solid var(--selection-color);
             box-sizing: border-box;
@@ -349,6 +362,7 @@
         let selectedFiles = new Set();
         let selectionMode = false;
         let searchTerm = '';
+        let intersectionObserver = null;
 
         function loadDirectory(path = currentPath, pushState = true) {
             currentPath = path;
@@ -381,6 +395,11 @@
             const grid = document.getElementById('galleryGrid');
             grid.innerHTML = '';
 
+            // Disconnect previous observer
+            if (intersectionObserver) {
+                intersectionObserver.disconnect();
+            }
+
             let filteredFiles = filterFiles(files);
             filteredFiles = filterBySearchTerm(filteredFiles);
             const sortedFiles = sortFiles(filteredFiles);
@@ -389,6 +408,8 @@
                 const item = document.createElement('div');
                 item.className = 'grid-item';
                 item.dataset.filePath = file.path;
+                item.dataset.fileType = file.file_type;
+                item.dataset.fileName = file.name;
                 item.onclick = (e) => handleFileClick(e, file);
                 item.oncontextmenu = (e) => showContextMenu(e, file);
 
@@ -400,9 +421,13 @@
                     item.innerHTML = `<div class="file-name">${file.name}</div>`;
                     item.classList.add('directory');
                 } else if (file.file_type === 'image') {
-                    item.innerHTML = `<img src="/api/file?path=${encodeURIComponent(file.path)}" alt="${file.name}">`;
+                    // Create placeholder for lazy loading
+                    item.innerHTML = `<div class="file-name">${file.name}</div>`;
+                    item.classList.add('lazy-load');
                 } else if (file.file_type === 'video') {
-                    item.innerHTML = `<video src="/api/file?path=${encodeURIComponent(file.path)}" muted></video>`;
+                    // Create placeholder for lazy loading
+                    item.innerHTML = `<div class="file-name">${file.name}</div>`;
+                    item.classList.add('lazy-load');
                 } else {
                     item.innerHTML = `<div class="file-name">${file.name}</div>`;
                     item.classList.add('file');
@@ -416,6 +441,54 @@
 
                 grid.appendChild(item);
             });
+
+            // Setup intersection observer for lazy loading
+            setupLazyLoading();
+        }
+
+        function setupLazyLoading() {
+            // Create intersection observer with some margin for preloading
+            intersectionObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const item = entry.target;
+                        if (item.classList.contains('lazy-load')) {
+                            loadItemContent(item);
+                            intersectionObserver.unobserve(item);
+                        }
+                    }
+                });
+            }, {
+                root: null,
+                rootMargin: '50px', // Start loading 50px before entering viewport
+                threshold: 0.1
+            });
+
+            // Observe all lazy-load items
+            document.querySelectorAll('.lazy-load').forEach(item => {
+                intersectionObserver.observe(item);
+            });
+        }
+
+        function loadItemContent(item) {
+            const filePath = item.dataset.filePath;
+            const fileType = item.dataset.fileType;
+            const fileName = item.dataset.fileName;
+
+            item.classList.remove('lazy-load');
+
+            if (fileType === 'image') {
+                item.innerHTML = `<img src="/api/file?path=${encodeURIComponent(filePath)}" alt="${fileName}" loading="lazy">`;
+            } else if (fileType === 'video') {
+                item.innerHTML = `<video src="/api/file?path=${encodeURIComponent(filePath)}" muted>`;
+            }
+
+            // Re-add selection overlay if this item was selected
+            if (selectedFiles.has(filePath)) {
+                const overlay = document.createElement('div');
+                overlay.className = 'selection-overlay';
+                item.appendChild(overlay);
+            }
         }
 
         function filterFiles(files) {
