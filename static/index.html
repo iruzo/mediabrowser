@@ -4,6 +4,38 @@
     <meta charset="UTF-8">
     <title>mediabrowser</title>
     <style>
+        /* Dark theme */
+        :root {
+            --bg-primary: #000;
+            --bg-secondary: #111;
+            --bg-tertiary: #222;
+            --bg-quaternary: #333;
+            --bg-quinary: #444;
+            --text-primary: #fff;
+            --text-secondary: #fff;
+            --border-color: #333;
+            --border-secondary: #555;
+            --selection-color: #0066cc;
+            --selection-overlay: rgba(0, 100, 200, 0.3);
+        }
+
+        /* Light theme */
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-primary: #fff;
+                --bg-secondary: #f5f5f5;
+                --bg-tertiary: #e0e0e0;
+                --bg-quaternary: #d0d0d0;
+                --bg-quinary: #c0c0c0;
+                --text-primary: #000;
+                --text-secondary: #333;
+                --border-color: #ccc;
+                --border-secondary: #999;
+                --selection-color: #0066cc;
+                --selection-overlay: rgba(0, 100, 200, 0.2);
+            }
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,8 +44,8 @@
 
         body {
             font-family: monospace;
-            background: #000;
-            color: #fff;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             overflow: hidden;
         }
 
@@ -23,28 +55,32 @@
             left: 0;
             right: 0;
             height: 30px;
-            background: #111;
+            background: var(--bg-secondary);
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 10px;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid var(--border-color);
         }
 
         .toolbar-btn {
-            background: #333;
+            background: var(--bg-quaternary);
             border: none;
-            color: #fff;
+            color: var(--text-primary);
             padding: 2px 6px;
             cursor: pointer;
             font-size: 11px;
             margin-left: 5px;
         }
 
+        .toolbar-btn.active {
+            background: var(--border-secondary);
+        }
+
         .filter-select {
-            background: #333;
+            background: var(--bg-quaternary);
             border: none;
-            color: #fff;
+            color: var(--text-primary);
             padding: 2px 6px;
             cursor: pointer;
             font-size: 11px;
@@ -53,9 +89,9 @@
 
         .search-bar {
             flex: 1;
-            background: #222;
-            border: 1px solid #555;
-            color: #fff;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-secondary);
+            color: var(--text-primary);
             padding: 2px 8px;
             font-size: 11px;
             margin: 0 10px;
@@ -63,7 +99,7 @@
 
         .search-bar:focus {
             outline: none;
-            border-color: #777;
+            border-color: var(--border-secondary);
         }
 
         .gallery-container {
@@ -84,14 +120,22 @@
 
         .grid-item {
             aspect-ratio: 1;
-            background: #222;
+            background: var(--bg-tertiary);
             cursor: pointer;
             overflow: hidden;
             position: relative;
         }
 
+        .grid-item.directory {
+            background: var(--bg-quinary);
+        }
+
+        .grid-item.file {
+            background: var(--bg-quaternary);
+        }
+
         .grid-item.selected {
-            border: 2px solid #0066cc;
+            border: 2px solid var(--selection-color);
             box-sizing: border-box;
         }
 
@@ -101,7 +145,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 100, 200, 0.3);
+            background: var(--selection-overlay);
             pointer-events: none;
         }
 
@@ -117,8 +161,8 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: #000;
-            color: #fff;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             font-size: 8px;
             padding: 1px 2px;
             overflow: hidden;
@@ -132,7 +176,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: #000;
+            background: var(--bg-primary);
             display: none;
             align-items: center;
             justify-content: center;
@@ -162,21 +206,21 @@
         .text-viewer {
             max-width: 90vw;
             max-height: 90vh;
-            background: #222;
-            color: #fff;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
             padding: 20px;
             overflow: auto;
             font-family: monospace;
             font-size: 12px;
             white-space: pre-wrap;
-            border: 1px solid #555;
+            border: 1px solid var(--border-secondary);
         }
 
         .viewer-controls {
             position: absolute;
             top: 5px;
             right: 5px;
-            background: #333;
+            background: var(--bg-quaternary);
             padding: 5px;
             z-index: 15;
             pointer-events: auto;
@@ -186,7 +230,7 @@
             position: absolute;
             top: 5px;
             left: 5px;
-            background: #333;
+            background: var(--bg-quaternary);
             padding: 5px;
             z-index: 15;
             pointer-events: auto;
@@ -195,7 +239,7 @@
         .viewer-btn {
             background: none;
             border: none;
-            color: #fff;
+            color: var(--text-primary);
             cursor: pointer;
             padding: 2px;
             margin: 0 2px;
@@ -204,8 +248,8 @@
 
         .context-menu {
             position: fixed;
-            background: #333;
-            border: 1px solid #555;
+            background: var(--bg-quaternary);
+            border: 1px solid var(--border-secondary);
             display: none;
             min-width: 80px;
         }
@@ -214,6 +258,7 @@
             padding: 5px 8px;
             cursor: pointer;
             font-size: 11px;
+            color: var(--text-primary);
         }
 
         #fileInput {
@@ -353,14 +398,14 @@
 
                 if (file.is_dir) {
                     item.innerHTML = `<div class="file-name">${file.name}</div>`;
-                    item.style.background = '#444';
+                    item.classList.add('directory');
                 } else if (file.file_type === 'image') {
                     item.innerHTML = `<img src="/api/file?path=${encodeURIComponent(file.path)}" alt="${file.name}">`;
                 } else if (file.file_type === 'video') {
                     item.innerHTML = `<video src="/api/file?path=${encodeURIComponent(file.path)}" muted></video>`;
                 } else {
                     item.innerHTML = `<div class="file-name">${file.name}</div>`;
-                    item.style.background = '#333';
+                    item.classList.add('file');
                 }
 
                 if (selectedFiles.has(file.path)) {
@@ -469,7 +514,11 @@
 
             // Update select button text and style
             selectBtn.textContent = selectionMode ? 'done' : 'select';
-            selectBtn.style.background = selectionMode ? '#555' : '#333';
+            if (selectionMode) {
+                selectBtn.classList.add('active');
+            } else {
+                selectBtn.classList.remove('active');
+            }
 
             document.getElementById('downloadBtn').style.display = hasSelection ? 'inline-block' : 'none';
             document.getElementById('deleteBtn').style.display = hasSelection ? 'inline-block' : 'none';
