@@ -222,6 +222,7 @@
         <div>
             <button class="toolbar-btn" onclick="triggerUpload()">upload</button>
             <button class="toolbar-btn" onclick="createFolder()">folder</button>
+            <button class="toolbar-btn" onclick="toggleSelectionMode()" id="selectBtn">select</button>
             <select class="filter-select" onchange="changeSort(this.value)">
                 <option value="name">name</option>
                 <option value="date">date</option>
@@ -271,13 +272,16 @@
         let currentFilter = 'all';
         let currentSort = 'name';
         let selectedFiles = new Set();
+        let selectionMode = false;
 
         function loadDirectory(path = currentPath, pushState = true) {
             currentPath = path;
             document.getElementById('pathIndicator').textContent = path.replace('/data', '') || '/';
 
             // Clear selection when changing directories
-            clearSelection();
+            selectedFiles.clear();
+            selectionMode = false;
+            updateSelectionUI();
 
             if (pushState) {
                 const pathHash = path === '/data' ? '' : path.replace('/data', '');
@@ -389,8 +393,8 @@
         }
 
         function handleFileClick(e, file) {
-            if (e.ctrlKey || e.metaKey) {
-                // Multi-select mode
+            if (selectionMode || e.ctrlKey || e.metaKey) {
+                // Multi-select mode (selection mode enabled or Ctrl/Cmd+click)
                 e.preventDefault();
                 toggleFileSelection(file);
             } else if (selectedFiles.size > 0) {
@@ -415,6 +419,12 @@
 
         function updateSelectionUI() {
             const hasSelection = selectedFiles.size > 0;
+            const selectBtn = document.getElementById('selectBtn');
+
+            // Update select button text and style
+            selectBtn.textContent = selectionMode ? 'done' : 'select';
+            selectBtn.style.background = selectionMode ? '#555' : '#333';
+
             document.getElementById('downloadBtn').style.display = hasSelection ? 'inline-block' : 'none';
             document.getElementById('deleteBtn').style.display = hasSelection ? 'inline-block' : 'none';
             document.getElementById('clearBtn').style.display = hasSelection ? 'inline-block' : 'none';
@@ -422,6 +432,17 @@
 
         function clearSelection() {
             selectedFiles.clear();
+            selectionMode = false;
+            updateSelectionUI();
+            renderGallery(currentFiles);
+        }
+
+        function toggleSelectionMode() {
+            selectionMode = !selectionMode;
+            if (!selectionMode) {
+                // Exiting selection mode, clear selections
+                selectedFiles.clear();
+            }
             updateSelectionUI();
             renderGallery(currentFiles);
         }

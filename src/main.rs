@@ -211,7 +211,10 @@ async fn handle_upload(query: ListQuery, mut form: warp::multipart::FormData) ->
 
         if name == "file" {
             if let Some(filename) = part.filename() {
-                let file_path = target_dir.join(filename);
+                // Add timestamp to filename to prevent overwrites
+                let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
+                let timestamped_filename = format!("{}_{}", timestamp, filename);
+                let file_path = target_dir.join(timestamped_filename);
 
                 // Collect bytes from stream
                 let mut bytes = Vec::new();
