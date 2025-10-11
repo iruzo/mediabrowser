@@ -278,7 +278,7 @@
             display: none;
         }
 
-        .nav-controls-left {
+        .nav-controls-prev {
             position: absolute;
             bottom: 5px;
             left: 5px;
@@ -288,7 +288,7 @@
             pointer-events: auto;
         }
 
-        .nav-controls-right {
+        .nav-controls-next {
             position: absolute;
             bottom: 5px;
             right: 5px;
@@ -342,11 +342,11 @@
             <button class="viewer-btn" onclick="zoomOut()">-</button>
             <button class="viewer-btn" onclick="resetZoom()">reset</button>
         </div>
-        <div class="nav-controls-left">
-            <button class="viewer-btn" onclick="previousMedia()">left</button>
+        <div class="nav-controls-prev">
+            <button class="viewer-btn" onclick="previousMedia()">prev</button>
         </div>
-        <div class="nav-controls-right">
-            <button class="viewer-btn" onclick="nextMedia()">right</button>
+        <div class="nav-controls-next">
+            <button class="viewer-btn" onclick="nextMedia()">next</button>
         </div>
         <div id="viewerContent"></div>
     </div>
