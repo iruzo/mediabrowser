@@ -48,15 +48,16 @@ body {
     top: 0;
     left: 0;
     right: 0;
-    min-height: 3.5vh;
-    height: auto;
+    height: 4.5vh;
+    max-height: 4.5vh;
     background: var(--bg-secondary);
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0.5vh 1vh;
     border-bottom: 1px solid var(--border-color);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
     gap: 0.5vh;
 }
 
