@@ -11,6 +11,17 @@ let intersectionObserver = null;
 // Set default grid size based on screen width (20 for phones, 30 for larger screens)
 let gridSize = window.innerWidth <= 480 ? 20 : 30;
 
+// Virtual scrolling variables
+let virtualScrollData = {
+    filteredFiles: [],
+    renderedItems: new Map(), // Track rendered DOM elements
+    scrollPosition: 0,
+    itemHeight: 200, // Approximate item height in pixels
+    containerHeight: 0,
+    scrollContainer: null,
+    visibleRange: { start: 0, end: 0 }
+};
+
 function loadDirectory(path = currentPath, pushState = true) {
     currentPath = path;
 
@@ -39,7 +50,6 @@ function loadDirectory(path = currentPath, pushState = true) {
 
 function renderGallery(files) {
     const grid = document.getElementById('galleryGrid');
-    grid.innerHTML = '';
 
     // Disconnect previous observer
     if (intersectionObserver) {
@@ -48,52 +58,166 @@ function renderGallery(files) {
 
     let filteredFiles = filterFiles(files);
     filteredFiles = filterBySearchTerm(filteredFiles);
-    const sortedFiles = sortFiles(filteredFiles);
+    virtualScrollData.filteredFiles = sortFiles(filteredFiles);
 
-    sortedFiles.forEach(file => {
-        const item = document.createElement('div');
-        item.className = 'grid-item';
-        item.dataset.filePath = file.path;
-        item.dataset.fileType = file.file_type;
-        item.dataset.fileName = file.name;
-        item.onclick = (e) => handleFileClick(e, file);
-        item.oncontextmenu = (e) => showContextMenu(e, file);
+    // Initialize virtual scrolling
+    initializeVirtualScroll(grid);
+}
 
-        if (selectedFiles.has(file.path)) {
-            item.classList.add('selected');
+function initializeVirtualScroll(grid) {
+    // Clear existing content and event listeners
+    grid.innerHTML = '';
+    virtualScrollData.renderedItems.clear();
+
+    if (virtualScrollData.scrollContainer) {
+        virtualScrollData.scrollContainer.removeEventListener('scroll', handleVirtualScroll);
+    }
+
+    // Set up container for virtual scrolling
+    const container = grid.parentElement; // gallery-container
+    virtualScrollData.scrollContainer = container;
+    virtualScrollData.containerHeight = container.clientHeight;
+
+    // Calculate grid dimensions
+    const gridSizeVh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')) || 30;
+    const baseGridSizePx = (gridSizeVh / 100) * window.innerHeight;
+
+    // Calculate columns and adjust item size to fill width
+    const containerWidth = container.clientWidth - 4; // Account for padding
+    const minColumns = Math.max(1, Math.floor(containerWidth / baseGridSizePx)); // Ensure at least 1 column
+    const actualGridSizePx = minColumns === 1 ?
+        containerWidth :
+        (containerWidth - (minColumns - 1) * 2) / minColumns; // Distribute space evenly with 2px gaps
+
+    virtualScrollData.itemHeight = actualGridSizePx + 2; // Add gap
+    virtualScrollData.actualItemSize = actualGridSizePx;
+    virtualScrollData.columns = minColumns;
+    virtualScrollData.rows = Math.ceil(virtualScrollData.filteredFiles.length / minColumns);
+
+    // Create spacer div to represent total height
+    const spacer = document.createElement('div');
+    spacer.id = 'virtual-spacer';
+    spacer.style.height = `${virtualScrollData.rows * virtualScrollData.itemHeight}px`;
+    spacer.style.position = 'relative';
+    grid.appendChild(spacer);
+
+    // Add scroll listener
+    container.addEventListener('scroll', handleVirtualScroll);
+
+    // Initial render
+    renderVisibleItems();
+}
+
+function handleVirtualScroll() {
+    virtualScrollData.scrollPosition = virtualScrollData.scrollContainer.scrollTop;
+    renderVisibleItems();
+}
+
+function renderVisibleItems() {
+    const containerHeight = virtualScrollData.scrollContainer.clientHeight;
+    const scrollTop = virtualScrollData.scrollPosition;
+    const itemHeight = virtualScrollData.itemHeight;
+    const columns = virtualScrollData.columns;
+
+    if (columns <= 0) return;
+
+    // Calculate which rows should be visible (minimal buffer)
+    const startRow = Math.max(0, Math.floor(scrollTop / itemHeight) - 1); // 1 row buffer above
+    const endRow = Math.min(
+        virtualScrollData.rows - 1,
+        Math.ceil((scrollTop + containerHeight) / itemHeight) + 1 // 1 row buffer below
+    );
+
+    // Convert rows to item indices
+    const startIndex = startRow * columns;
+    const endIndex = Math.min(virtualScrollData.filteredFiles.length - 1, ((endRow + 1) * columns) - 1);
+
+    virtualScrollData.visibleRange = { start: startIndex, end: endIndex };
+
+    const spacer = document.getElementById('virtual-spacer');
+
+    // Remove items that are no longer visible
+    for (const [index, item] of virtualScrollData.renderedItems) {
+        if (index < startIndex || index > endIndex) {
+            item.remove();
+            virtualScrollData.renderedItems.delete(index);
+            if (intersectionObserver) {
+                intersectionObserver.unobserve(item);
+            }
         }
+    }
 
-        if (file.is_dir) {
-            item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
-            item.classList.add('directory');
-        } else if (file.file_type === 'image') {
-            // Create placeholder for lazy loading
-            item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
-            item.classList.add('lazy-load');
-        } else if (file.file_type === 'video') {
-            // Create placeholder for lazy loading
-            item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
-            item.classList.add('lazy-load');
-        } else {
-            item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
-            item.classList.add('file');
+    // Add new visible items
+    for (let i = startIndex; i <= endIndex; i++) {
+        if (!virtualScrollData.renderedItems.has(i) && i < virtualScrollData.filteredFiles.length) {
+            const file = virtualScrollData.filteredFiles[i];
+            const item = createGridItem(file, i);
+            virtualScrollData.renderedItems.set(i, item);
+            spacer.appendChild(item);
         }
+    }
 
-        if (selectedFiles.has(file.path)) {
-            const overlay = document.createElement('div');
-            overlay.className = 'selection-overlay';
-            item.appendChild(overlay);
-        }
-
-        grid.appendChild(item);
-    });
-
-    // Setup intersection observer for lazy loading
+    // Setup lazy loading for newly added items
     setupLazyLoading();
+}
+
+function createGridItem(file, index) {
+    const item = document.createElement('div');
+    item.className = 'grid-item';
+    item.dataset.filePath = file.path;
+    item.dataset.fileType = file.file_type;
+    item.dataset.fileName = file.name;
+    item.onclick = (e) => handleFileClick(e, file);
+    item.oncontextmenu = (e) => showContextMenu(e, file);
+
+    // Calculate grid position
+    const columns = virtualScrollData.columns;
+    const row = Math.floor(index / columns);
+    const col = index % columns;
+
+    // Use calculated grid size
+    const gridSizePx = virtualScrollData.actualItemSize;
+
+    // Position item absolutely within the spacer
+    item.style.position = 'absolute';
+    item.style.top = `${row * virtualScrollData.itemHeight + 2}px`; // Add small gap
+    item.style.left = `${col * (gridSizePx + 2) + 2}px`;
+    item.style.width = `${gridSizePx}px`;
+    item.style.height = `${gridSizePx}px`;
+
+    if (selectedFiles.has(file.path)) {
+        item.classList.add('selected');
+    }
+
+    if (file.is_dir) {
+        item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
+        item.classList.add('directory');
+    } else if (file.file_type === 'image') {
+        item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
+        item.classList.add('lazy-load');
+    } else if (file.file_type === 'video') {
+        item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
+        item.classList.add('lazy-load');
+    } else {
+        item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
+        item.classList.add('file');
+    }
+
+    if (selectedFiles.has(file.path)) {
+        const overlay = document.createElement('div');
+        overlay.className = 'selection-overlay';
+        item.appendChild(overlay);
+    }
+
+    return item;
 }
 
 function setupLazyLoading() {
     // Create intersection observer with some margin for preloading
+    if (intersectionObserver) {
+        intersectionObserver.disconnect();
+    }
+
     intersectionObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -106,7 +230,7 @@ function setupLazyLoading() {
         });
     }, {
         root: null,
-        rootMargin: '50px', // Start loading 50px before entering viewport
+        rootMargin: '50px',
         threshold: 0.1
     });
 
@@ -242,6 +366,29 @@ function updateSelectionUI() {
     document.getElementById('downloadBtn').style.display = hasSelection ? 'inline-block' : 'none';
     document.getElementById('deleteBtn').style.display = hasSelection ? 'inline-block' : 'none';
     document.getElementById('clearBtn').style.display = hasSelection ? 'inline-block' : 'none';
+
+    // Update virtual rendered items selection state
+    updateVirtualItemsSelection();
+}
+
+function updateVirtualItemsSelection() {
+    for (const [index, item] of virtualScrollData.renderedItems) {
+        const file = virtualScrollData.filteredFiles[index];
+        if (file) {
+            const isSelected = selectedFiles.has(file.path);
+            item.classList.toggle('selected', isSelected);
+
+            // Handle selection overlay
+            const existingOverlay = item.querySelector('.selection-overlay');
+            if (isSelected && !existingOverlay) {
+                const overlay = document.createElement('div');
+                overlay.className = 'selection-overlay';
+                item.appendChild(overlay);
+            } else if (!isSelected && existingOverlay) {
+                existingOverlay.remove();
+            }
+        }
+    }
 }
 
 function clearSelection() {
@@ -725,6 +872,12 @@ function updateGridSize() {
     document.documentElement.style.setProperty('--grid-size', gridSize + 'vh');
     // Store in localStorage for persistence
     localStorage.setItem('gridSize', gridSize);
+
+    // Recalculate virtual scroll grid if we have files loaded
+    if (virtualScrollData.filteredFiles.length > 0) {
+        const grid = document.getElementById('galleryGrid');
+        initializeVirtualScroll(grid);
+    }
 }
 
 // Load saved grid size on startup
@@ -738,6 +891,15 @@ function initializeGridSize() {
 
 // Initialize grid size
 initializeGridSize();
+
+// Handle window resize for virtual scrolling
+window.addEventListener('resize', () => {
+    if (virtualScrollData.filteredFiles.length > 0) {
+        // Recalculate grid dimensions
+        const grid = document.getElementById('galleryGrid');
+        initializeVirtualScroll(grid);
+    }
+});
 
 // Handle initial URL on page load
 if (window.location.hash) {
