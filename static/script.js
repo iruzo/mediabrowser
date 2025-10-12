@@ -12,7 +12,6 @@ let gridSize = 30; // Default grid size in vh units
 
 function loadDirectory(path = currentPath, pushState = true) {
     currentPath = path;
-    document.getElementById('pathIndicator').textContent = path.replace('/data', '') || '/';
 
     // Clear selection and search when changing directories
     selectedFiles.clear();
