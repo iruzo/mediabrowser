@@ -598,12 +598,12 @@ function setupMediaZoom() {
 
 
 function zoomIn() {
-    zoomLevel *= 1.2;
+    zoomLevel *= 1.05;
     updateMediaTransform();
 }
 
 function zoomOut() {
-    zoomLevel *= 0.8;
+    zoomLevel *= 0.95;
     if (zoomLevel < 1) zoomLevel = 1;
     updateMediaTransform();
 }
