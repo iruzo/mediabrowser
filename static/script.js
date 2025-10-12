@@ -8,7 +8,8 @@ let selectedFiles = new Set();
 let selectionMode = false;
 let searchTerm = '';
 let intersectionObserver = null;
-let gridSize = 30; // Default grid size in vh units
+// Set default grid size based on screen width (20 for phones, 30 for larger screens)
+let gridSize = window.innerWidth <= 480 ? 20 : 30;
 
 function loadDirectory(path = currentPath, pushState = true) {
     currentPath = path;
