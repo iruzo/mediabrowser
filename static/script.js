@@ -468,6 +468,34 @@ function resetZoom() {
     updateMediaTransform();
 }
 
+function moveUp() {
+    if (zoomLevel > 1) {
+        imagePos.y += 25; // Move up by 25px
+        updateMediaTransform();
+    }
+}
+
+function moveDown() {
+    if (zoomLevel > 1) {
+        imagePos.y -= 25; // Move down by 25px
+        updateMediaTransform();
+    }
+}
+
+function moveLeft() {
+    if (zoomLevel > 1) {
+        imagePos.x += 25; // Move left by 25px
+        updateMediaTransform();
+    }
+}
+
+function moveRight() {
+    if (zoomLevel > 1) {
+        imagePos.x -= 25; // Move right by 25px
+        updateMediaTransform();
+    }
+}
+
 function updateMediaTransform() {
     const img = document.getElementById('viewerImage');
     const video = document.querySelector('#viewerContent video');
