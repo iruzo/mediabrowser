@@ -8,7 +8,7 @@ let selectedFiles = new Set();
 let selectionMode = false;
 let searchTerm = '';
 let intersectionObserver = null;
-let gridSize = 20; // Default grid size in vh units
+let gridSize = 30; // Default grid size in vh units
 
 function loadDirectory(path = currentPath, pushState = true) {
     currentPath = path;
@@ -686,12 +686,12 @@ function loadDirectoryAndOpenFile(dirPath, filePath) {
 
 // Grid size controls
 function increaseGridSize() {
-    gridSize = Math.min(gridSize + 2, 30); // Max size 30vh
+    gridSize = Math.min(gridSize + 5, 35); // Max size 30vh
     updateGridSize();
 }
 
 function decreaseGridSize() {
-    gridSize = Math.max(gridSize - 2, 8); // Min size 8vh
+    gridSize = Math.max(gridSize - 5, 10); // Min size 8vh
     updateGridSize();
 }
 

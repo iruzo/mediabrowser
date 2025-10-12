@@ -118,7 +118,7 @@ body {
 
 .gallery-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(var(--grid-size, 20vh), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(var(--grid-size, 50vh), 1fr));
     gap: 0.2vh;
     padding: 0.2vh;
 }
