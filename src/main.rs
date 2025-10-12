@@ -9,7 +9,7 @@ use endpoints::{
 };
 use types::{ListQuery, FileQuery, DATA_DIR};
 
-const PORT: u16 = 8080;
+const PORT: u16 = 30003;
 
 #[tokio::main]
 async fn main() {

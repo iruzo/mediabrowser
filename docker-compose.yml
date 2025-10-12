@@ -3,14 +3,14 @@ services:
   pro:
     build: .
     ports:
-      - "8080:8080"
+      - "30003:30003"
     volumes:
       - ./data:/data:z
     restart: unless-stopped
     environment:
       - RUST_LOG=info
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      test: ["CMD", "curl", "-f", "http://localhost:30003/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -34,7 +34,7 @@ services:
       - ./static:/app/static
       - ./data:/data
     ports:
-      - "8080:8080"
+      - "30003:30003"
     environment:
       - RUST_LOG=debug
     profiles:
