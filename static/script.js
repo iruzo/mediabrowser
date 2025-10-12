@@ -317,15 +317,13 @@ function showCurrentMedia() {
     if (file.file_type === 'image') {
         content.innerHTML = `<img src="/api/file?path=${encodeURIComponent(file.path)}" alt="${escapeHtml(file.name)}" id="viewerImage">`;
         setupMediaZoom();
-        // Keep current zoom level but reset position
-        imagePos = { x: 0, y: 0 };
+        // Keep current zoom level AND position
         updateMediaTransform();
         zoomControls.style.display = 'block';
     } else if (file.file_type === 'video') {
         content.innerHTML = `<video src="/api/file?path=${encodeURIComponent(file.path)}" controls></video>`;
         setupMediaZoom();
-        // Keep current zoom level but reset position
-        imagePos = { x: 0, y: 0 };
+        // Keep current zoom level AND position
         updateMediaTransform();
         zoomControls.style.display = 'block';
     } else if (file.file_type === 'audio') {
