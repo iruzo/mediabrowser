@@ -18,7 +18,7 @@ pub async fn handle_file(query: FileQuery) -> Result<impl warp::Reply, Infallibl
 
     match fs::read(&file_path).await {
         Ok(contents) => {
-            let mime_type = mime_guess::from_path(&file_path)
+            let mime_type = mime_guess::from_path(file_path)
                 .first_or_octet_stream()
                 .to_string();
 

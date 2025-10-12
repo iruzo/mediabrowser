@@ -21,6 +21,24 @@ async fn main() {
     let static_files = warp::path::end()
         .map(|| warp::reply::html(include_str!("../static/index.html")));
 
+    let css_file = warp::path("styles.css")
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/styles.css"),
+                "content-type",
+                "text/css"
+            )
+        });
+
+    let js_file = warp::path("script.js")
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/script.js"),
+                "content-type",
+                "application/javascript"
+            )
+        });
+
     let api_list = warp::path("api")
         .and(warp::path("list"))
         .and(warp::get())
@@ -68,6 +86,8 @@ async fn main() {
         .and_then(handle_save);
 
     let routes = static_files
+        .or(css_file)
+        .or(js_file)
         .or(api_list)
         .or(api_file)
         .or(api_download)
@@ -84,4 +104,3 @@ async fn main() {
         .run(([0, 0, 0, 0], PORT))
         .await;
 }
-
