@@ -1,9 +1,9 @@
 <h3 align="center">
-    Simple lightweight file browser.
+    A simple, lightweight web-based file browser
 </h3>
 
 <div align="center">
-	<img src="https://raw.githubusercontent.com/iruzo/mediabrowser/main/assets/preview.webp"/>
+	<img src="./assets/preview.webp"/>
 </div>
 
 ## Usage
