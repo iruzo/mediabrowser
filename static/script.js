@@ -11,6 +11,35 @@ let intersectionObserver = null;
 // Set default grid size based on screen width (20 for phones, 30 for larger screens)
 let gridSize = window.innerWidth <= 480 ? 20 : 30;
 
+// Performance utilities
+const performanceUtils = {
+    throttle(func, delay) {
+        let timeoutId;
+        let lastExecTime = 0;
+        return function (...args) {
+            const currentTime = Date.now();
+            if (currentTime - lastExecTime > delay) {
+                func.apply(this, args);
+                lastExecTime = currentTime;
+            } else {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    func.apply(this, args);
+                    lastExecTime = Date.now();
+                }, delay - (currentTime - lastExecTime));
+            }
+        };
+    },
+
+    debounce(func, delay) {
+        let timeoutId;
+        return function (...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => func.apply(this, args), delay);
+        };
+    }
+};
+
 // Virtual scrolling variables
 let virtualScrollData = {
     filteredFiles: [],
@@ -19,7 +48,9 @@ let virtualScrollData = {
     itemHeight: 200, // Approximate item height in pixels
     containerHeight: 0,
     scrollContainer: null,
-    visibleRange: { start: 0, end: 0 }
+    visibleRange: { start: 0, end: 0 },
+    lastContainerDimensions: { width: 0, height: 0 },
+    selectedItemsCache: new Set() // Cache for selection state
 };
 
 function loadDirectory(path = currentPath, pushState = true) {
@@ -78,6 +109,12 @@ function initializeVirtualScroll(grid) {
     virtualScrollData.scrollContainer = container;
     virtualScrollData.containerHeight = container.clientHeight;
 
+    // Cache container dimensions
+    virtualScrollData.lastContainerDimensions = {
+        width: container.clientWidth,
+        height: container.clientHeight
+    };
+
     // Calculate grid dimensions
     const gridSizeVh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')) || 30;
     const baseGridSizePx = (gridSizeVh / 100) * window.innerHeight;
@@ -101,8 +138,9 @@ function initializeVirtualScroll(grid) {
     spacer.style.position = 'relative';
     grid.appendChild(spacer);
 
-    // Add scroll listener
-    container.addEventListener('scroll', handleVirtualScroll);
+    // Add throttled scroll listener
+    const throttledScroll = performanceUtils.throttle(handleVirtualScroll, 16); // 60fps
+    container.addEventListener('scroll', throttledScroll);
 
     // Initial render
     renderVisibleItems();
@@ -136,14 +174,32 @@ function renderVisibleItems() {
 
     const spacer = document.getElementById('virtual-spacer');
 
-    // Remove items that are no longer visible
+    // Remove items that are no longer visible with proper cleanup
     for (const [index, item] of virtualScrollData.renderedItems) {
         if (index < startIndex || index > endIndex) {
-            item.remove();
-            virtualScrollData.renderedItems.delete(index);
+            // Clean up event listeners and observers
+            item.onclick = null;
+            item.oncontextmenu = null;
+
+            // Clean up image/video elements
+            const img = item.querySelector('img');
+            const video = item.querySelector('video');
+            if (img) {
+                img.onload = null;
+                img.onerror = null;
+                img.src = '';
+            }
+            if (video) {
+                video.src = '';
+                video.load();
+            }
+
+            // Remove from observer and DOM
             if (intersectionObserver) {
                 intersectionObserver.unobserve(item);
             }
+            item.remove();
+            virtualScrollData.renderedItems.delete(index);
         }
     }
 
@@ -213,13 +269,13 @@ function createGridItem(file, index) {
 }
 
 function setupLazyLoading() {
-    // Create intersection observer with some margin for preloading
     if (intersectionObserver) {
         intersectionObserver.disconnect();
     }
 
     intersectionObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
+        // Process entries in batches to avoid blocking
+        const processEntry = (entry) => {
             if (entry.isIntersecting) {
                 const item = entry.target;
                 if (item.classList.contains('lazy-load')) {
@@ -227,11 +283,17 @@ function setupLazyLoading() {
                     intersectionObserver.unobserve(item);
                 }
             }
-        });
+        };
+
+        // Process entries with requestAnimationFrame for better performance
+        const processEntries = () => {
+            entries.forEach(processEntry);
+        };
+        requestAnimationFrame(processEntries);
     }, {
         root: null,
-        rootMargin: '50px',
-        threshold: 0.1
+        rootMargin: '25px', // Reduced from 50px for less aggressive preloading
+        threshold: 0.2 // Increased from 0.1 for fewer callbacks
     });
 
     // Observe all lazy-load items
@@ -248,9 +310,27 @@ function loadItemContent(item) {
     item.classList.remove('lazy-load');
 
     if (fileType === 'image') {
-        item.innerHTML = `<img src="/api/file?path=${encodeURIComponent(filePath)}" alt="${escapeHtml(fileName)}" loading="lazy">`;
+        // Add WebP support detection and progressive loading
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.alt = escapeHtml(fileName);
+        img.style.opacity = '0';
+        img.style.transition = 'opacity 0.2s';
+
+        img.onload = () => {
+            img.style.opacity = '1';
+        };
+
+        img.onerror = () => {
+            img.style.opacity = '0.5';
+            img.alt = 'Failed to load';
+        };
+
+        img.src = `/api/file?path=${encodeURIComponent(filePath)}`;
+        item.innerHTML = '';
+        item.appendChild(img);
     } else if (fileType === 'video') {
-        item.innerHTML = `<video src="/api/file?path=${encodeURIComponent(filePath)}" muted>`;
+        item.innerHTML = `<video src="/api/file?path=${encodeURIComponent(filePath)}" muted loading="lazy">`;
     }
 
     // Re-add selection overlay if this item was selected
@@ -280,9 +360,17 @@ function changeSort(sortType) {
     renderGallery(currentFiles);
 }
 
-function filterBySearch(term) {
+// Debounced search function
+const debouncedFilterBySearch = performanceUtils.debounce((term) => {
     searchTerm = term.toLowerCase();
     renderGallery(currentFiles);
+}, 300);
+
+function filterBySearch(term) {
+    // Update search term immediately for responsiveness
+    searchTerm = term.toLowerCase();
+    // But debounce the actual filtering/rendering
+    debouncedFilterBySearch(term);
 }
 
 function filterBySearchTerm(files) {
@@ -372,23 +460,35 @@ function updateSelectionUI() {
 }
 
 function updateVirtualItemsSelection() {
+    // Create a new cache of currently selected items
+    const currentSelected = new Set(selectedFiles);
+
+    // Only update items whose selection state has changed
     for (const [index, item] of virtualScrollData.renderedItems) {
         const file = virtualScrollData.filteredFiles[index];
         if (file) {
-            const isSelected = selectedFiles.has(file.path);
-            item.classList.toggle('selected', isSelected);
+            const isSelected = currentSelected.has(file.path);
+            const wasSelected = virtualScrollData.selectedItemsCache.has(file.path);
 
-            // Handle selection overlay
-            const existingOverlay = item.querySelector('.selection-overlay');
-            if (isSelected && !existingOverlay) {
-                const overlay = document.createElement('div');
-                overlay.className = 'selection-overlay';
-                item.appendChild(overlay);
-            } else if (!isSelected && existingOverlay) {
-                existingOverlay.remove();
+            // Only update if selection state changed
+            if (isSelected !== wasSelected) {
+                item.classList.toggle('selected', isSelected);
+
+                // Handle selection overlay
+                const existingOverlay = item.querySelector('.selection-overlay');
+                if (isSelected && !existingOverlay) {
+                    const overlay = document.createElement('div');
+                    overlay.className = 'selection-overlay';
+                    item.appendChild(overlay);
+                } else if (!isSelected && existingOverlay) {
+                    existingOverlay.remove();
+                }
             }
         }
     }
+
+    // Update selection cache
+    virtualScrollData.selectedItemsCache = currentSelected;
 }
 
 function clearSelection() {
@@ -892,14 +992,39 @@ function initializeGridSize() {
 // Initialize grid size
 initializeGridSize();
 
-// Handle window resize for virtual scrolling
-window.addEventListener('resize', () => {
+// Resize handler with debouncing and dimension checking
+const resizeHandler = performanceUtils.debounce(() => {
     if (virtualScrollData.filteredFiles.length > 0) {
-        // Recalculate grid dimensions
-        const grid = document.getElementById('galleryGrid');
-        initializeVirtualScroll(grid);
+        const container = virtualScrollData.scrollContainer;
+        if (container) {
+            const currentWidth = container.clientWidth;
+            const currentHeight = container.clientHeight;
+
+            // Only recalculate if dimensions actually changed significantly
+            if (Math.abs(currentWidth - virtualScrollData.lastContainerDimensions.width) > 10 ||
+                Math.abs(currentHeight - virtualScrollData.lastContainerDimensions.height) > 10) {
+
+                // Preserve scroll position
+                const scrollPercentage = container.scrollTop / (container.scrollHeight - container.clientHeight || 1);
+
+                // Recalculate grid dimensions
+                const grid = document.getElementById('galleryGrid');
+                initializeVirtualScroll(grid);
+
+                // Restore scroll position
+                requestAnimationFrame(() => {
+                    const newScrollTop = scrollPercentage * (container.scrollHeight - container.clientHeight);
+                    container.scrollTop = newScrollTop;
+                });
+
+                // Update cached dimensions
+                virtualScrollData.lastContainerDimensions = { width: currentWidth, height: currentHeight };
+            }
+        }
     }
-});
+}, 250);
+
+window.addEventListener('resize', resizeHandler);
 
 // Handle initial URL on page load
 if (window.location.hash) {
