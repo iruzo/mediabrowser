@@ -306,7 +306,6 @@ dependencies = [
  "mime_guess",
  "percent-encoding",
  "serde",
- "serde_json",
  "tokio",
  "warp",
  "zip",

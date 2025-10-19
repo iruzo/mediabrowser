@@ -379,12 +379,14 @@ function loadItemContent(item) {
             img.alt = 'Failed to load';
         };
 
-        const servePath = filePath.replace('/data', '') || '/';
+        const pathWithoutData = filePath.replace('/data', '') || '/';
+        const servePath = encodeURIPath(pathWithoutData);
         img.src = servePath;
         item.innerHTML = '';
         item.appendChild(img);
     } else if (fileType === 'video') {
-        const servePath = filePath.replace('/data', '') || '/';
+        const pathWithoutData = filePath.replace('/data', '') || '/';
+        const servePath = encodeURIPath(pathWithoutData);
         item.innerHTML = `<video src="${servePath}" muted loading="lazy">`;
     }
 
@@ -641,7 +643,8 @@ function showCurrentMedia() {
     const viewer = document.getElementById('viewer');
     const content = document.getElementById('viewerContent');
     const zoomControls = document.getElementById('zoomControls');
-    const servePath = file.path.replace('/data', '') || '/';
+    const pathWithoutData = file.path.replace('/data', '') || '/';
+    const servePath = encodeURIPath(pathWithoutData);
 
     if (file.file_type === 'image') {
         content.innerHTML = `<img src="${servePath}" alt="${escapeHtml(file.name)}" id="viewerImage">`;
@@ -687,6 +690,10 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function encodeURIPath(path) {
+    return path.split('/').map(segment => encodeURIComponent(segment)).join('/');
 }
 
 
