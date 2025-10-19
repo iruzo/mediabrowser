@@ -13,6 +13,7 @@
 - **Upload support** - Upload files up to 256GB
 - **ZIP downloads** - Download multiple files and directories as ZIP archives
 - **File management** - Create folders, delete files
+- **File preview** - View images, videos, audio, and text files
 
 ## Usage
 
@@ -83,7 +84,6 @@ export DATA_DIR=/path/to/your/files
 - `GET /api/download-multiple?paths=/data/file1,/data/file2` - Download as ZIP
 - `DELETE /api/delete?path=/data/file` - Delete file/directory
 - `POST /api/mkdir?path=/data/newfolder` - Create directory
-- `POST /api/save?path=/data/file.txt` - Save text file content
 - `GET /api/download?path=/data/file` - Download single file
 
 ### Apache httpd Routes (Root)
