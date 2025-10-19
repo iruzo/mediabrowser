@@ -827,18 +827,40 @@ function triggerUpload() {
     document.getElementById('fileInput').click();
 }
 
-function uploadFiles(files) {
-    const formData = new FormData();
-    for (const file of files) {
+async function uploadFiles(files) {
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
         formData.append('file', file);
+
+        try {
+            const response = await fetch(`/api/upload?path=${encodeURIComponent(currentPath)}`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                alert(`Failed to upload ${file.name}: ${text}`);
+                failCount++;
+            } else {
+                await response.json();
+                successCount++;
+            }
+        } catch (err) {
+            alert(`Failed to upload ${file.name}: ${err.message}`);
+            failCount++;
+        }
     }
 
-    fetch(`/api/upload?path=${encodeURIComponent(currentPath)}`, {
-        method: 'POST',
-        body: formData
-    })
-    .then(() => loadDirectory(currentPath, false))
-    .catch(() => alert('upload failed'));
+    if (failCount > 0 && successCount > 0) {
+        alert(`Upload completed: ${successCount} succeeded, ${failCount} failed`);
+    }
+
+    loadDirectory(currentPath, false);
 }
 
 function createFolder() {

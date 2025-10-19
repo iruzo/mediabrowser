@@ -68,8 +68,7 @@ async fn main() {
         .and(warp::path("upload"))
         .and(warp::post())
         .and(warp::query::<ListQuery>())
-        .and(warp::body::content_length_limit(1024 * 1024 * 100)) // 100MB limit
-        .and(warp::multipart::form().max_length(1024 * 1024 * 100))
+        .and(warp::multipart::form().max_length(1024 * 1024 * 1024 * 256)) // 256GB limit
         .and_then(handle_upload);
 
     let api_delete = warp::path("api")

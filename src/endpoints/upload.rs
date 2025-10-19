@@ -19,7 +19,6 @@ pub async fn handle_upload(query: ListQuery, mut form: warp::multipart::FormData
         ));
     }
 
-    // Ensure target directory exists
     if let Err(e) = fs::create_dir_all(&target_dir).await {
         return Ok(warp::reply::with_status(
             warp::reply::json(&format!("Failed to create upload directory: {}", e)),
@@ -29,39 +28,44 @@ pub async fn handle_upload(query: ListQuery, mut form: warp::multipart::FormData
 
     let mut uploaded_files = 0;
 
-    while let Ok(Some(part)) = form.try_next().await {
-        let name = part.name();
+    loop {
+        match form.try_next().await {
+            Ok(Some(part)) => {
+                let name = part.name();
 
-        if name == "file" {
-            if let Some(filename) = part.filename() {
-                // Add timestamp to filename to prevent overwrites
-                let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
-                let timestamped_filename = format!("{}_{}", timestamp, filename);
-                let file_path = target_dir.join(timestamped_filename);
+                if name == "file" {
+                    if let Some(filename) = part.filename() {
+                        let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
+                        let timestamped_filename = format!("{}_{}", timestamp, filename);
+                        let file_path = target_dir.join(timestamped_filename);
 
-                // Collect bytes from stream
-                let mut bytes = Vec::new();
-                let mut stream = part.stream();
+                        let mut bytes = Vec::new();
+                        let mut stream = part.stream();
 
-                while let Ok(chunk) = stream.try_next().await {
-                    if let Some(chunk) = chunk {
-                        bytes.extend_from_slice(chunk.chunk());
-                    } else {
-                        break;
+                        while let Some(chunk) = stream.try_next().await.unwrap_or(None) {
+                            bytes.extend_from_slice(chunk.chunk());
+                        }
+
+                        match fs::write(&file_path, &bytes).await {
+                            Ok(_) => {
+                                uploaded_files += 1;
+                            }
+                            Err(e) => {
+                                return Ok(warp::reply::with_status(
+                                    warp::reply::json(&format!("Failed to save file: {}", e)),
+                                    StatusCode::INTERNAL_SERVER_ERROR,
+                                ));
+                            }
+                        }
                     }
                 }
-
-                match fs::write(&file_path, &bytes).await {
-                    Ok(_) => {
-                        uploaded_files += 1;
-                    }
-                    Err(e) => {
-                        return Ok(warp::reply::with_status(
-                            warp::reply::json(&format!("Failed to save file: {}", e)),
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                        ));
-                    }
-                }
+            }
+            Ok(None) => break,
+            Err(e) => {
+                return Ok(warp::reply::with_status(
+                    warp::reply::json(&format!("Failed to process upload: {}", e)),
+                    StatusCode::BAD_REQUEST,
+                ));
             }
         }
     }
