@@ -8,7 +8,6 @@ let selectedFiles = new Set();
 let selectionMode = false;
 let searchTerm = '';
 let intersectionObserver = null;
-// Set default grid size based on screen width (20 for phones, 30 for larger screens)
 let gridSize = window.innerWidth <= 480 ? 20 : 30;
 
 // Performance utilities
@@ -64,8 +63,8 @@ function loadDirectory(path = currentPath, pushState = true) {
     updateSelectionUI();
 
     if (pushState) {
-        const pathHash = path === '/data' ? '' : encodeURIComponent(path.replace('/data', ''));
-        window.history.pushState({ path: path }, '', pathHash ? `#dir${pathHash}` : '#');
+        const urlPath = path === '/data' ? '/' : path.replace('/data', '');
+        window.history.pushState({ path: path }, '', urlPath);
     }
 
     fetch(`/api/list?path=${encodeURIComponent(path)}`)
@@ -618,12 +617,12 @@ function showCurrentMedia() {
     viewer.classList.add('active');
 
     // Don't modify history when opening from direct URL
-    if (!window.location.hash.startsWith('#file')) {
+    if (!window.location.pathname.startsWith('/data/') || window.location.pathname.endsWith('/')) {
         // Store current directory state before opening viewer
-        const currentDirHash = currentPath === '/data' ? '#' : `#dir${encodeURIComponent(currentPath.replace('/data', ''))}`;
-        window.history.replaceState({ path: currentPath }, '', currentDirHash);
-        const fileHash = `#file${encodeURIComponent(file.path.replace('/data', ''))}`;
-        window.history.pushState({ viewer: true, path: currentPath, file: file.path }, '', fileHash);
+        const currentDirPath = currentPath === '/data' ? '/' : currentPath.replace('/data', '');
+        window.history.replaceState({ path: currentPath }, '', currentDirPath);
+        const filePath = file.path.replace('/data', '');
+        window.history.pushState({ viewer: true, path: currentPath, file: file.path }, '', filePath);
     }
 }
 
@@ -646,8 +645,8 @@ function nextMedia() {
 
     // Update URL with new file
     const file = currentFiles[currentMediaIndex];
-    const fileHash = `#file${file.path.replace('/data', '')}`;
-    window.history.replaceState({ viewer: true, path: currentPath, file: file.path }, '', fileHash);
+    const filePath = file.path.replace('/data', '');
+    window.history.replaceState({ viewer: true, path: currentPath, file: file.path }, '', filePath);
 
     showCurrentMedia();
 }
@@ -664,8 +663,8 @@ function previousMedia() {
 
     // Update URL with new file
     const file = currentFiles[currentMediaIndex];
-    const fileHash = `#file${file.path.replace('/data', '')}`;
-    window.history.replaceState({ viewer: true, path: currentPath, file: file.path }, '', fileHash);
+    const filePath = file.path.replace('/data', '');
+    window.history.replaceState({ viewer: true, path: currentPath, file: file.path }, '', filePath);
 
     showCurrentMedia();
 }
@@ -809,10 +808,11 @@ function closeViewer() {
     selectedFile = null;
     resetZoom();
 
-    if (window.location.hash.startsWith('#file')) {
+    const isViewingFile = !window.location.pathname.endsWith('/') && window.location.pathname !== '/';
+    if (isViewingFile) {
         // Navigate to the directory instead of going back
-        const currentDirHash = currentPath === '/data' ? '#' : `#dir${encodeURIComponent(currentPath.replace('/data', ''))}`;
-        window.location.hash = currentDirHash;
+        const currentDirPath = currentPath === '/data' ? '/' : currentPath.replace('/data', '');
+        window.history.pushState({ path: currentPath }, '', currentDirPath);
     }
 }
 
@@ -969,29 +969,29 @@ window.addEventListener('popstate', (e) => {
 });
 
 function handleUrlChange() {
-    if (window.location.hash.startsWith('#file')) {
-        const fileHashPath = decodeURIComponent(window.location.hash.replace('#file', ''));
-        const filePath = '/data' + fileHashPath;
+    const pathname = window.location.pathname;
 
-        // Calculate directory path correctly
-        let dirPath;
-        if (fileHashPath.includes('/')) {
-            // File is in a subdirectory
-            const lastSlashIndex = fileHashPath.lastIndexOf('/');
-            dirPath = '/data' + fileHashPath.substring(0, lastSlashIndex);
-        } else {
-            // File is in root directory
-            dirPath = '/data';
-        }
-
-        // Load directory first and then open file
-        loadDirectoryAndOpenFile(dirPath, filePath);
-
-    } else if (window.location.hash.startsWith('#dir')) {
-        const path = '/data' + decodeURIComponent(window.location.hash.replace('#dir', ''));
-        loadDirectory(path, false);
-    } else if (!window.location.hash || window.location.hash === '#') {
+    // Root path
+    if (pathname === '/' || pathname === '') {
         loadDirectory('/data', false);
+        return;
+    }
+
+    // Check if it's a file (no trailing slash) or directory (trailing slash)
+    const isDirectory = pathname.endsWith('/');
+    const fullPath = '/data' + pathname;
+
+    if (isDirectory) {
+        // Directory path
+        const dirPath = fullPath.replace(/\/$/, ''); // Remove trailing slash
+        loadDirectory(dirPath || '/data', false);
+    } else {
+        // File path - calculate directory and load file
+        const lastSlashIndex = pathname.lastIndexOf('/');
+        const dirPathSuffix = pathname.substring(0, lastSlashIndex);
+        const dirPath = dirPathSuffix ? '/data' + dirPathSuffix : '/data';
+
+        loadDirectoryAndOpenFile(dirPath, fullPath);
     }
 }
 

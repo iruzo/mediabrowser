@@ -5,12 +5,13 @@ mod types;
 
 use endpoints::{
     handle_list, handle_file, handle_download, handle_download_multiple,
-    handle_upload, handle_delete, handle_mkdir, handle_save
+    handle_upload, handle_delete, handle_mkdir, handle_save, handle_serve
 };
 use types::{ListQuery, FileQuery, DATA_DIR};
 use endpoints::download_multiple::DownloadMultipleQuery;
 
-const PORT: u16 = 30003;
+const UI_PORT: u16 = 30003;
+const HTTPD_PORT: u16 = 30002;
 
 #[tokio::main]
 async fn main() {
@@ -91,8 +92,10 @@ async fn main() {
         .and(warp::body::bytes())
         .and_then(handle_save);
 
-    let routes = static_files
-        .or(css_file)
+    let spa_fallback = warp::any()
+        .map(|| warp::reply::html(include_str!("../static/index.html")));
+
+    let ui_routes = css_file
         .or(js_file)
         .or(api_list)
         .or(api_file)
@@ -102,12 +105,25 @@ async fn main() {
         .or(api_delete)
         .or(api_mkdir)
         .or(api_save)
+        .or(static_files)
+        .or(spa_fallback)
+        .with(cors.clone());
+
+    let httpd_serve = warp::path::tail()
+        .and_then(handle_serve);
+
+    let httpd_routes = httpd_serve
         .with(cors);
 
-    println!("File manager server starting on http://0.0.0.0:{}", PORT);
+    println!("Enhanced UI starting on http://0.0.0.0:{}", UI_PORT);
+    println!("Apache httpd starting on http://0.0.0.0:{}", HTTPD_PORT);
     println!("Serving files from: {}", DATA_DIR);
 
-    warp::serve(routes)
-        .run(([0, 0, 0, 0], PORT))
-        .await;
+    let ui_server = warp::serve(ui_routes)
+        .run(([0, 0, 0, 0], UI_PORT));
+
+    let httpd_server = warp::serve(httpd_routes)
+        .run(([0, 0, 0, 0], HTTPD_PORT));
+
+    tokio::join!(ui_server, httpd_server);
 }

@@ -12,6 +12,6 @@ FROM scratch
 
 COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/filemanager /filemanager
 
-EXPOSE 30003
+EXPOSE 30003 30002
 
 CMD ["/filemanager"]
