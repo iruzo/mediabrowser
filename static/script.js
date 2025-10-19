@@ -430,11 +430,19 @@ function handleFileClick(e, file) {
 }
 
 function toggleFileSelection(file) {
+    const wasEmpty = selectedFiles.size === 0;
+
     if (selectedFiles.has(file.path)) {
         selectedFiles.delete(file.path);
     } else {
         selectedFiles.add(file.path);
     }
+
+    // Push history state when first file is selected
+    if (wasEmpty && selectedFiles.size > 0) {
+        window.history.pushState({ selection: true, path: currentPath }, '', window.location.hash);
+    }
+
     updateSelectionUI();
     renderGallery(currentFiles);
 }
@@ -503,6 +511,11 @@ function toggleSelectionMode() {
     if (!selectionMode) {
         // Exiting selection mode, clear selections
         selectedFiles.clear();
+    } else {
+        // Entering selection mode, push history state
+        if (selectedFiles.size > 0) {
+            window.history.pushState({ selection: true, path: currentPath }, '', window.location.hash);
+        }
     }
     updateSelectionUI();
     renderGallery(currentFiles);
@@ -890,6 +903,12 @@ document.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('popstate', (e) => {
+    // Handle selection mode - clear selection instead of navigating
+    if (selectedFiles.size > 0 || selectionMode) {
+        clearSelection();
+        return;
+    }
+
     if (document.getElementById('viewer').classList.contains('active')) {
         // Stop any playing videos or audio
         const video = document.querySelector('#viewerContent video');
