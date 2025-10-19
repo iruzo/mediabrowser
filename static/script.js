@@ -866,7 +866,11 @@ function showContextMenu(e, file) {
 
 function downloadFile() {
     if (selectedFile) {
-        window.open(`/api/download?path=${encodeURIComponent(selectedFile.path)}`);
+        if (selectedFile.is_dir) {
+            window.open(`/api/download-multiple?paths=${encodeURIComponent(selectedFile.path)}`);
+        } else {
+            window.open(`/api/download?path=${encodeURIComponent(selectedFile.path)}`);
+        }
     }
     hideContextMenu();
 }
@@ -882,7 +886,11 @@ function deleteFile() {
 
 function downloadCurrent() {
     if (selectedFile) {
-        window.open(`/api/download?path=${encodeURIComponent(selectedFile.path)}`);
+        if (selectedFile.is_dir) {
+            window.open(`/api/download-multiple?paths=${encodeURIComponent(selectedFile.path)}`);
+        } else {
+            window.open(`/api/download?path=${encodeURIComponent(selectedFile.path)}`);
+        }
     }
 }
 
