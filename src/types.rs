@@ -1,14 +1,4 @@
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FileInfo {
-    pub name: String,
-    pub path: String,
-    pub is_dir: bool,
-    pub size: u64,
-    pub modified: String,
-    pub file_type: String,
-}
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct ListQuery {

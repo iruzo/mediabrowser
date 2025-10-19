@@ -63,19 +63,73 @@ function loadDirectory(path = currentPath, pushState = true) {
     updateSelectionUI();
 
     if (pushState) {
-        const urlPath = path === '/data' ? '/' : path.replace('/data', '');
+        const urlPath = path === '/data' ? '/ui/' : '/ui' + path.replace('/data', '') + '/';
         window.history.pushState({ path: path }, '', urlPath);
     }
 
-    fetch(`/api/list?path=${encodeURIComponent(path)}`)
-        .then(response => response.json())
-        .then(files => {
+    const servePath = path === '/data' ? '/' : path.replace('/data', '') + '/';
+    fetch(servePath)
+        .then(response => response.text())
+        .then(html => {
+            const files = parseHtmlListing(html, path);
             currentFiles = files;
             renderGallery(files);
         })
         .catch(() => {
             document.getElementById('galleryGrid').innerHTML = '<div>error</div>';
         });
+}
+
+function parseHtmlListing(html, currentPath) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const links = doc.querySelectorAll('ul li a');
+    const files = [];
+
+    links.forEach(link => {
+        const href = link.getAttribute('href');
+        const text = link.textContent.trim();
+
+        if (!href || href === '../') return; // Skip parent directory link if exists
+
+        const isDir = href.endsWith('/');
+        const name = isDir ? text.replace(/\/$/, '') : text;
+        const filePath = currentPath === '/data'
+            ? `/data/${name}`
+            : `${currentPath}/${name}`;
+
+        const fileType = isDir ? 'directory' : determineFileType(name);
+
+        files.push({
+            name: name,
+            path: filePath,
+            is_dir: isDir,
+            file_type: fileType,
+            size: 0,
+            modified: ''
+        });
+    });
+
+    return files;
+}
+
+function determineFileType(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+
+    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico'];
+    const videoExts = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'ogv'];
+    const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'wma', 'm4a'];
+    const textExts = ['txt', 'md', 'rs', 'js', 'ts', 'html', 'css', 'json', 'xml', 'log', 'py', 'java', 'c', 'cpp', 'h'];
+    const archiveExts = ['zip', 'rar', 'tar', 'gz', '7z'];
+
+    if (imageExts.includes(ext)) return 'image';
+    if (videoExts.includes(ext)) return 'video';
+    if (audioExts.includes(ext)) return 'audio';
+    if (textExts.includes(ext)) return 'text';
+    if (ext === 'pdf') return 'pdf';
+    if (archiveExts.includes(ext)) return 'archive';
+
+    return 'unknown';
 }
 
 function renderGallery(files) {
@@ -325,11 +379,13 @@ function loadItemContent(item) {
             img.alt = 'Failed to load';
         };
 
-        img.src = `/api/file?path=${encodeURIComponent(filePath)}`;
+        const servePath = filePath.replace('/data', '') || '/';
+        img.src = servePath;
         item.innerHTML = '';
         item.appendChild(img);
     } else if (fileType === 'video') {
-        item.innerHTML = `<video src="/api/file?path=${encodeURIComponent(filePath)}" muted loading="lazy">`;
+        const servePath = filePath.replace('/data', '') || '/';
+        item.innerHTML = `<video src="${servePath}" muted loading="lazy">`;
     }
 
     // Re-add selection overlay if this item was selected
@@ -585,25 +641,26 @@ function showCurrentMedia() {
     const viewer = document.getElementById('viewer');
     const content = document.getElementById('viewerContent');
     const zoomControls = document.getElementById('zoomControls');
+    const servePath = file.path.replace('/data', '') || '/';
 
     if (file.file_type === 'image') {
-        content.innerHTML = `<img src="/api/file?path=${encodeURIComponent(file.path)}" alt="${escapeHtml(file.name)}" id="viewerImage">`;
+        content.innerHTML = `<img src="${servePath}" alt="${escapeHtml(file.name)}" id="viewerImage">`;
         setupMediaZoom();
         // Keep current zoom level AND position
         updateMediaTransform();
         zoomControls.style.display = 'block';
     } else if (file.file_type === 'video') {
-        content.innerHTML = `<video src="/api/file?path=${encodeURIComponent(file.path)}" controls></video>`;
+        content.innerHTML = `<video src="${servePath}" controls></video>`;
         setupMediaZoom();
         // Keep current zoom level AND position
         updateMediaTransform();
         zoomControls.style.display = 'block';
     } else if (file.file_type === 'audio') {
-        content.innerHTML = `<audio src="/api/file?path=${encodeURIComponent(file.path)}" controls></audio>`;
+        content.innerHTML = `<audio src="${servePath}" controls></audio>`;
         zoomControls.style.display = 'none';
     } else {
         // Show text content for non-media files
-        fetch(`/api/file?path=${encodeURIComponent(file.path)}`)
+        fetch(servePath)
             .then(response => response.text())
             .then(text => {
                 content.innerHTML = `<div class="text-viewer">${escapeHtml(text)}</div>`;
@@ -617,11 +674,11 @@ function showCurrentMedia() {
     viewer.classList.add('active');
 
     // Don't modify history when opening from direct URL
-    if (!window.location.pathname.startsWith('/data/') || window.location.pathname.endsWith('/')) {
+    if (!window.location.pathname.startsWith('/ui/') || window.location.pathname.endsWith('/')) {
         // Store current directory state before opening viewer
-        const currentDirPath = currentPath === '/data' ? '/' : currentPath.replace('/data', '');
+        const currentDirPath = currentPath === '/data' ? '/ui/' : '/ui' + currentPath.replace('/data', '') + '/';
         window.history.replaceState({ path: currentPath }, '', currentDirPath);
-        const filePath = file.path.replace('/data', '');
+        const filePath = '/ui' + file.path.replace('/data', '');
         window.history.pushState({ viewer: true, path: currentPath, file: file.path }, '', filePath);
     }
 }
@@ -645,7 +702,7 @@ function nextMedia() {
 
     // Update URL with new file
     const file = currentFiles[currentMediaIndex];
-    const filePath = file.path.replace('/data', '');
+    const filePath = '/ui' + file.path.replace('/data', '');
     window.history.replaceState({ viewer: true, path: currentPath, file: file.path }, '', filePath);
 
     showCurrentMedia();
@@ -663,7 +720,7 @@ function previousMedia() {
 
     // Update URL with new file
     const file = currentFiles[currentMediaIndex];
-    const filePath = file.path.replace('/data', '');
+    const filePath = '/ui' + file.path.replace('/data', '');
     window.history.replaceState({ viewer: true, path: currentPath, file: file.path }, '', filePath);
 
     showCurrentMedia();
@@ -808,19 +865,39 @@ function closeViewer() {
     selectedFile = null;
     resetZoom();
 
-    const isViewingFile = !window.location.pathname.endsWith('/') && window.location.pathname !== '/';
+    const isViewingFile = !window.location.pathname.endsWith('/') && window.location.pathname !== '/ui';
     if (isViewingFile) {
         // Navigate to the directory instead of going back
-        const currentDirPath = currentPath === '/data' ? '/' : currentPath.replace('/data', '');
+        const currentDirPath = currentPath === '/data' ? '/ui/' : '/ui' + currentPath.replace('/data', '') + '/';
         window.history.pushState({ path: currentPath }, '', currentDirPath);
     }
 }
 
-function goUp() {
-    const parent = currentPath.substring(0, currentPath.lastIndexOf('/')) || '/data';
-    if (parent !== '/data' || currentPath !== '/data') {
-        loadDirectory(parent, true);
+function goPrev() {
+    let pathname = window.location.pathname;
+
+    // Remove /ui prefix
+    if (pathname.startsWith('/ui')) {
+        pathname = pathname.substring(3);
     }
+
+    // Remove trailing slash if exists
+    if (pathname.endsWith('/')) {
+        pathname = pathname.slice(0, -1);
+    }
+
+    // If empty or root, we're already at root
+    if (!pathname || pathname === '/') {
+        return;
+    }
+
+    // Remove last segment
+    const lastSlash = pathname.lastIndexOf('/');
+    const parentPath = pathname.substring(0, lastSlash);
+
+    // Navigate to parent
+    const uiPath = parentPath ? '/ui' + parentPath + '/' : '/ui/';
+    window.location.href = uiPath;
 }
 
 function triggerUpload() {
@@ -971,15 +1048,22 @@ window.addEventListener('popstate', (e) => {
 function handleUrlChange() {
     const pathname = window.location.pathname;
 
-    // Root path
-    if (pathname === '/' || pathname === '') {
+    // Root path or /ui
+    if (pathname === '/ui' || pathname === '/ui/') {
         loadDirectory('/data', false);
         return;
     }
 
+    // Remove /ui prefix
+    if (!pathname.startsWith('/ui/')) {
+        return;
+    }
+
+    const pathWithoutUI = pathname.substring(3); // Remove '/ui'
+
     // Check if it's a file (no trailing slash) or directory (trailing slash)
-    const isDirectory = pathname.endsWith('/');
-    const fullPath = '/data' + pathname;
+    const isDirectory = pathWithoutUI.endsWith('/');
+    const fullPath = '/data' + pathWithoutUI;
 
     if (isDirectory) {
         // Directory path
@@ -987,8 +1071,8 @@ function handleUrlChange() {
         loadDirectory(dirPath || '/data', false);
     } else {
         // File path - calculate directory and load file
-        const lastSlashIndex = pathname.lastIndexOf('/');
-        const dirPathSuffix = pathname.substring(0, lastSlashIndex);
+        const lastSlashIndex = pathWithoutUI.lastIndexOf('/');
+        const dirPathSuffix = pathWithoutUI.substring(0, lastSlashIndex);
         const dirPath = dirPathSuffix ? '/data' + dirPathSuffix : '/data';
 
         loadDirectoryAndOpenFile(dirPath, fullPath);
@@ -997,11 +1081,16 @@ function handleUrlChange() {
 
 function loadDirectoryAndOpenFile(dirPath, filePath) {
     currentPath = dirPath;
-    document.getElementById('pathIndicator').textContent = dirPath.replace('/data', '') || '/';
+    const pathIndicator = document.getElementById('pathIndicator');
+    if (pathIndicator) {
+        pathIndicator.textContent = dirPath.replace('/data', '') || '/';
+    }
 
-    fetch(`/api/list?path=${encodeURIComponent(dirPath)}`)
-        .then(response => response.json())
-        .then(files => {
+    const servePath = dirPath === '/data' ? '/' : dirPath.replace('/data', '') + '/';
+    fetch(servePath)
+        .then(response => response.text())
+        .then(html => {
+            const files = parseHtmlListing(html, dirPath);
             currentFiles = files;
             renderGallery(files);
 
@@ -1089,8 +1178,4 @@ const resizeHandler = performanceUtils.debounce(() => {
 window.addEventListener('resize', resizeHandler);
 
 // Handle initial URL on page load
-if (window.location.hash) {
-    handleUrlChange();
-} else {
-    loadDirectory();
-}
+handleUrlChange();

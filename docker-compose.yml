@@ -3,7 +3,6 @@ services:
   pro:
     build: .
     ports:
-      - "30002:30002"
       - "30003:30003"
     volumes:
       - ./data:/data
@@ -11,7 +10,7 @@ services:
     environment:
       - RUST_LOG=info
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:30003/"]
+      test: ["CMD", "curl", "-f", "http://localhost:30003/ui"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -35,7 +34,6 @@ services:
       - ./static:/app/static
       - ./data:/data
     ports:
-      - "30002:30002"
       - "30003:30003"
     environment:
       - RUST_LOG=debug

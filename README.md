@@ -8,13 +8,11 @@
 
 ## Features
 
-- **Dual server architecture** - Runs two separate servers for different use cases
-- **Apache-style HTTP file serving** - Pure httpd server on port 30002, compatible with standard tools
-- **Enhanced UI** - Modern file browser on port 30003 with advanced features
+- **Apache-style HTTP file serving** - Pure httpd server at root path, compatible with standard tools
+- **Enhanced UI** - Modern file browser at `/ui` with advanced features
 - **Upload support** - Upload files up to 256GB
 - **ZIP downloads** - Download multiple files and directories as ZIP archives
-- **File management** - Create folders, delete files, edit text files
-- **Mobile-friendly** - Works on phones and tablets
+- **File management** - Create folders, delete files
 
 ## Usage
 
@@ -24,24 +22,24 @@
 cargo run
 ```
 
-The application runs **two separate servers** with **identical URL structures**:
+The application runs on **port 30003** with:
 
-- **Port 30003** - Enhanced UI: `http://localhost:30003/`
+- **UI at `/ui`**: `http://localhost:30003/ui`
   - Full-featured web interface with uploads, downloads, and file management
-  - Uses the same URL paths as the httpd server for seamless navigation
+  - Browse directories and preview files
   - Examples:
-    - `http://localhost:30003/` - Root directory
-    - `http://localhost:30003/folder/` - Browse folder
-    - `http://localhost:30003/folder/file.mp4` - View/play file in UI
+    - `http://localhost:30003/ui/` - Root directory in UI
+    - `http://localhost:30003/ui/folder/` - Browse folder in UI
+    - `http://localhost:30003/ui/folder/file.mp4` - View/play file in UI
 
-- **Port 30002** - Apache httpd: `http://localhost:30002/`
+- **Apache like httpd at root**: `http://localhost:30003/`
   - Pure Apache-style file server
-  - Compatible with PhotoChiotte and other httpd clients
+  - Compatible with other httpd clients
   - Standard directory listings with no modifications
   - Examples:
-    - `http://localhost:30002/` - Root directory listing
-    - `http://localhost:30002/folder/` - Folder listing
-    - `http://localhost:30002/folder/file.mp4` - Direct file download
+    - `http://localhost:30003/` - Root directory listing
+    - `http://localhost:30003/folder/` - Folder listing
+    - `http://localhost:30003/folder/file.mp4` - Direct file access
 
 ### Docker (Development)
 
@@ -75,20 +73,20 @@ export DATA_DIR=/path/to/your/files
 
 ## API Endpoints
 
-### Enhanced UI Server (Port 30003)
-- `GET /` - Web interface
-- `GET /styles.css` - UI stylesheet
-- `GET /script.js` - UI JavaScript
-- `GET /api/list?path=/data` - JSON directory listing with metadata
+### UI Routes
+- `GET /ui` - Web interface
+- `GET /ui/styles.css` - UI stylesheet
+- `GET /ui/script.js` - UI JavaScript
+
+### API Routes
 - `POST /api/upload?path=/data` - Upload files (multipart form, 256GB limit)
 - `GET /api/download-multiple?paths=/data/file1,/data/file2` - Download as ZIP
 - `DELETE /api/delete?path=/data/file` - Delete file/directory
 - `POST /api/mkdir?path=/data/newfolder` - Create directory
 - `POST /api/save?path=/data/file.txt` - Save text file content
+- `GET /api/download?path=/data/file` - Download single file
 
-### Apache httpd Server (Port 30002)
+### Apache httpd Routes (Root)
 - `GET /` - Apache-style directory listing (root)
 - `GET /path/to/file` - Direct file access
 - `GET /path/to/dir/` - Apache-style directory listing
-
-Both servers support CORS for cross-origin requests.

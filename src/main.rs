@@ -4,26 +4,22 @@ mod endpoints;
 mod types;
 
 use endpoints::{
-    handle_list, handle_file, handle_download, handle_download_multiple,
+    handle_download, handle_download_multiple,
     handle_upload, handle_delete, handle_mkdir, handle_save, handle_serve
 };
 use types::{ListQuery, FileQuery, DATA_DIR};
 use endpoints::download_multiple::DownloadMultipleQuery;
 
-const UI_PORT: u16 = 30003;
-const HTTPD_PORT: u16 = 30002;
+const PORT: u16 = 30003;
 
 #[tokio::main]
 async fn main() {
-    let cors = warp::cors()
-        .allow_any_origin()
-        .allow_headers(vec!["content-type", "accept", "authorization", "x-requested-with"])
-        .allow_methods(vec!["GET", "POST", "DELETE", "OPTIONS"]);
-
-    let static_files = warp::path::end()
+    let ui_index = warp::path("ui")
+        .and(warp::path::end())
         .map(|| warp::reply::html(include_str!("../static/index.html")));
 
-    let css_file = warp::path("styles.css")
+    let ui_css = warp::path("ui")
+        .and(warp::path("styles.css"))
         .map(|| {
             warp::reply::with_header(
                 include_str!("../static/styles.css"),
@@ -32,7 +28,8 @@ async fn main() {
             )
         });
 
-    let js_file = warp::path("script.js")
+    let ui_js = warp::path("ui")
+        .and(warp::path("script.js"))
         .map(|| {
             warp::reply::with_header(
                 include_str!("../static/script.js"),
@@ -41,17 +38,9 @@ async fn main() {
             )
         });
 
-    let api_list = warp::path("api")
-        .and(warp::path("list"))
-        .and(warp::get())
-        .and(warp::query::<ListQuery>())
-        .and_then(handle_list);
-
-    let api_file = warp::path("api")
-        .and(warp::path("file"))
-        .and(warp::get().or(warp::head()).unify())
-        .and(warp::query::<FileQuery>())
-        .and_then(handle_file);
+    let ui_fallback = warp::path("ui")
+        .and(warp::path::tail())
+        .map(|_tail: warp::path::Tail| warp::reply::html(include_str!("../static/index.html")));
 
     let api_download = warp::path("api")
         .and(warp::path("download"))
@@ -92,38 +81,26 @@ async fn main() {
         .and(warp::body::bytes())
         .and_then(handle_save);
 
-    let spa_fallback = warp::any()
-        .map(|| warp::reply::html(include_str!("../static/index.html")));
+    let httpd_serve = warp::path::tail()
+        .and_then(handle_serve);
 
-    let ui_routes = css_file
-        .or(js_file)
-        .or(api_list)
-        .or(api_file)
+    let routes = ui_index
+        .or(ui_css)
+        .or(ui_js)
         .or(api_download)
         .or(api_download_multiple)
         .or(api_upload)
         .or(api_delete)
         .or(api_mkdir)
         .or(api_save)
-        .or(static_files)
-        .or(spa_fallback)
-        .with(cors.clone());
+        .or(ui_fallback)
+        .or(httpd_serve);
 
-    let httpd_serve = warp::path::tail()
-        .and_then(handle_serve);
-
-    let httpd_routes = httpd_serve
-        .with(cors);
-
-    println!("Enhanced UI starting on http://0.0.0.0:{}", UI_PORT);
-    println!("Apache httpd starting on http://0.0.0.0:{}", HTTPD_PORT);
+    println!("Server starting on http://0.0.0.0:{}", PORT);
+    println!("UI available at: http://0.0.0.0:{}/ui", PORT);
     println!("Serving files from: {}", DATA_DIR);
 
-    let ui_server = warp::serve(ui_routes)
-        .run(([0, 0, 0, 0], UI_PORT));
-
-    let httpd_server = warp::serve(httpd_routes)
-        .run(([0, 0, 0, 0], HTTPD_PORT));
-
-    tokio::join!(ui_server, httpd_server);
+    warp::serve(routes)
+        .run(([0, 0, 0, 0], PORT))
+        .await;
 }

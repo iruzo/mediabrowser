@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>mediabrowser</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="/ui/styles.css">
 </head>
 <body>
     <div class="toolbar">
+        <div class="nav-controls">
+            <button class="toolbar-btn" onclick="goPrev()" title="Go to parent directory">prev</button>
+        </div>
         <input type="text" class="search-bar" placeholder="Search files..." id="searchInput" oninput="filterBySearch(this.value)">
         <div class="grid-controls">
             <button class="toolbar-btn" onclick="decreaseGridSize()" title="Smaller grid">-</button>
@@ -69,6 +72,6 @@
 
     <input type="file" id="fileInput" multiple onchange="uploadFiles(this.files)">
 
-    <script src="script.js"></script>
+    <script src="/ui/script.js"></script>
 </body>
 </html>

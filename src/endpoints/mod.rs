@@ -1,5 +1,3 @@
-pub mod list;
-pub mod file;
 pub mod download;
 pub mod download_multiple;
 pub mod upload;
@@ -9,8 +7,6 @@ pub mod save;
 pub mod serve;
 
 // Re-export handler functions
-pub use list::handle_list;
-pub use file::handle_file;
 pub use download::handle_download;
 pub use download_multiple::handle_download_multiple;
 pub use upload::handle_upload;
