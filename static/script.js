@@ -511,9 +511,22 @@ function toggleSelectionMode() {
 function downloadSelected() {
     if (selectedFiles.size === 0) return;
 
-    selectedFiles.forEach(filePath => {
-        window.open(`/api/download?path=${encodeURIComponent(filePath)}`);
+    const selectedPaths = Array.from(selectedFiles);
+
+    // Check if any selected item is a directory
+    const hasDirectory = selectedPaths.some(path => {
+        const file = currentFiles.find(f => f.path === path);
+        return file && file.is_dir;
     });
+
+    // Use ZIP download if multiple files or if any selection is a directory
+    if (selectedFiles.size === 1 && !hasDirectory) {
+        const filePath = selectedPaths[0];
+        window.open(`/api/download?path=${encodeURIComponent(filePath)}`);
+    } else {
+        const paths = selectedPaths.map(path => encodeURIComponent(path)).join(',');
+        window.open(`/api/download-multiple?paths=${paths}`);
+    }
 }
 
 function deleteSelected() {
