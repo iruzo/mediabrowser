@@ -82,7 +82,8 @@ function loadInitialDirectory() {
             .then(html => {
                 const files = parseServerHtml(html, dataPath);
                 currentFiles = files;
-                renderGallery(files);
+                // Don't render gallery yet - it's hidden behind the viewer
+                // It will render when viewer is closed
 
                 // Find and open the file
                 const file = currentFiles.find(f => f.path === filePath);
