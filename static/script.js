@@ -52,35 +52,76 @@ let virtualScrollData = {
     selectedItemsCache: new Set() // Cache for selection state
 };
 
-function loadDirectory(path = currentPath, pushState = true) {
-    currentPath = path;
-
-    // Clear selection and search when changing directories
-    selectedFiles.clear();
-    selectionMode = false;
-    searchTerm = '';
-    document.getElementById('searchInput').value = '';
-    updateSelectionUI();
-
-    if (pushState) {
-        const urlPath = path === '/data' ? '/ui/' : '/ui' + path.replace('/data', '') + '/';
-        window.history.pushState({ path: path }, '', urlPath);
-    }
-
-    const servePath = path === '/data' ? '/' : path.replace('/data', '') + '/';
-    fetch(servePath)
-        .then(response => response.text())
-        .then(html => {
-            const files = parseHtmlListing(html, path);
-            currentFiles = files;
-            renderGallery(files);
-        })
-        .catch(() => {
-            document.getElementById('galleryGrid').innerHTML = '<div>error</div>';
-        });
+// Navigate to directory with full page reload
+function navigateToDirectory(path) {
+    const urlPath = path === '/data' ? '/ui/' : '/ui' + path.replace('/data', '') + '/';
+    window.location.href = urlPath;
 }
 
-function parseHtmlListing(html, currentPath) {
+// Load initial directory from current URL
+function loadInitialDirectory() {
+    const pathname = decodeURIComponent(window.location.pathname);
+
+    // Check if URL points to a file (no trailing slash, not just /ui or /ui/)
+    const isFileUrl = pathname !== '/ui' && pathname !== '/ui/' && !pathname.endsWith('/');
+
+    if (isFileUrl) {
+        // Extract directory and file paths
+        const pathWithoutUI = pathname.substring(3); // Remove '/ui'
+        const lastSlashIndex = pathWithoutUI.lastIndexOf('/');
+        const dirPathSuffix = pathWithoutUI.substring(0, lastSlashIndex);
+        const dataPath = dirPathSuffix ? '/data' + dirPathSuffix : '/data';
+        const filePath = '/data' + pathWithoutUI;
+
+        currentPath = dataPath;
+
+        // Load directory and then open the file
+        const servePath = dataPath === '/data' ? '/' : dataPath.replace('/data', '') + '/';
+        fetch(servePath)
+            .then(response => response.text())
+            .then(html => {
+                const files = parseServerHtml(html, dataPath);
+                currentFiles = files;
+                renderGallery(files);
+
+                // Find and open the file
+                const file = currentFiles.find(f => f.path === filePath);
+                if (file) {
+                    selectedFile = file;
+                    currentMediaIndex = currentFiles.findIndex(f => f.path === file.path);
+                    resetZoom();
+                    showCurrentMedia();
+                }
+            })
+            .catch(() => {
+                document.getElementById('galleryGrid').innerHTML = '<div>error</div>';
+            });
+    } else {
+        // Directory URL
+        let dataPath = '/data';
+        if (pathname.startsWith('/ui/') && pathname !== '/ui/') {
+            const pathWithoutUI = pathname.substring(3); // Remove '/ui'
+            dataPath = '/data' + pathWithoutUI.slice(0, -1);
+        }
+
+        currentPath = dataPath;
+
+        // Fetch and parse the directory listing
+        const servePath = dataPath === '/data' ? '/' : dataPath.replace('/data', '') + '/';
+        fetch(servePath)
+            .then(response => response.text())
+            .then(html => {
+                const files = parseServerHtml(html, dataPath);
+                currentFiles = files;
+                renderGallery(files);
+            })
+            .catch(() => {
+                document.getElementById('galleryGrid').innerHTML = '<div>error</div>';
+            });
+    }
+}
+
+function parseServerHtml(html, currentPath) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     const links = doc.querySelectorAll('ul li a');
@@ -90,7 +131,7 @@ function parseHtmlListing(html, currentPath) {
         const href = link.getAttribute('href');
         const text = link.textContent.trim();
 
-        if (!href || href === '../') return; // Skip parent directory link if exists
+        if (!href || href === '../') return;
 
         const isDir = href.endsWith('/');
         const name = isDir ? text.replace(/\/$/, '') : text;
@@ -487,17 +528,10 @@ function handleFileClick(e, file) {
 }
 
 function toggleFileSelection(file) {
-    const wasEmpty = selectedFiles.size === 0;
-
     if (selectedFiles.has(file.path)) {
         selectedFiles.delete(file.path);
     } else {
         selectedFiles.add(file.path);
-    }
-
-    // Push history state when first file is selected
-    if (wasEmpty && selectedFiles.size > 0) {
-        window.history.pushState({ selection: true, path: currentPath }, '', window.location.hash);
     }
 
     updateSelectionUI();
@@ -568,11 +602,6 @@ function toggleSelectionMode() {
     if (!selectionMode) {
         // Exiting selection mode, clear selections
         selectedFiles.clear();
-    } else {
-        // Entering selection mode, push history state
-        if (selectedFiles.size > 0) {
-            window.history.pushState({ selection: true, path: currentPath }, '', window.location.hash);
-        }
     }
     updateSelectionUI();
     renderGallery(currentFiles);
@@ -624,15 +653,14 @@ let imagePos = { x: 0, y: 0 };
 
 function openMedia(file) {
     if (file.is_dir) {
-        loadDirectory(file.path, true);
+        navigateToDirectory(file.path);
         return;
     }
 
-    selectedFile = file;
-    currentMediaIndex = currentFiles.findIndex(f => f.path === file.path);
-    // Reset zoom when opening a new image from gallery
-    resetZoom();
-    showCurrentMedia();
+    // Navigate to file URL with full page reload
+    const pathWithoutData = file.path.replace('/data', '');
+    const fileUrl = '/ui' + encodeURIPath(pathWithoutData);
+    window.location.href = fileUrl;
 }
 
 function showCurrentMedia() {
@@ -675,15 +703,6 @@ function showCurrentMedia() {
     }
 
     viewer.classList.add('active');
-
-    // Don't modify history when opening from direct URL
-    if (!window.location.pathname.startsWith('/ui/') || window.location.pathname.endsWith('/')) {
-        // Store current directory state before opening viewer
-        const currentDirPath = currentPath === '/data' ? '/ui/' : '/ui' + currentPath.replace('/data', '') + '/';
-        window.history.replaceState({ path: currentPath }, '', currentDirPath);
-        const filePath = '/ui' + file.path.replace('/data', '');
-        window.history.pushState({ viewer: true, path: currentPath, file: file.path }, '', filePath);
-    }
 }
 
 function escapeHtml(text) {
@@ -706,12 +725,6 @@ function nextMedia() {
     const nextIndex = currentIndex < mediaFiles.length - 1 ? currentIndex + 1 : 0;
 
     currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[nextIndex].path);
-
-    // Update URL with new file
-    const file = currentFiles[currentMediaIndex];
-    const filePath = '/ui' + file.path.replace('/data', '');
-    window.history.replaceState({ viewer: true, path: currentPath, file: file.path }, '', filePath);
-
     showCurrentMedia();
 }
 
@@ -724,12 +737,6 @@ function previousMedia() {
     const prevIndex = currentIndex > 0 ? currentIndex - 1 : mediaFiles.length - 1;
 
     currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[prevIndex].path);
-
-    // Update URL with new file
-    const file = currentFiles[currentMediaIndex];
-    const filePath = '/ui' + file.path.replace('/data', '');
-    window.history.replaceState({ viewer: true, path: currentPath, file: file.path }, '', filePath);
-
     showCurrentMedia();
 }
 
@@ -872,12 +879,8 @@ function closeViewer() {
     selectedFile = null;
     resetZoom();
 
-    const isViewingFile = !window.location.pathname.endsWith('/') && window.location.pathname !== '/ui';
-    if (isViewingFile) {
-        // Navigate to the directory instead of going back
-        const currentDirPath = currentPath === '/data' ? '/ui/' : '/ui' + currentPath.replace('/data', '') + '/';
-        window.history.pushState({ path: currentPath }, '', currentDirPath);
-    }
+    // Navigate back to directory
+    navigateToDirectory(currentPath);
 }
 
 function goPrev() {
@@ -1016,104 +1019,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-window.addEventListener('popstate', (e) => {
-    // Handle selection mode - clear selection instead of navigating
-    if (selectedFiles.size > 0 || selectionMode) {
-        clearSelection();
-        return;
-    }
-
-    if (document.getElementById('viewer').classList.contains('active')) {
-        // Stop any playing videos or audio
-        const video = document.querySelector('#viewerContent video');
-        if (video) {
-            video.pause();
-            video.src = '';
-            video.load();
-        }
-
-        const audio = document.querySelector('#viewerContent audio');
-        if (audio) {
-            audio.pause();
-            audio.src = '';
-            audio.load();
-        }
-
-        // Hide zoom controls
-        document.getElementById('zoomControls').style.display = 'none';
-
-        // Close viewer without triggering another history change
-        document.getElementById('viewer').classList.remove('active');
-        selectedFile = null;
-        resetZoom();
-        return;
-    }
-
-    handleUrlChange();
-});
-
-function handleUrlChange() {
-    const pathname = window.location.pathname;
-
-    // Root path or /ui
-    if (pathname === '/ui' || pathname === '/ui/') {
-        loadDirectory('/data', false);
-        return;
-    }
-
-    // Remove /ui prefix
-    if (!pathname.startsWith('/ui/')) {
-        return;
-    }
-
-    const pathWithoutUI = pathname.substring(3); // Remove '/ui'
-
-    // Check if it's a file (no trailing slash) or directory (trailing slash)
-    const isDirectory = pathWithoutUI.endsWith('/');
-    const fullPath = '/data' + pathWithoutUI;
-
-    if (isDirectory) {
-        // Directory path
-        const dirPath = fullPath.replace(/\/$/, ''); // Remove trailing slash
-        loadDirectory(dirPath || '/data', false);
-    } else {
-        // File path - calculate directory and load file
-        const lastSlashIndex = pathWithoutUI.lastIndexOf('/');
-        const dirPathSuffix = pathWithoutUI.substring(0, lastSlashIndex);
-        const dirPath = dirPathSuffix ? '/data' + dirPathSuffix : '/data';
-
-        loadDirectoryAndOpenFile(dirPath, fullPath);
-    }
-}
-
-function loadDirectoryAndOpenFile(dirPath, filePath) {
-    currentPath = dirPath;
-    const pathIndicator = document.getElementById('pathIndicator');
-    if (pathIndicator) {
-        pathIndicator.textContent = dirPath.replace('/data', '') || '/';
-    }
-
-    const servePath = dirPath === '/data' ? '/' : dirPath.replace('/data', '') + '/';
-    fetch(servePath)
-        .then(response => response.text())
-        .then(html => {
-            const files = parseHtmlListing(html, dirPath);
-            currentFiles = files;
-            renderGallery(files);
-
-            // Now find and open the file
-            const file = currentFiles.find(f => f.path === filePath);
-            if (file) {
-                selectedFile = file;
-                currentMediaIndex = currentFiles.findIndex(f => f.path === file.path);
-                resetZoom();
-                showCurrentMedia();
-            }
-        })
-        .catch(() => {
-            document.getElementById('galleryGrid').innerHTML = '<div>error loading directory</div>';
-        });
-}
+// No longer needed - browser handles back/forward with full page reloads
 
 // Grid size controls
 function increaseGridSize() {
@@ -1184,5 +1090,5 @@ const resizeHandler = performanceUtils.debounce(() => {
 
 window.addEventListener('resize', resizeHandler);
 
-// Handle initial URL on page load
-handleUrlChange();
+// Load initial directory on page load
+loadInitialDirectory();
