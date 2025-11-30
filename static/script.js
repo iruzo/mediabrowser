@@ -643,7 +643,7 @@ function deleteSelected() {
     Promise.all(deletePromises)
         .then(() => {
             clearSelection();
-            loadDirectory(currentPath, false);
+            navigateToDirectory(currentPath);
         })
         .catch(() => alert('Some files failed to delete'));
 }
@@ -1050,11 +1050,31 @@ function triggerUpload() {
 }
 
 async function uploadFiles(files) {
+    const CONCURRENT_UPLOADS = 10;
+    const totalFiles = files.length;
+    let completedCount = 0;
     let successCount = 0;
     let failCount = 0;
+    const currentlyUploading = new Set();
+    const failedFiles = [];
 
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+    // Show progress overlay
+    const progressOverlay = document.getElementById('uploadProgress');
+    const progressText = document.getElementById('uploadProgressText');
+    const progressFiles = document.getElementById('uploadProgressFiles');
+    progressOverlay.style.display = 'flex';
+
+    function updateProgress() {
+        progressText.textContent = `Uploading: ${completedCount}/${totalFiles}`;
+        progressFiles.innerHTML = Array.from(currentlyUploading)
+            .map(name => `<div>- ${escapeHtml(name)}</div>`)
+            .join('');
+    }
+
+    async function uploadFile(file) {
+        currentlyUploading.add(file.name);
+        updateProgress();
+
         const formData = new FormData();
         formData.append('file', file);
 
@@ -1066,23 +1086,42 @@ async function uploadFiles(files) {
 
             if (!response.ok) {
                 const text = await response.text();
-                alert(`Failed to upload ${file.name}: ${text}`);
+                failedFiles.push(`${file.name}: ${text}`);
                 failCount++;
             } else {
                 await response.json();
                 successCount++;
             }
         } catch (err) {
-            alert(`Failed to upload ${file.name}: ${err.message}`);
+            failedFiles.push(`${file.name}: ${err.message}`);
             failCount++;
+        } finally {
+            currentlyUploading.delete(file.name);
+            completedCount++;
+            updateProgress();
         }
     }
 
-    if (failCount > 0 && successCount > 0) {
-        alert(`Upload completed: ${successCount} succeeded, ${failCount} failed`);
+    // Upload files in batches of CONCURRENT_UPLOADS
+    const fileArray = Array.from(files);
+    for (let i = 0; i < fileArray.length; i += CONCURRENT_UPLOADS) {
+        const batch = fileArray.slice(i, i + CONCURRENT_UPLOADS);
+        await Promise.all(batch.map(file => uploadFile(file)));
     }
 
-    loadDirectory(currentPath, false);
+    // Hide progress overlay
+    progressOverlay.style.display = 'none';
+
+    // Show summary
+    if (failCount > 0) {
+        const summary = `Upload completed: ${successCount} succeeded, ${failCount} failed\n\nFailed files:\n${failedFiles.join('\n')}`;
+        alert(summary);
+    } else if (totalFiles > 0) {
+        alert(`Successfully uploaded ${successCount} file(s)`);
+    }
+
+    // Refresh directory
+    navigateToDirectory(currentPath);
 }
 
 function createFolder() {
@@ -1090,13 +1129,13 @@ function createFolder() {
     if (name) {
         const folderPath = `${currentPath}/${name}`;
         fetch(`/api/mkdir?path=${encodeURIComponent(folderPath)}`, { method: 'POST' })
-            .then(() => loadDirectory(currentPath, false))
+            .then(() => navigateToDirectory(currentPath))
             .catch(() => alert('failed to create folder'));
     }
 }
 
 function refreshView() {
-    loadDirectory(currentPath, false);
+    navigateToDirectory(currentPath);
 }
 
 function showContextMenu(e, file) {
@@ -1122,7 +1161,7 @@ function downloadFile() {
 function deleteFile() {
     if (selectedFile && confirm(`delete ${selectedFile.name}?`)) {
         fetch(`/api/delete?path=${encodeURIComponent(selectedFile.path)}`, { method: 'DELETE' })
-            .then(() => loadDirectory(currentPath, false))
+            .then(() => navigateToDirectory(currentPath))
             .catch(() => alert('delete failed'));
     }
     hideContextMenu();

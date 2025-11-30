@@ -76,6 +76,13 @@
         <div class="context-menu-item" onclick="deleteFile()">delete</div>
     </div>
 
+    <div class="upload-progress" id="uploadProgress" style="display:none;">
+        <div class="upload-progress-header">
+            <span id="uploadProgressText">Uploading: 0/0</span>
+        </div>
+        <div class="upload-progress-files" id="uploadProgressFiles"></div>
+    </div>
+
     <input type="file" id="fileInput" multiple onchange="uploadFiles(this.files)">
 
     <script src="/ui/script.js"></script>
