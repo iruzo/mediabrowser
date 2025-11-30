@@ -1,4 +1,5 @@
 use warp::Filter;
+use tokio::signal;
 
 mod endpoints;
 mod types;
@@ -11,6 +12,32 @@ use types::{ListQuery, FileQuery, DATA_DIR};
 use endpoints::download_multiple::DownloadMultipleQuery;
 
 const PORT: u16 = 30003;
+
+#[cfg(unix)]
+async fn shutdown_signal() {
+    use tokio::signal::unix::{signal, SignalKind};
+
+    let mut sigterm = signal(SignalKind::terminate())
+        .expect("failed to install SIGTERM handler");
+    let mut sigint = signal(SignalKind::interrupt())
+        .expect("failed to install SIGINT handler");
+
+    tokio::select! {
+        _ = sigterm.recv() => {},
+        _ = sigint.recv() => {},
+    }
+
+    println!("Shutdown signal received, stopping server gracefully...");
+}
+
+#[cfg(not(unix))]
+async fn shutdown_signal() {
+    signal::ctrl_c()
+        .await
+        .expect("failed to install CTRL+C handler");
+
+    println!("Shutdown signal received, stopping server gracefully...");
+}
 
 #[tokio::main]
 async fn main() {
@@ -92,6 +119,7 @@ async fn main() {
     println!("Serving files from: {}", DATA_DIR);
 
     warp::serve(routes)
-        .run(([0, 0, 0, 0], PORT))
+        .bind_with_graceful_shutdown(([0, 0, 0, 0], PORT), shutdown_signal())
+        .1
         .await;
 }
