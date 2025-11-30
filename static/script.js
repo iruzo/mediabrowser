@@ -15,6 +15,56 @@ let loopEnabled = false;
 let loopStart = 0;
 let loopEnd = 0;
 
+// Video load queue to prevent browser connection overload
+const videoLoadQueue = {
+    queue: [],
+    loading: 0,
+    maxConcurrent: 6, // Browser connection limit
+
+    add(item, filePath, servePath) {
+        this.queue.push({ item, filePath, servePath });
+        this.process();
+    },
+
+    process() {
+        while (this.loading < this.maxConcurrent && this.queue.length > 0) {
+            const { item, filePath, servePath } = this.queue.shift();
+            this.loading++;
+            this.loadVideo(item, filePath, servePath);
+        }
+    },
+
+    loadVideo(item, filePath, servePath) {
+        const video = document.createElement('video');
+        video.src = servePath;
+        video.muted = true;
+        video.loading = 'lazy';
+
+        const onLoadComplete = () => {
+            this.loading--;
+            this.process(); // Process next in queue
+        };
+
+        video.addEventListener('loadeddata', onLoadComplete, { once: true });
+        video.addEventListener('error', onLoadComplete, { once: true });
+
+        item.innerHTML = '';
+        item.appendChild(video);
+
+        // Re-add selection overlay if needed
+        if (selectedFiles.has(filePath)) {
+            const overlay = document.createElement('div');
+            overlay.className = 'selection-overlay';
+            item.appendChild(overlay);
+        }
+    },
+
+    clear() {
+        this.queue = [];
+        // Don't reset loading count - let in-progress videos finish
+    }
+};
+
 // Performance utilities
 const performanceUtils = {
     throttle(func, delay) {
@@ -182,6 +232,9 @@ function renderGallery(files) {
     if (intersectionObserver) {
         intersectionObserver.disconnect();
     }
+
+    // Clear video load queue when re-rendering
+    videoLoadQueue.clear();
 
     let filteredFiles = filterFiles(files);
     filteredFiles = filterBySearchTerm(filteredFiles);
@@ -443,7 +496,10 @@ function loadItemContent(item) {
     } else if (fileType === 'video') {
         const pathWithoutData = filePath.replace('/data', '') || '/';
         const servePath = encodeURIPath(pathWithoutData);
-        item.innerHTML = `<video src="${servePath}" muted loading="lazy">`;
+
+        // Add to video load queue instead of loading immediately
+        videoLoadQueue.add(item, filePath, servePath);
+        return; // Queue will handle adding selection overlay
     }
 
     // Re-add selection overlay if this item was selected
