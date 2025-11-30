@@ -189,6 +189,19 @@ function renderGallery(files) {
 
     // Initialize virtual scrolling
     initializeVirtualScroll(grid);
+
+    // Restore scroll position if returning from file view
+    const savedScroll = sessionStorage.getItem('galleryScrollPosition');
+    if (savedScroll) {
+        const container = document.querySelector('.gallery-container');
+        if (container) {
+            // Use requestAnimationFrame to ensure DOM is ready
+            requestAnimationFrame(() => {
+                container.scrollTop = parseInt(savedScroll);
+                sessionStorage.removeItem('galleryScrollPosition');
+            });
+        }
+    }
 }
 
 function initializeVirtualScroll(grid) {
@@ -657,6 +670,12 @@ function openMedia(file) {
     if (file.is_dir) {
         navigateToDirectory(file.path);
         return;
+    }
+
+    // Save scroll position before navigating to file
+    const container = document.querySelector('.gallery-container');
+    if (container) {
+        sessionStorage.setItem('galleryScrollPosition', container.scrollTop);
     }
 
     // Navigate to file URL with full page reload
@@ -1213,8 +1232,18 @@ function updateGridSize() {
 
     // Recalculate virtual scroll grid if we have files loaded
     if (virtualScrollData.filteredFiles.length > 0) {
+        const container = document.querySelector('.gallery-container');
+        const currentScroll = container ? container.scrollTop : 0;
+
         const grid = document.getElementById('galleryGrid');
         initializeVirtualScroll(grid);
+
+        // Restore scroll position after recalculation
+        if (container) {
+            requestAnimationFrame(() => {
+                container.scrollTop = currentScroll;
+            });
+        }
     }
 }
 
