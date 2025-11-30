@@ -10,6 +10,11 @@ let searchTerm = '';
 let intersectionObserver = null;
 let gridSize = window.innerWidth <= 480 ? 20 : 30;
 
+// Video loop state
+let loopEnabled = false;
+let loopStart = 0;
+let loopEnd = 0;
+
 // Performance utilities
 const performanceUtils = {
     throttle(func, delay) {
@@ -672,6 +677,7 @@ function showCurrentMedia() {
     const viewer = document.getElementById('viewer');
     const content = document.getElementById('viewerContent');
     const zoomControls = document.getElementById('zoomControls');
+    const loopControls = document.getElementById('loopControls');
     const pathWithoutData = file.path.replace('/data', '') || '/';
     const servePath = encodeURIPath(pathWithoutData);
 
@@ -681,15 +687,19 @@ function showCurrentMedia() {
         // Keep current zoom level AND position
         updateMediaTransform();
         zoomControls.style.display = 'block';
+        loopControls.style.display = 'none';
     } else if (file.file_type === 'video') {
         content.innerHTML = `<video src="${servePath}" controls></video>`;
         setupMediaZoom();
         // Keep current zoom level AND position
         updateMediaTransform();
         zoomControls.style.display = 'block';
+        loopControls.style.display = 'block';
+        setupVideoLoop();
     } else if (file.file_type === 'audio') {
         content.innerHTML = `<audio src="${servePath}" controls></audio>`;
         zoomControls.style.display = 'none';
+        loopControls.style.display = 'none';
     } else {
         // Show text content for non-media files
         fetch(servePath)
@@ -701,6 +711,7 @@ function showCurrentMedia() {
                 content.innerHTML = `<div class="text-viewer">Failed to load file content</div>`;
             });
         zoomControls.style.display = 'none';
+        loopControls.style.display = 'none';
     }
 
     viewer.classList.add('active');
@@ -726,6 +737,7 @@ function nextMedia() {
     const nextIndex = currentIndex < mediaFiles.length - 1 ? currentIndex + 1 : 0;
 
     currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[nextIndex].path);
+    clearLoop();
     showCurrentMedia();
 }
 
@@ -738,6 +750,7 @@ function previousMedia() {
     const prevIndex = currentIndex > 0 ? currentIndex - 1 : mediaFiles.length - 1;
 
     currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[prevIndex].path);
+    clearLoop();
     showCurrentMedia();
 }
 
@@ -873,15 +886,98 @@ function closeViewer() {
         audio.load();
     }
 
-    // Hide zoom controls
+    // Hide zoom controls and loop controls
     document.getElementById('zoomControls').style.display = 'none';
+    document.getElementById('loopControls').style.display = 'none';
 
     document.getElementById('viewer').classList.remove('active');
     selectedFile = null;
     resetZoom();
+    clearLoop();
 
     // Navigate back to directory
     navigateToDirectory(currentPath);
+}
+
+// Video loop functions
+function setupVideoLoop() {
+    const video = document.querySelector('#viewerContent video');
+    if (!video) return;
+
+    // Add timeupdate listener for loop monitoring
+    video.addEventListener('timeupdate', () => {
+        if (loopEnabled && loopEnd > loopStart && video.currentTime >= loopEnd) {
+            video.currentTime = loopStart;
+        }
+    });
+
+    // Update display if loop was already set
+    updateLoopDisplay();
+}
+
+function setLoopStart() {
+    const video = document.querySelector('#viewerContent video');
+    if (!video) return;
+
+    loopStart = video.currentTime;
+
+    // If loop end is already set and is before start, clear it
+    if (loopEnd > 0 && loopEnd <= loopStart) {
+        loopEnd = 0;
+    }
+
+    // Enable loop if both points are set
+    if (loopEnd > loopStart) {
+        loopEnabled = true;
+    }
+
+    updateLoopDisplay();
+}
+
+function setLoopEnd() {
+    const video = document.querySelector('#viewerContent video');
+    if (!video) return;
+
+    loopEnd = video.currentTime;
+
+    // Validate that end is after start
+    if (loopEnd <= loopStart) {
+        alert('Loop end must be after loop start');
+        loopEnd = 0;
+        return;
+    }
+
+    loopEnabled = true;
+    updateLoopDisplay();
+}
+
+function clearLoop() {
+    loopEnabled = false;
+    loopStart = 0;
+    loopEnd = 0;
+    updateLoopDisplay();
+}
+
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function updateLoopDisplay() {
+    const display = document.getElementById('loopDisplay');
+    if (!display) return;
+
+    if (loopEnabled && loopEnd > loopStart) {
+        display.textContent = `Loop: ${formatTime(loopStart)} - ${formatTime(loopEnd)}`;
+        display.style.display = 'block';
+    } else if (loopStart > 0) {
+        display.textContent = `Start: ${formatTime(loopStart)}`;
+        display.style.display = 'block';
+    } else {
+        display.textContent = '';
+        display.style.display = 'none';
+    }
 }
 
 function goPrev() {

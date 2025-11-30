@@ -258,6 +258,31 @@ body {
     pointer-events: auto;
 }
 
+.loop-controls {
+    position: absolute;
+    bottom: 0.5vh;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-quaternary);
+    padding: 0.5vh;
+    z-index: 15;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5vh;
+    align-items: center;
+}
+
+.loop-display {
+    color: var(--text-primary);
+    font-size: 1.4vh;
+    padding: 0.2vh 0.5vh;
+    background: var(--bg-tertiary);
+    border-radius: 0.2vh;
+    min-width: 12vh;
+    text-align: center;
+}
+
 .viewer-btn {
     background: none;
     border: none;

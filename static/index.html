@@ -56,6 +56,12 @@
             <button class="viewer-btn" onclick="moveRight()">right</button>
             <button class="viewer-btn" onclick="resetZoom()">reset</button>
         </div>
+        <div class="loop-controls" id="loopControls" style="display:none;">
+            <button class="viewer-btn" onclick="setLoopStart()" title="Set loop start point">loop start</button>
+            <button class="viewer-btn" onclick="setLoopEnd()" title="Set loop end point">loop end</button>
+            <button class="viewer-btn" onclick="clearLoop()" title="Clear loop">clear loop</button>
+            <div class="loop-display" id="loopDisplay"></div>
+        </div>
         <div class="nav-controls-prev">
             <button class="viewer-btn" onclick="previousMedia()">prev</button>
         </div>
