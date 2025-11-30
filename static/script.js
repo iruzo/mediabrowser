@@ -166,17 +166,13 @@ function determineFileType(filename) {
     const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico'];
     const videoExts = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'ogv'];
     const audioExts = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'wma', 'm4a'];
-    const textExts = ['txt', 'md', 'rs', 'js', 'ts', 'html', 'css', 'json', 'xml', 'log', 'py', 'java', 'c', 'cpp', 'h'];
-    const archiveExts = ['zip', 'rar', 'tar', 'gz', '7z'];
 
     if (imageExts.includes(ext)) return 'image';
     if (videoExts.includes(ext)) return 'video';
     if (audioExts.includes(ext)) return 'audio';
-    if (textExts.includes(ext)) return 'text';
-    if (ext === 'pdf') return 'pdf';
-    if (archiveExts.includes(ext)) return 'archive';
 
-    return 'unknown';
+    // Everything else opens with text editor
+    return 'text';
 }
 
 function renderGallery(files) {
@@ -705,7 +701,15 @@ function showCurrentMedia() {
         fetch(servePath)
             .then(response => response.text())
             .then(text => {
-                content.innerHTML = `<div class="text-viewer">${escapeHtml(text)}</div>`;
+                content.innerHTML = `
+                    <div class="text-editor-container">
+                        <textarea class="text-editor" id="textEditor">${escapeHtml(text)}</textarea>
+                        <div class="text-editor-controls">
+                            <button class="viewer-btn" onclick="saveTextFile()">save</button>
+                            <button class="viewer-btn" onclick="cancelTextEdit()">cancel</button>
+                        </div>
+                    </div>
+                `;
             })
             .catch(() => {
                 content.innerHTML = `<div class="text-viewer">Failed to load file content</div>`;
@@ -978,6 +982,40 @@ function updateLoopDisplay() {
         display.textContent = '';
         display.style.display = 'none';
     }
+}
+
+function saveTextFile() {
+    const textarea = document.getElementById('textEditor');
+    if (!textarea || !selectedFile) return;
+
+    // Security confirmation before saving
+    if (!confirm(`Save changes to ${selectedFile.name}?`)) {
+        return;
+    }
+
+    const content = textarea.value;
+
+    fetch(`/api/save?path=${encodeURIComponent(selectedFile.path)}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'text/plain',
+        },
+        body: content
+    })
+        .then(response => {
+            if (response.ok) {
+                alert('File saved successfully');
+            } else {
+                alert('Failed to save file');
+            }
+        })
+        .catch(err => {
+            alert('Error saving file: ' + err.message);
+        });
+}
+
+function cancelTextEdit() {
+    closeViewer();
 }
 
 function goPrev() {

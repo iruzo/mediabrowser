@@ -4,6 +4,7 @@ pub mod upload;
 pub mod delete;
 pub mod mkdir;
 pub mod serve;
+pub mod save;
 
 // Re-export handler functions
 pub use download::handle_download;
@@ -12,3 +13,4 @@ pub use upload::handle_upload;
 pub use delete::handle_delete;
 pub use mkdir::handle_mkdir;
 pub use serve::handle_serve;
+pub use save::handle_save;

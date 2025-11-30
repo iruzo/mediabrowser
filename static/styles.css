@@ -238,6 +238,35 @@ body {
     border: 1px solid var(--border-secondary);
 }
 
+.text-editor-container {
+    display: flex;
+    flex-direction: column;
+    max-width: 90vw;
+    max-height: 90vh;
+    gap: 1vh;
+}
+
+.text-editor {
+    width: 90vw;
+    height: 85vh;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 2vh;
+    font-family: monospace;
+    font-size: 1.5vh;
+    border: 1px solid var(--border-secondary);
+    resize: none;
+    outline: none;
+}
+
+.text-editor-controls {
+    display: flex;
+    gap: 1vh;
+    justify-content: center;
+    background: var(--bg-quaternary);
+    padding: 0.5vh;
+}
+
 .viewer-controls {
     position: absolute;
     top: 0.5vh;
