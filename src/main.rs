@@ -1,5 +1,4 @@
 use warp::Filter;
-use tokio::signal;
 
 mod endpoints;
 mod types;
@@ -32,6 +31,8 @@ async fn shutdown_signal() {
 
 #[cfg(not(unix))]
 async fn shutdown_signal() {
+    use tokio::signal;
+
     signal::ctrl_c()
         .await
         .expect("failed to install CTRL+C handler");
@@ -101,6 +102,7 @@ async fn main() {
         .and_then(handle_mkdir);
 
     let httpd_serve = warp::path::tail()
+        .and(warp::header::headers_cloned())
         .and_then(handle_serve);
 
     let routes = ui_index
