@@ -279,7 +279,7 @@ function initializeVirtualScroll(grid) {
 
     // Calculate grid dimensions
     const gridSizeVh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')) || 30;
-    const baseGridSizePx = (gridSizeVh / 100) * window.innerHeight;
+    const baseGridSizePx = (gridSizeVh / 200) * window.innerHeight;
 
     // Calculate columns and adjust item size to fill width
     const containerWidth = container.clientWidth - 4; // Account for padding
