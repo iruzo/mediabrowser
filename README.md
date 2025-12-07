@@ -9,10 +9,10 @@
 ## Features
 
 - **Apache-style HTTP file serving** - Pure httpd server at root path, compatible with standard tools
-- **Enhanced UI** - Modern file browser at `/ui` with advanced features
+- **Enhanced UI** - Simple file browser at `/ui`
 - **Upload support** - Upload files up to 256GB
-- **ZIP downloads** - Download multiple files and directories as ZIP archives
-- **File management** - Create folders, delete files
+- **ZIP downloads** - Download multiple files and directories as ZIP
+- **File management** - Create folders, delete, modify and upload files
 - **File preview** - View images, videos, audio, and text files
 
 ## Usage
@@ -26,17 +26,12 @@ cargo run
 The application runs on **port 30003** with:
 
 - **UI at `/ui`**: `http://localhost:30003/ui`
-  - Full-featured web interface with uploads, downloads, and file management
-  - Browse directories and preview files
   - Examples:
     - `http://localhost:30003/ui/` - Root directory in UI
     - `http://localhost:30003/ui/folder/` - Browse folder in UI
     - `http://localhost:30003/ui/folder/file.mp4` - View/play file in UI
 
 - **Apache like httpd at root**: `http://localhost:30003/`
-  - Pure Apache-style file server
-  - Compatible with other httpd clients
-  - Standard directory listings with no modifications
   - Examples:
     - `http://localhost:30003/` - Root directory listing
     - `http://localhost:30003/folder/` - Folder listing
