@@ -1121,35 +1121,50 @@ function goPrev() {
 }
 
 function triggerUpload() {
+    // Show loading notification immediately
+    showNotification('Loading...');
     document.getElementById('fileInput').click();
 }
 
-async function uploadFiles(files) {
-    const CONCURRENT_UPLOADS = 10;
-    const totalFiles = files.length;
-    let completedCount = 0;
-    let successCount = 0;
-    let failCount = 0;
-    const currentlyUploading = new Set();
-    const failedFiles = [];
-
-    // Show progress overlay
-    const progressOverlay = document.getElementById('uploadProgress');
-    const progressText = document.getElementById('uploadProgressText');
-    const progressFiles = document.getElementById('uploadProgressFiles');
-    progressOverlay.style.display = 'flex';
-
-    function updateProgress() {
-        progressText.textContent = `Uploading: ${completedCount}/${totalFiles}`;
-        progressFiles.innerHTML = Array.from(currentlyUploading)
-            .map(name => `<div>- ${escapeHtml(name)}</div>`)
-            .join('');
+function handleFileSelect(files) {
+    if (files.length === 0) {
+        hideNotification();
+        return;
     }
 
-    async function uploadFile(file) {
-        currentlyUploading.add(file.name);
-        updateProgress();
+    // Update notification with file count
+    showNotification(`Uploading ${files.length} file(s)...`);
 
+    // Start upload
+    setTimeout(() => uploadFiles(files), 0);
+}
+
+function showNotification(message) {
+    let notification = document.getElementById('uploadNotification');
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'uploadNotification';
+        notification.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#333;color:#fff;padding:20px 30px;border-radius:8px;font-size:16px;z-index:10000;box-shadow:0 4px 6px rgba(0,0,0,0.3);';
+        document.body.appendChild(notification);
+    }
+    notification.textContent = message;
+    notification.style.display = 'block';
+}
+
+function hideNotification() {
+    const notification = document.getElementById('uploadNotification');
+    if (notification) {
+        notification.style.display = 'none';
+    }
+}
+
+async function uploadFiles(files) {
+    const CONCURRENT_UPLOADS = 3;
+    const totalFiles = files.length;
+    let completedCount = 0;
+    let failedFiles = [];
+
+    async function uploadFile(file) {
         const formData = new FormData();
         formData.append('file', file);
 
@@ -1162,35 +1177,43 @@ async function uploadFiles(files) {
             if (!response.ok) {
                 const text = await response.text();
                 failedFiles.push(`${file.name}: ${text}`);
-                failCount++;
             } else {
                 await response.json();
-                successCount++;
             }
         } catch (err) {
             failedFiles.push(`${file.name}: ${err.message}`);
-            failCount++;
         } finally {
-            currentlyUploading.delete(file.name);
             completedCount++;
-            updateProgress();
+            showNotification(`Uploading: ${completedCount}/${totalFiles}`);
         }
     }
 
-    // Upload files in batches of CONCURRENT_UPLOADS
+    // Upload files with queue of 3 concurrent uploads
     const fileArray = Array.from(files);
-    for (let i = 0; i < fileArray.length; i += CONCURRENT_UPLOADS) {
-        const batch = fileArray.slice(i, i + CONCURRENT_UPLOADS);
-        await Promise.all(batch.map(file => uploadFile(file)));
+    let currentIndex = 0;
+
+    async function processQueue() {
+        while (currentIndex < fileArray.length) {
+            const file = fileArray[currentIndex++];
+            await uploadFile(file);
+        }
     }
 
-    // Hide progress overlay
-    progressOverlay.style.display = 'none';
+    // Start 3 workers
+    const workers = [];
+    for (let i = 0; i < Math.min(CONCURRENT_UPLOADS, fileArray.length); i++) {
+        workers.push(processQueue());
+    }
+
+    await Promise.all(workers);
+
+    // Hide notification
+    hideNotification();
 
     // Show summary
-    if (failCount > 0) {
-        const summary = `Upload completed: ${successCount} succeeded, ${failCount} failed\n\nFailed files:\n${failedFiles.join('\n')}`;
-        alert(summary);
+    const successCount = totalFiles - failedFiles.length;
+    if (failedFiles.length > 0) {
+        alert(`Upload completed: ${successCount} succeeded, ${failedFiles.length} failed\n\nFailed files:\n${failedFiles.join('\n')}`);
     } else if (totalFiles > 0) {
         alert(`Successfully uploaded ${successCount} file(s)`);
     }

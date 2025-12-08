@@ -4,15 +4,28 @@ use futures_util::TryStreamExt;
 use percent_encoding::percent_decode_str;
 use std::convert::Infallible;
 use std::path::Path;
+use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
+use tokio::sync::Semaphore;
 use warp::http::StatusCode;
+
+// Global semaphore to limit concurrent uploads to 3
+static UPLOAD_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
+
+// Use 3 for better HDD support
+fn get_upload_semaphore() -> &'static Semaphore {
+    UPLOAD_SEMAPHORE.get_or_init(|| Semaphore::new(3))
+}
 
 pub async fn handle_upload(
     query: ListQuery,
     mut form: warp::multipart::FormData,
 ) -> Result<impl warp::Reply, Infallible> {
+    // Acquire semaphore permit to limit concurrent uploads globally
+    let _permit = get_upload_semaphore().acquire().await.unwrap();
+
     let target_path = query.path.unwrap_or_else(|| DATA_DIR.to_string());
     let decoded_path = percent_decode_str(&target_path).decode_utf8_lossy();
     let target_dir = Path::new(&*decoded_path);
