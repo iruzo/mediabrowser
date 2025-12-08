@@ -1,13 +1,13 @@
+use crate::types::DATA_DIR;
+use mime_guess::from_path;
+use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::convert::Infallible;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
-use warp::{http::StatusCode, Reply};
 use warp::http::HeaderMap;
 use warp::hyper::Body;
-use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
-use mime_guess::from_path;
-use crate::types::DATA_DIR;
+use warp::{http::StatusCode, Reply};
 
 // Encode only characters that are not allowed in URL paths (similar to Apache)
 const PATH_SEGMENT: &AsciiSet = &CONTROLS
@@ -21,7 +21,10 @@ const PATH_SEGMENT: &AsciiSet = &CONTROLS
     .add(b'{')
     .add(b'}');
 
-pub async fn handle_serve(path: warp::path::Tail, headers: HeaderMap) -> Result<impl warp::Reply, Infallible> {
+pub async fn handle_serve(
+    path: warp::path::Tail,
+    headers: HeaderMap,
+) -> Result<impl warp::Reply, Infallible> {
     let requested_path = path.as_str();
     let decoded_path = percent_decode_str(requested_path).decode_utf8_lossy();
 
@@ -32,10 +35,9 @@ pub async fn handle_serve(path: warp::path::Tail, headers: HeaderMap) -> Result<
     };
 
     if !file_path.starts_with(DATA_DIR) {
-        return Ok(warp::reply::with_status(
-            "Access denied",
-            StatusCode::FORBIDDEN,
-        ).into_response());
+        return Ok(
+            warp::reply::with_status("Access denied", StatusCode::FORBIDDEN).into_response(),
+        );
     }
 
     match fs::metadata(&file_path).await {
@@ -52,29 +54,24 @@ pub async fn handle_serve(path: warp::path::Tail, headers: HeaderMap) -> Result<
                 }
             }
         }
-        Err(_) => {
-            Ok(warp::reply::with_status(
-                "Not found",
-                StatusCode::NOT_FOUND,
-            ).into_response())
-        }
+        Err(_) => Ok(warp::reply::with_status("Not found", StatusCode::NOT_FOUND).into_response()),
     }
 }
 
-async fn serve_file(file_path: &Path, headers: &HeaderMap) -> Result<warp::reply::Response, Infallible> {
+async fn serve_file(
+    file_path: &Path,
+    headers: &HeaderMap,
+) -> Result<warp::reply::Response, Infallible> {
     let file_size = match fs::metadata(file_path).await {
         Ok(metadata) => metadata.len(),
         Err(_) => {
-            return Ok(warp::reply::with_status(
-                "File not found",
-                StatusCode::NOT_FOUND,
-            ).into_response());
+            return Ok(
+                warp::reply::with_status("File not found", StatusCode::NOT_FOUND).into_response(),
+            );
         }
     };
 
-    let mime_type = from_path(file_path)
-        .first_or_octet_stream()
-        .to_string();
+    let mime_type = from_path(file_path).first_or_octet_stream().to_string();
 
     // Check for Range header
     if let Some(range_header) = headers.get("range") {
@@ -87,20 +84,15 @@ async fn serve_file(file_path: &Path, headers: &HeaderMap) -> Result<warp::reply
 
     // No range request - serve entire file
     match fs::read(file_path).await {
-        Ok(contents) => {
-            Ok(warp::http::Response::builder()
-                .status(StatusCode::OK)
-                .header("content-type", mime_type)
-                .header("accept-ranges", "bytes")
-                .header("content-length", file_size.to_string())
-                .body(Body::from(contents))
-                .unwrap())
-        }
+        Ok(contents) => Ok(warp::http::Response::builder()
+            .status(StatusCode::OK)
+            .header("content-type", mime_type)
+            .header("accept-ranges", "bytes")
+            .header("content-length", file_size.to_string())
+            .body(Body::from(contents))
+            .unwrap()),
         Err(_) => {
-            Ok(warp::reply::with_status(
-                "File not found",
-                StatusCode::NOT_FOUND,
-            ).into_response())
+            Ok(warp::reply::with_status("File not found", StatusCode::NOT_FOUND).into_response())
         }
     }
 }
@@ -161,28 +153,27 @@ async fn serve_file_range(
     let mut file = match fs::File::open(file_path).await {
         Ok(f) => f,
         Err(_) => {
-            return Ok(warp::reply::with_status(
-                "File not found",
-                StatusCode::NOT_FOUND,
-            ).into_response());
+            return Ok(
+                warp::reply::with_status("File not found", StatusCode::NOT_FOUND).into_response(),
+            );
         }
     };
 
     // Seek to start position
     if let Err(_) = file.seek(std::io::SeekFrom::Start(start)).await {
-        return Ok(warp::reply::with_status(
-            "Seek failed",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ).into_response());
+        return Ok(
+            warp::reply::with_status("Seek failed", StatusCode::INTERNAL_SERVER_ERROR)
+                .into_response(),
+        );
     }
 
     // Read the requested chunk
     let mut buffer = vec![0u8; content_length as usize];
     if let Err(_) = file.read_exact(&mut buffer).await {
-        return Ok(warp::reply::with_status(
-            "Read failed",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ).into_response());
+        return Ok(
+            warp::reply::with_status("Read failed", StatusCode::INTERNAL_SERVER_ERROR)
+                .into_response(),
+        );
     }
 
     let content_range = format!("bytes {}-{}/{}", start, end, file_size);
@@ -197,14 +188,18 @@ async fn serve_file_range(
         .unwrap())
 }
 
-async fn serve_directory(dir_path: &Path, requested_path: &str) -> Result<impl warp::Reply, Infallible> {
+async fn serve_directory(
+    dir_path: &Path,
+    requested_path: &str,
+) -> Result<impl warp::Reply, Infallible> {
     let mut entries = match fs::read_dir(dir_path).await {
         Ok(entries) => entries,
         Err(_) => {
             return Ok(warp::reply::with_status(
                 "Cannot read directory",
                 StatusCode::INTERNAL_SERVER_ERROR,
-            ).into_response());
+            )
+            .into_response());
         }
     };
 
@@ -221,12 +216,10 @@ async fn serve_directory(dir_path: &Path, requested_path: &str) -> Result<impl w
         }
     }
 
-    items.sort_by(|a, b| {
-        match (a.1, b.1) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.0.to_lowercase().cmp(&b.0.to_lowercase()),
-        }
+    items.sort_by(|a, b| match (a.1, b.1) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.0.to_lowercase().cmp(&b.0.to_lowercase()),
     });
 
     let display_path = if requested_path.is_empty() {
@@ -240,7 +233,8 @@ async fn serve_directory(dir_path: &Path, requested_path: &str) -> Result<impl w
         warp::reply::html(html),
         "content-type",
         "text/html; charset=utf-8",
-    ).into_response())
+    )
+    .into_response())
 }
 
 fn generate_directory_listing(path: &str, items: &[(String, bool, u64)]) -> String {
@@ -273,7 +267,8 @@ fn generate_directory_listing(path: &str, items: &[(String, bool, u64)]) -> Stri
         ));
     }
 
-    format!(r#"<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+    format!(
+        r#"<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <html>
  <head>
   <title>Index of {}</title>
@@ -281,5 +276,7 @@ fn generate_directory_listing(path: &str, items: &[(String, bool, u64)]) -> Stri
  <body>
 <h1>Index of {}</h1>
 <ul>{}</ul>
-</body></html>"#, display_path, display_path, list_items)
+</body></html>"#,
+        display_path, display_path, list_items
+    )
 }

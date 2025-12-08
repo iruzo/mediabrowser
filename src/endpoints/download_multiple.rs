@@ -1,36 +1,37 @@
+use crate::types::DATA_DIR;
+use percent_encoding::percent_decode_str;
+use serde::Deserialize;
 use std::convert::Infallible;
 use std::io::{Cursor, Write};
 use std::path::Path;
 use tokio::fs;
 use warp::{http::StatusCode, Reply};
-use percent_encoding::percent_decode_str;
-use serde::Deserialize;
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
-use crate::types::DATA_DIR;
 
 #[derive(Deserialize)]
 pub struct DownloadMultipleQuery {
     pub paths: String,
 }
 
-pub async fn handle_download_multiple(query: DownloadMultipleQuery) -> Result<impl warp::Reply, Infallible> {
-    let paths: Vec<String> = query.paths
+pub async fn handle_download_multiple(
+    query: DownloadMultipleQuery,
+) -> Result<impl warp::Reply, Infallible> {
+    let paths: Vec<String> = query
+        .paths
         .split(',')
         .map(|s| percent_decode_str(s.trim()).decode_utf8_lossy().to_string())
         .collect();
 
     if paths.is_empty() {
-        return Ok(warp::reply::with_status(
-            "No files specified",
-            StatusCode::BAD_REQUEST,
-        ).into_response());
+        return Ok(
+            warp::reply::with_status("No files specified", StatusCode::BAD_REQUEST).into_response(),
+        );
     }
 
     let mut zip_buffer = Cursor::new(Vec::new());
     let mut zip = ZipWriter::new(&mut zip_buffer);
-    let options = SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
+    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     for path_str in paths {
         let file_path = Path::new(&path_str);
@@ -52,7 +53,8 @@ pub async fn handle_download_multiple(query: DownloadMultipleQuery) -> Result<im
                     }
                 }
             } else if metadata.is_dir() {
-                if let Err(_) = add_directory_to_zip(&mut zip, file_path, file_path, options).await {
+                if let Err(_) = add_directory_to_zip(&mut zip, file_path, file_path, options).await
+                {
                     continue;
                 }
             }
@@ -63,7 +65,8 @@ pub async fn handle_download_multiple(query: DownloadMultipleQuery) -> Result<im
         return Ok(warp::reply::with_status(
             "Failed to create ZIP archive",
             StatusCode::INTERNAL_SERVER_ERROR,
-        ).into_response());
+        )
+        .into_response());
     }
 
     let zip_data = zip_buffer.into_inner();
@@ -73,7 +76,8 @@ pub async fn handle_download_multiple(query: DownloadMultipleQuery) -> Result<im
         warp::reply::with_header(zip_data, "content-type", "application/zip"),
         "content-disposition",
         disposition,
-    ).into_response())
+    )
+    .into_response())
 }
 
 fn add_directory_to_zip<'a>(
@@ -89,7 +93,8 @@ fn add_directory_to_zip<'a>(
             let path = entry.path();
             let metadata = fs::metadata(&path).await?;
 
-            let relative_path = path.strip_prefix(base_path)
+            let relative_path = path
+                .strip_prefix(base_path)
                 .unwrap_or(&path)
                 .to_string_lossy()
                 .to_string();

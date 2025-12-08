@@ -3,12 +3,12 @@ use warp::Filter;
 mod endpoints;
 mod types;
 
-use endpoints::{
-    handle_download, handle_download_multiple,
-    handle_upload, handle_delete, handle_mkdir, handle_serve, handle_save
-};
-use types::{ListQuery, FileQuery, DATA_DIR};
 use endpoints::download_multiple::DownloadMultipleQuery;
+use endpoints::{
+    handle_delete, handle_download, handle_download_multiple, handle_mkdir, handle_save,
+    handle_serve, handle_upload,
+};
+use types::{FileQuery, ListQuery, DATA_DIR};
 
 const PORT: u16 = 30003;
 
@@ -16,10 +16,8 @@ const PORT: u16 = 30003;
 async fn shutdown_signal() {
     use tokio::signal::unix::{signal, SignalKind};
 
-    let mut sigterm = signal(SignalKind::terminate())
-        .expect("failed to install SIGTERM handler");
-    let mut sigint = signal(SignalKind::interrupt())
-        .expect("failed to install SIGINT handler");
+    let mut sigterm = signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
+    let mut sigint = signal(SignalKind::interrupt()).expect("failed to install SIGINT handler");
 
     tokio::select! {
         _ = sigterm.recv() => {},
@@ -46,25 +44,21 @@ async fn main() {
         .and(warp::path::end())
         .map(|| warp::reply::html(include_str!("../static/index.html")));
 
-    let ui_css = warp::path("ui")
-        .and(warp::path("styles.css"))
-        .map(|| {
-            warp::reply::with_header(
-                include_str!("../static/styles.css"),
-                "content-type",
-                "text/css"
-            )
-        });
+    let ui_css = warp::path("ui").and(warp::path("styles.css")).map(|| {
+        warp::reply::with_header(
+            include_str!("../static/styles.css"),
+            "content-type",
+            "text/css",
+        )
+    });
 
-    let ui_js = warp::path("ui")
-        .and(warp::path("script.js"))
-        .map(|| {
-            warp::reply::with_header(
-                include_str!("../static/script.js"),
-                "content-type",
-                "application/javascript"
-            )
-        });
+    let ui_js = warp::path("ui").and(warp::path("script.js")).map(|| {
+        warp::reply::with_header(
+            include_str!("../static/script.js"),
+            "content-type",
+            "application/javascript",
+        )
+    });
 
     let ui_fallback = warp::path("ui")
         .and(warp::path::tail())

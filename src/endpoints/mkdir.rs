@@ -1,9 +1,9 @@
+use crate::types::{FileQuery, DATA_DIR};
+use percent_encoding::percent_decode_str;
 use std::convert::Infallible;
 use std::path::Path;
 use tokio::fs;
 use warp::http::StatusCode;
-use percent_encoding::percent_decode_str;
-use crate::types::{FileQuery, DATA_DIR};
 
 pub async fn handle_mkdir(query: FileQuery) -> Result<impl warp::Reply, Infallible> {
     let decoded_path = percent_decode_str(&query.path).decode_utf8_lossy();

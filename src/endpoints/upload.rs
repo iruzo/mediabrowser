@@ -1,13 +1,18 @@
+use crate::types::{ListQuery, DATA_DIR};
+use bytes::Buf;
+use futures_util::TryStreamExt;
+use percent_encoding::percent_decode_str;
 use std::convert::Infallible;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs;
+use tokio::io::AsyncWriteExt;
 use warp::http::StatusCode;
-use percent_encoding::percent_decode_str;
-use futures_util::TryStreamExt;
-use bytes::Buf;
-use crate::types::{ListQuery, DATA_DIR};
 
-pub async fn handle_upload(query: ListQuery, mut form: warp::multipart::FormData) -> Result<impl warp::Reply, Infallible> {
+pub async fn handle_upload(
+    query: ListQuery,
+    mut form: warp::multipart::FormData,
+) -> Result<impl warp::Reply, Infallible> {
     let target_path = query.path.unwrap_or_else(|| DATA_DIR.to_string());
     let decoded_path = percent_decode_str(&target_path).decode_utf8_lossy();
     let target_dir = Path::new(&*decoded_path);
@@ -35,9 +40,8 @@ pub async fn handle_upload(query: ListQuery, mut form: warp::multipart::FormData
 
                 if name == "file" {
                     if let Some(filename) = part.filename() {
-                        let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
-                        let timestamped_filename = format!("{}_{}", timestamp, filename);
-                        let file_path = target_dir.join(timestamped_filename);
+                        let filename = filename.to_string();
+                        let file_path = target_dir.join(&filename);
 
                         let mut bytes = Vec::new();
                         let mut stream = part.stream();
@@ -46,11 +50,63 @@ pub async fn handle_upload(query: ListQuery, mut form: warp::multipart::FormData
                             bytes.extend_from_slice(chunk.chunk());
                         }
 
-                        match fs::write(&file_path, &bytes).await {
-                            Ok(_) => {
+                        // Try to create file exclusively (fails if exists)
+                        use tokio::fs::OpenOptions;
+                        let write_result = OpenOptions::new()
+                            .write(true)
+                            .create_new(true)
+                            .open(&file_path)
+                            .await;
+
+                        match write_result {
+                            Ok(mut file) => {
+                                // File didn't exist, write with original name
+                                if let Err(e) = file.write_all(&bytes).await {
+                                    return Ok(warp::reply::with_status(
+                                        warp::reply::json(&format!("Failed to save file: {}", e)),
+                                        StatusCode::INTERNAL_SERVER_ERROR,
+                                    ));
+                                }
                                 uploaded_files += 1;
                             }
+                            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                                // File exists, retry with nanosecond suffix
+                                let nanos = SystemTime::now()
+                                    .duration_since(UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_nanos();
+                                let suffix = nanos % 1_000_000;
+
+                                let timestamped_filename =
+                                    if let Some(dot_pos) = filename.rfind('.') {
+                                        format!(
+                                            "{}_{}{}",
+                                            &filename[..dot_pos],
+                                            suffix,
+                                            &filename[dot_pos..]
+                                        )
+                                    } else {
+                                        format!("{}_{}", filename, suffix)
+                                    };
+
+                                let timestamped_path = target_dir.join(timestamped_filename);
+                                match fs::write(&timestamped_path, &bytes).await {
+                                    Ok(_) => {
+                                        uploaded_files += 1;
+                                    }
+                                    Err(e) => {
+                                        return Ok(warp::reply::with_status(
+                                            warp::reply::json(&format!(
+                                                "Failed to save file: {}",
+                                                e
+                                            )),
+                                            StatusCode::INTERNAL_SERVER_ERROR,
+                                        ));
+                                    }
+                                }
+                            }
                             Err(e) => {
+                                // Other error (permissions, disk full, etc.)
                                 return Ok(warp::reply::with_status(
                                     warp::reply::json(&format!("Failed to save file: {}", e)),
                                     StatusCode::INTERNAL_SERVER_ERROR,

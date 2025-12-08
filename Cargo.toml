@@ -10,7 +10,6 @@ warp = "0.3"
 futures-util = "0.3"
 mime_guess = "2.0"
 percent-encoding = "2.3"
-chrono = "0.4"
 bytes = "1.0"
 zip = "2.2"
 
