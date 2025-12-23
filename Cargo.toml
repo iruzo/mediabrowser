@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "fs", "io-util", "signal", "sync"] }
+tokio-util = { version = "0.7", features = ["io"] }
 serde = { version = "1.0", features = ["derive"] }
 warp = "0.3"
 futures-util = "0.3"

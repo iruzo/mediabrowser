@@ -5,6 +5,7 @@ use std::convert::Infallible;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio_util::io::ReaderStream;
 use warp::http::HeaderMap;
 use warp::hyper::Body;
 use warp::{http::StatusCode, Reply};
@@ -82,19 +83,26 @@ async fn serve_file(
         }
     }
 
-    // No range request - serve entire file
-    match fs::read(file_path).await {
-        Ok(contents) => Ok(warp::http::Response::builder()
-            .status(StatusCode::OK)
-            .header("content-type", mime_type)
-            .header("accept-ranges", "bytes")
-            .header("content-length", file_size.to_string())
-            .body(Body::from(contents))
-            .unwrap()),
+    // No range request - stream entire file
+    let file = match fs::File::open(file_path).await {
+        Ok(f) => f,
         Err(_) => {
-            Ok(warp::reply::with_status("File not found", StatusCode::NOT_FOUND).into_response())
+            return Ok(
+                warp::reply::with_status("File not found", StatusCode::NOT_FOUND).into_response(),
+            );
         }
-    }
+    };
+
+    let stream = ReaderStream::new(file);
+    let body = Body::wrap_stream(stream);
+
+    Ok(warp::http::Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", mime_type)
+        .header("accept-ranges", "bytes")
+        .header("content-length", file_size.to_string())
+        .body(body)
+        .unwrap())
 }
 
 fn parse_range(range_str: &str, file_size: u64) -> Option<(u64, u64)> {
