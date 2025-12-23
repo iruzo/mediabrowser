@@ -39,6 +39,7 @@ const videoLoadQueue = {
         video.src = servePath;
         video.muted = true;
         video.loading = 'lazy';
+        video.preload = 'metadata';
 
         const onLoadComplete = () => {
             this.loading--;
