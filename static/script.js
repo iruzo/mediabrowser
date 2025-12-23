@@ -1044,20 +1044,86 @@ function formatTime(seconds) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-function updateLoopDisplay() {
-    const display = document.getElementById('loopDisplay');
-    if (!display) return;
+function parseTime(timeStr) {
+    const parts = timeStr.trim().split(':');
+    if (parts.length !== 2) return null;
 
-    if (loopEnabled && loopEnd > loopStart) {
-        display.textContent = `Loop: ${formatTime(loopStart)} - ${formatTime(loopEnd)}`;
-        display.style.display = 'block';
-    } else if (loopStart > 0) {
-        display.textContent = `Start: ${formatTime(loopStart)}`;
-        display.style.display = 'block';
-    } else {
-        display.textContent = '';
-        display.style.display = 'none';
+    const mins = parseInt(parts[0], 10);
+    const secs = parseInt(parts[1], 10);
+
+    if (isNaN(mins) || isNaN(secs) || mins < 0 || secs < 0 || secs >= 60) {
+        return null;
     }
+
+    return mins * 60 + secs;
+}
+
+function updateLoopDisplay() {
+    const startInput = document.getElementById('loopStartInput');
+    const endInput = document.getElementById('loopEndInput');
+
+    if (!startInput || !endInput) return;
+
+    startInput.value = formatTime(loopStart);
+    endInput.value = formatTime(loopEnd);
+}
+
+function onLoopTimeChange(isStart) {
+    const video = document.querySelector('#viewerContent video');
+    if (!video) return;
+
+    const startInput = document.getElementById('loopStartInput');
+    const endInput = document.getElementById('loopEndInput');
+
+    if (isStart) {
+        const time = parseTime(startInput.value);
+        if (time === null) {
+            alert('Invalid time format. Use MM:SS (e.g., 1:30)');
+            startInput.value = formatTime(loopStart);
+            return;
+        }
+
+        if (time > video.duration) {
+            alert('Start time exceeds video duration');
+            startInput.value = formatTime(loopStart);
+            return;
+        }
+
+        loopStart = time;
+
+        if (loopEnd > 0 && loopEnd <= loopStart) {
+            loopEnd = 0;
+            endInput.value = formatTime(0);
+        }
+
+        if (loopEnd > loopStart) {
+            loopEnabled = true;
+        }
+    } else {
+        const time = parseTime(endInput.value);
+        if (time === null) {
+            alert('Invalid time format. Use MM:SS (e.g., 1:30)');
+            endInput.value = formatTime(loopEnd);
+            return;
+        }
+
+        if (time > video.duration) {
+            alert('End time exceeds video duration');
+            endInput.value = formatTime(loopEnd);
+            return;
+        }
+
+        if (time <= loopStart) {
+            alert('Loop end must be after loop start');
+            endInput.value = formatTime(loopEnd);
+            return;
+        }
+
+        loopEnd = time;
+        loopEnabled = true;
+    }
+
+    updateLoopDisplay();
 }
 
 function saveTextFile() {

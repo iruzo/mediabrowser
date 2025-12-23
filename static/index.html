@@ -57,10 +57,10 @@
             <button class="viewer-btn" onclick="resetZoom()">reset</button>
         </div>
         <div class="loop-controls" id="loopControls" style="display:none;">
-            <button class="viewer-btn" onclick="setLoopStart()" title="Set loop start point">loop start</button>
-            <button class="viewer-btn" onclick="setLoopEnd()" title="Set loop end point">loop end</button>
+            <input type="text" id="loopStartInput" class="time-input" placeholder="0:00" title="Loop start time (MM:SS)" onchange="onLoopTimeChange(true)">
+            <span>-</span>
+            <input type="text" id="loopEndInput" class="time-input" placeholder="0:00" title="Loop end time (MM:SS)" onchange="onLoopTimeChange(false)">
             <button class="viewer-btn" onclick="clearLoop()" title="Clear loop">clear loop</button>
-            <div class="loop-display" id="loopDisplay"></div>
         </div>
         <div class="nav-controls-prev">
             <button class="viewer-btn" onclick="previousMedia()">prev</button>

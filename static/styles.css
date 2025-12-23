@@ -297,19 +297,32 @@ body {
     z-index: 15;
     pointer-events: auto;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 0.5vh;
     align-items: center;
 }
 
-.loop-display {
+.loop-controls > span {
     color: var(--text-primary);
     font-size: 1.4vh;
-    padding: 0.2vh 0.5vh;
-    background: var(--bg-tertiary);
+    padding: 0 0.3vh;
+}
+
+.time-input {
+    background: var(--bg-primary);
+    border: 1px solid var(--bg-quaternary);
+    color: var(--text-primary);
+    font-size: 1.4vh;
+    padding: 0.3vh 0.5vh;
     border-radius: 0.2vh;
-    min-width: 12vh;
+    width: 5vh;
     text-align: center;
+    font-family: monospace;
+}
+
+.time-input:focus {
+    outline: none;
+    border-color: var(--text-secondary);
 }
 
 .viewer-btn {
