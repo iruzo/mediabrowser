@@ -1038,6 +1038,20 @@ function clearLoop() {
     updateLoopDisplay();
 }
 
+function seekBackward() {
+    const video = document.querySelector('#viewerContent video');
+    if (!video) return;
+
+    video.currentTime = Math.max(0, video.currentTime - 1);
+}
+
+function seekForward() {
+    const video = document.querySelector('#viewerContent video');
+    if (!video) return;
+
+    video.currentTime = Math.min(video.duration, video.currentTime + 1);
+}
+
 function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);

@@ -57,10 +57,12 @@
             <button class="viewer-btn" onclick="resetZoom()">reset</button>
         </div>
         <div class="loop-controls" id="loopControls" style="display:none;">
+            <button class="viewer-btn" onclick="seekBackward()" title="Seek backward 1 second">-1s</button>
             <input type="text" id="loopStartInput" class="time-input" placeholder="0:00" title="Loop start time (MM:SS)" onchange="onLoopTimeChange(true)">
             <span>-</span>
             <input type="text" id="loopEndInput" class="time-input" placeholder="0:00" title="Loop end time (MM:SS)" onchange="onLoopTimeChange(false)">
-            <button class="viewer-btn" onclick="clearLoop()" title="Clear loop">clear loop</button>
+            <button class="viewer-btn" onclick="clearLoop()" title="Clear loop">clear</button>
+            <button class="viewer-btn" onclick="seekForward()" title="Seek forward 1 second">+1s</button>
         </div>
         <div class="nav-controls-prev">
             <button class="viewer-btn" onclick="previousMedia()">prev</button>

@@ -61,6 +61,13 @@ body {
     gap: 0.5vh;
 }
 
+.toolbar > div {
+    display: flex;
+    gap: 0.3vh;
+    flex-shrink: 0;
+    align-items: center;
+}
+
 .toolbar-btn {
     background: var(--bg-quaternary);
     border: none;
@@ -72,6 +79,7 @@ body {
     border-radius: 0.2vh;
     white-space: nowrap;
     min-height: 2.8vh;
+    flex-shrink: 0;
 }
 
 .toolbar-btn.active {
@@ -88,6 +96,7 @@ body {
     margin: 0;
     border-radius: 0.2vh;
     min-height: 2.8vh;
+    flex-shrink: 0;
 }
 
 .search-bar {
@@ -298,14 +307,23 @@ body {
     pointer-events: auto;
     display: flex;
     flex-direction: row;
-    gap: 0.5vh;
+    flex-wrap: nowrap;
+    gap: 0.3vh;
     align-items: center;
 }
 
 .loop-controls > span {
     color: var(--text-primary);
     font-size: 1.4vh;
-    padding: 0 0.3vh;
+    padding: 0 0.2vh;
+    flex-shrink: 0;
+}
+
+.loop-controls > .viewer-btn {
+    padding: 0.2vh 0.3vh;
+    margin: 0;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .time-input {
@@ -313,11 +331,12 @@ body {
     border: 1px solid var(--bg-quaternary);
     color: var(--text-primary);
     font-size: 1.4vh;
-    padding: 0.3vh 0.5vh;
+    padding: 0.3vh 0.3vh;
     border-radius: 0.2vh;
-    width: 5vh;
+    width: 4.5vh;
     text-align: center;
     font-family: monospace;
+    flex-shrink: 0;
 }
 
 .time-input:focus {
@@ -420,20 +439,26 @@ body {
 /* Mobile responsive styles */
 @media (max-width: 768px) {
     .toolbar {
-        padding: 0.3vh 0.5vh;
+        padding: 0.3vh 0.3vh;
+        gap: 0.3vh;
+    }
+
+    .toolbar > div {
+        gap: 0.2vh;
     }
 
     .toolbar-btn, .filter-select {
-        font-size: 1.4vh;
-        padding: 0.3vh 0.6vh;
+        font-size: 1.3vh;
+        padding: 0.3vh 0.4vh;
         min-height: 3.2vh;
     }
 
     .search-bar {
-        font-size: 1.4vh;
-        padding: 0.3vh 0.6vh;
+        font-size: 1.3vh;
+        padding: 0.3vh 0.4vh;
         min-height: 3.2vh;
-        min-width: 12vh;
+        min-width: 8vh;
+        flex-shrink: 1;
     }
 
     .gallery-container {
@@ -449,19 +474,31 @@ body {
 @media (max-width: 480px) {
     .toolbar {
         flex-direction: row;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         align-items: center;
-        gap: 0.3vh;
-        padding: 0.5vh;
+        gap: 0.2vh;
+        padding: 0.3vh 0.2vh;
+    }
+
+    .toolbar > div {
+        gap: 0.15vh;
     }
 
     .toolbar > div:first-child {
         flex: 0 0 auto;
-        margin-right: auto;
+    }
+
+    .toolbar-btn, .filter-select {
+        font-size: 1.2vh;
+        padding: 0.2vh 0.3vh;
+        min-height: 3vh;
     }
 
     .search-bar {
-        flex: 1 1 10vh;
+        flex: 1 1 6vh;
+        min-width: 6vh;
+        font-size: 1.2vh;
+        padding: 0.2vh 0.3vh;
     }
 
     .grid-controls {
@@ -469,21 +506,14 @@ body {
     }
 
     .toolbar > div:last-child {
-        flex: 1 1 100%;
+        flex: 0 0 auto;
         display: flex;
-        justify-content: flex-start;
-        flex-wrap: wrap;
-        gap: 0.3vh;
-        margin-top: 0.3vh;
+        justify-content: flex-end;
+        flex-wrap: nowrap;
+        gap: 0.15vh;
     }
 
     .gallery-container {
-        top: 8vh;
-    }
-
-    .toolbar-btn, .filter-select {
-        font-size: 1.2vh;
-        padding: 0.2vh 0.4vh;
-        min-height: 2.8vh;
+        top: 5vh;
     }
 }
