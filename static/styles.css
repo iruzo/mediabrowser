@@ -124,6 +124,12 @@ body {
     right: 0;
     bottom: 0;
     overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.gallery-container::-webkit-scrollbar {
+    display: none;
 }
 
 .gallery-grid {
@@ -245,6 +251,12 @@ body {
     font-size: 1.5vh;
     white-space: pre-wrap;
     border: 1px solid var(--border-secondary);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.text-viewer::-webkit-scrollbar {
+    display: none;
 }
 
 .text-editor-container {
@@ -404,6 +416,12 @@ body {
     overflow-y: auto;
     flex: 1;
     font-family: monospace;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.upload-progress-files::-webkit-scrollbar {
+    display: none;
 }
 
 .upload-progress-files div {
