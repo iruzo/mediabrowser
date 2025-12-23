@@ -10,8 +10,8 @@ RUN cargo build --release --target x86_64-unknown-linux-musl
 
 FROM scratch
 
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/filemanager /filemanager
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/mediabrowser /mediabrowser
 
 EXPOSE 30003
 
-CMD ["/filemanager"]
+CMD ["/mediabrowser"]
