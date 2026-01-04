@@ -148,6 +148,14 @@ async fn main() {
         )
     });
 
+    let ui_js_drawer = warp::path("ui").and(warp::path("js")).and(warp::path("drawer.js")).map(|| {
+        warp::reply::with_header(
+            include_str!("../static/js/drawer.js"),
+            "content-type",
+            "application/javascript",
+        )
+    });
+
     let ui_js_main = warp::path("ui").and(warp::path("js")).and(warp::path("main.js")).map(|| {
         warp::reply::with_header(
             include_str!("../static/js/main.js"),
@@ -216,6 +224,7 @@ async fn main() {
         .or(ui_js_media_viewer)
         .or(ui_js_media_controls)
         .or(ui_js_file_ops)
+        .or(ui_js_drawer)
         .or(ui_js_main)
         .or(api_download)
         .or(api_download_multiple)

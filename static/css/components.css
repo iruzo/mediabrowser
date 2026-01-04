@@ -108,3 +108,139 @@
 .upload-progress-files div {
     padding: 0.3vh 0;
 }
+
+.drawer {
+    position: fixed;
+    top: 0;
+    left: -320px;
+    width: 320px;
+    height: 100vh;
+    background: var(--bg-secondary);
+    z-index: 100;
+    transition: left 0.3s ease;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+}
+
+.drawer::-webkit-scrollbar {
+    display: none;
+}
+
+.drawer.open {
+    left: 0;
+}
+
+.drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2vh;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 2.2vh;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.drawer-close {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 4vh;
+    cursor: pointer;
+    padding: 0;
+    width: 4vh;
+    height: 4vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.drawer-content {
+    padding: 2vh;
+}
+
+.drawer-btn {
+    display: block;
+    width: 100%;
+    background: var(--bg-quaternary);
+    border: none;
+    color: var(--text-primary);
+    padding: 1.5vh;
+    margin-bottom: 1vh;
+    cursor: pointer;
+    font-size: 1.6vh;
+    text-align: left;
+    border-radius: 0.5vh;
+}
+
+.drawer-btn:hover {
+    background: var(--bg-quinary);
+}
+
+.drawer-btn.active {
+    background: var(--selection-color);
+}
+
+.drawer-btn-small {
+    background: var(--bg-quaternary);
+    border: none;
+    color: var(--text-primary);
+    padding: 1.2vh 2vh;
+    cursor: pointer;
+    font-size: 1.8vh;
+    border-radius: 0.5vh;
+    margin-right: 1vh;
+}
+
+.drawer-btn-small:hover {
+    background: var(--bg-quinary);
+}
+
+.drawer-grid-controls {
+    margin-bottom: 1.5vh;
+}
+
+.drawer-label {
+    font-size: 1.4vh;
+    color: var(--text-secondary);
+    margin-bottom: 1vh;
+    margin-top: 0.5vh;
+}
+
+.drawer-select {
+    display: block;
+    width: 100%;
+    background: var(--bg-quaternary);
+    border: 1px solid var(--border-secondary);
+    color: var(--text-primary);
+    padding: 1.5vh;
+    margin-bottom: 1.5vh;
+    cursor: pointer;
+    font-size: 1.6vh;
+    border-radius: 0.5vh;
+}
+
+.drawer-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 2vh 0;
+}
+
+.drawer-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+    display: none;
+}
+
+.drawer-backdrop.visible {
+    display: block;
+}

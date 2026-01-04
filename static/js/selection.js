@@ -27,17 +27,37 @@ function toggleFileSelection(file, clickedElement) {
 function updateSelectionUI() {
     const hasSelection = selectedFiles.size > 0;
     const selectBtn = document.getElementById('selectBtn');
+    const selectBtnDrawer = document.getElementById('selectBtnDrawer');
 
-    selectBtn.textContent = selectionMode ? 'done' : 'select';
-    if (selectionMode) {
-        selectBtn.classList.add('active');
-    } else {
-        selectBtn.classList.remove('active');
+    if (selectBtn) {
+        selectBtn.textContent = selectionMode ? 'done' : 'select';
+        if (selectionMode) {
+            selectBtn.classList.add('active');
+        } else {
+            selectBtn.classList.remove('active');
+        }
     }
 
-    document.getElementById('downloadBtn').style.display = hasSelection ? 'inline-block' : 'none';
-    document.getElementById('deleteBtn').style.display = hasSelection ? 'inline-block' : 'none';
-    document.getElementById('clearBtn').style.display = hasSelection ? 'inline-block' : 'none';
+    if (selectBtnDrawer) {
+        selectBtnDrawer.textContent = selectionMode ? 'Done selecting' : 'Select mode';
+        if (selectionMode) {
+            selectBtnDrawer.classList.add('active');
+        } else {
+            selectBtnDrawer.classList.remove('active');
+        }
+    }
+
+    const downloadBtn = document.getElementById('downloadBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const selectionActions = document.getElementById('selectionActions');
+    const selectionDivider = document.getElementById('selectionDivider');
+
+    if (downloadBtn) downloadBtn.style.display = hasSelection ? 'inline-block' : 'none';
+    if (deleteBtn) deleteBtn.style.display = hasSelection ? 'inline-block' : 'none';
+    if (clearBtn) clearBtn.style.display = hasSelection ? 'inline-block' : 'none';
+    if (selectionActions) selectionActions.style.display = hasSelection ? 'block' : 'none';
+    if (selectionDivider) selectionDivider.style.display = hasSelection ? 'block' : 'none';
 
     updateVirtualItemsSelection();
 }

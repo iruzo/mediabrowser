@@ -1,5 +1,10 @@
 /* Mobile responsive styles */
 @media (max-width: 768px) {
+    .drawer {
+        left: -100%;
+        width: 100%;
+    }
+
     .toolbar {
         padding: 0.3vh 0.3vh;
         gap: 0.3vh;

@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>mediabrowser</title>
     <link rel="stylesheet" href="/ui/css/base.css">
     <link rel="stylesheet" href="/ui/css/layout.css">
@@ -11,36 +12,59 @@
 </head>
 <body>
     <div class="toolbar">
-        <div class="nav-controls">
-            <button class="toolbar-btn" onclick="goPrev()" title="Go to parent directory">prev</button>
-        </div>
+        <button class="toolbar-btn" onclick="toggleDrawer()">menu</button>
         <input type="text" class="search-bar" placeholder="Search files..." id="searchInput" oninput="filterBySearch(this.value)">
-        <div class="grid-controls">
-            <button class="toolbar-btn" onclick="decreaseGridSize()" title="Smaller grid">-</button>
-            <button class="toolbar-btn" onclick="increaseGridSize()" title="Larger grid">+</button>
+        <button class="toolbar-btn" onclick="goPrev()" title="Go to parent directory">prev</button>
+    </div>
+
+    <div class="drawer" id="drawer">
+        <div class="drawer-header">
+            <span>Menu</span>
+            <button class="drawer-close" onclick="toggleDrawer()">×</button>
         </div>
-        <div>
-            <button class="toolbar-btn" onclick="triggerUpload()">upload</button>
-            <button class="toolbar-btn" onclick="createFolder()">folder</button>
-            <button class="toolbar-btn" onclick="toggleSelectionMode()" id="selectBtn">select</button>
-            <select class="filter-select" onchange="changeSort(this.value)">
-                <option value="name">name</option>
-                <option value="date">date</option>
-                <option value="size">size</option>
-                <option value="type">type</option>
+        <div class="drawer-content">
+            <button class="drawer-btn" onclick="triggerUpload(); toggleDrawer()">Upload</button>
+            <button class="drawer-btn" onclick="createFolder(); toggleDrawer()">Create folder</button>
+            <button class="drawer-btn" onclick="toggleSelectionMode()" id="selectBtnDrawer">Select mode</button>
+
+            <div class="drawer-divider"></div>
+
+            <div class="drawer-label">Grid size</div>
+            <div class="drawer-grid-controls">
+                <button class="drawer-btn-small" onclick="decreaseGridSize()">-</button>
+                <button class="drawer-btn-small" onclick="increaseGridSize()">+</button>
+            </div>
+
+            <div class="drawer-divider"></div>
+
+            <div class="drawer-label">Sort by</div>
+            <select class="drawer-select" onchange="changeSort(this.value)">
+                <option value="name">Name</option>
+                <option value="date">Date</option>
+                <option value="size">Size</option>
+                <option value="type">Type</option>
             </select>
-            <select class="filter-select" onchange="changeFilter(this.value)">
-                <option value="all">all</option>
-                <option value="image">image</option>
-                <option value="video">video</option>
-                <option value="audio">audio</option>
-                <option value="text">text</option>
+
+            <div class="drawer-label">Filter by</div>
+            <select class="drawer-select" onchange="changeFilter(this.value)">
+                <option value="all">All</option>
+                <option value="image">Images</option>
+                <option value="video">Videos</option>
+                <option value="audio">Audio</option>
+                <option value="text">Text</option>
             </select>
-            <button class="toolbar-btn" onclick="downloadSelected()" id="downloadBtn" style="display:none">download</button>
-            <button class="toolbar-btn" onclick="deleteSelected()" id="deleteBtn" style="display:none">delete</button>
-            <button class="toolbar-btn" onclick="clearSelection()" id="clearBtn" style="display:none">clear</button>
+
+            <div class="drawer-divider" id="selectionDivider" style="display:none"></div>
+
+            <div id="selectionActions" style="display:none">
+                <button class="drawer-btn" onclick="downloadSelected(); toggleDrawer()" id="downloadBtnDrawer">Download selected</button>
+                <button class="drawer-btn" onclick="deleteSelected(); toggleDrawer()" id="deleteBtnDrawer">Delete selected</button>
+                <button class="drawer-btn" onclick="clearSelection(); toggleDrawer()" id="clearBtnDrawer">Clear selection</button>
+            </div>
         </div>
     </div>
+
+    <div class="drawer-backdrop" id="drawerBackdrop" onclick="toggleDrawer()"></div>
 
     <div class="gallery-container">
         <div class="gallery-grid" id="galleryGrid"></div>
@@ -101,6 +125,7 @@
     <script src="/ui/js/media-viewer.js"></script>
     <script src="/ui/js/media-controls.js"></script>
     <script src="/ui/js/file-ops.js"></script>
+    <script src="/ui/js/drawer.js"></script>
     <script src="/ui/js/main.js"></script>
 </body>
 </html>
