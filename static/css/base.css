@@ -1,0 +1,44 @@
+/* Dark theme */
+:root {
+    --bg-primary: #000;
+    --bg-secondary: #111;
+    --bg-tertiary: #222;
+    --bg-quaternary: #333;
+    --bg-quinary: #444;
+    --text-primary: #fff;
+    --text-secondary: #fff;
+    --border-color: #333;
+    --border-secondary: #555;
+    --selection-color: #0066cc;
+    --selection-overlay: rgba(0, 100, 200, 0.3);
+}
+
+/* Light theme */
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg-primary: #fff;
+        --bg-secondary: #f5f5f5;
+        --bg-tertiary: #e0e0e0;
+        --bg-quaternary: #d0d0d0;
+        --bg-quinary: #c0c0c0;
+        --text-primary: #000;
+        --text-secondary: #333;
+        --border-color: #ccc;
+        --border-secondary: #999;
+        --selection-color: #0066cc;
+        --selection-overlay: rgba(0, 100, 200, 0.2);
+    }
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: monospace;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+}

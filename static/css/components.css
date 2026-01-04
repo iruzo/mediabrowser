@@ -1,0 +1,110 @@
+.toolbar-btn {
+    background: var(--bg-quaternary);
+    border: none;
+    color: var(--text-primary);
+    padding: 0.3vh 0.6vh;
+    cursor: pointer;
+    font-size: 1.2vh;
+    margin: 0;
+    border-radius: 0.2vh;
+    white-space: nowrap;
+    min-height: 2.8vh;
+    flex-shrink: 0;
+}
+
+.toolbar-btn.active {
+    background: var(--border-secondary);
+}
+
+.filter-select {
+    background: var(--bg-quaternary);
+    border: none;
+    color: var(--text-primary);
+    padding: 0.3vh 0.6vh;
+    cursor: pointer;
+    font-size: 1.2vh;
+    margin: 0;
+    border-radius: 0.2vh;
+    min-height: 2.8vh;
+    flex-shrink: 0;
+}
+
+.search-bar {
+    flex: 1;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-secondary);
+    color: var(--text-primary);
+    padding: 0.3vh 0.6vh;
+    font-size: 1.2vh;
+    margin: 0;
+    border-radius: 0.2vh;
+    min-height: 2.8vh;
+    min-width: 12vh;
+}
+
+.search-bar:focus {
+    outline: none;
+    border-color: var(--border-secondary);
+}
+
+.context-menu {
+    position: fixed;
+    background: var(--bg-quaternary);
+    border: 1px solid var(--border-secondary);
+    display: none;
+    min-width: 10vh;
+}
+
+.context-menu-item {
+    padding: 0.5vh 1vh;
+    cursor: pointer;
+    font-size: 1.4vh;
+    color: var(--text-primary);
+}
+
+#fileInput {
+    display: none;
+}
+
+.upload-progress {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-quaternary);
+    border: 2px solid var(--border-secondary);
+    padding: 2vh;
+    z-index: 20;
+    width: 50vw;
+    height: 60vh;
+    display: flex;
+    flex-direction: column;
+    gap: 1vh;
+}
+
+.upload-progress-header {
+    font-size: 1.8vh;
+    font-weight: bold;
+    color: var(--text-primary);
+    padding-bottom: 1vh;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.upload-progress-files {
+    font-size: 1.4vh;
+    color: var(--text-secondary);
+    overflow-y: auto;
+    flex: 1;
+    font-family: monospace;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.upload-progress-files::-webkit-scrollbar {
+    display: none;
+}
+
+.upload-progress-files div {
+    padding: 0.3vh 0;
+}

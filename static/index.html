@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>mediabrowser</title>
-    <link rel="stylesheet" href="/ui/styles.css">
+    <link rel="stylesheet" href="/ui/css/base.css">
+    <link rel="stylesheet" href="/ui/css/layout.css">
+    <link rel="stylesheet" href="/ui/css/components.css">
+    <link rel="stylesheet" href="/ui/css/viewer.css">
+    <link rel="stylesheet" href="/ui/css/responsive.css">
 </head>
 <body>
     <div class="toolbar">
@@ -89,6 +93,14 @@
 
     <input type="file" id="fileInput" multiple onchange="handleFileSelect(this.files)">
 
-    <script src="/ui/script.js"></script>
+    <script src="/ui/js/state.js"></script>
+    <script src="/ui/js/utils.js"></script>
+    <script src="/ui/js/navigation.js"></script>
+    <script src="/ui/js/gallery.js"></script>
+    <script src="/ui/js/selection.js"></script>
+    <script src="/ui/js/media-viewer.js"></script>
+    <script src="/ui/js/media-controls.js"></script>
+    <script src="/ui/js/file-ops.js"></script>
+    <script src="/ui/js/main.js"></script>
 </body>
 </html>
