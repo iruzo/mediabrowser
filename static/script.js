@@ -588,7 +588,7 @@ function handleFileClick(e, file) {
     if (selectionMode || e.ctrlKey || e.metaKey) {
         // Multi-select mode (selection mode enabled or Ctrl/Cmd+click)
         e.preventDefault();
-        toggleFileSelection(file);
+        toggleFileSelection(file, e.currentTarget);
     } else if (selectedFiles.size > 0) {
         // Clear selection and open file
         clearSelection();
@@ -599,15 +599,33 @@ function handleFileClick(e, file) {
     }
 }
 
-function toggleFileSelection(file) {
-    if (selectedFiles.has(file.path)) {
+function toggleFileSelection(file, clickedElement) {
+    const isSelected = selectedFiles.has(file.path);
+
+    if (isSelected) {
         selectedFiles.delete(file.path);
     } else {
         selectedFiles.add(file.path);
     }
 
+    // Update only the clicked item's visual state
+    if (clickedElement) {
+        const existingOverlay = clickedElement.querySelector('.selection-overlay');
+
+        if (!isSelected && !existingOverlay) {
+            // Add selection overlay
+            clickedElement.classList.add('selected');
+            const overlay = document.createElement('div');
+            overlay.className = 'selection-overlay';
+            clickedElement.appendChild(overlay);
+        } else if (isSelected && existingOverlay) {
+            // Remove selection overlay
+            clickedElement.classList.remove('selected');
+            existingOverlay.remove();
+        }
+    }
+
     updateSelectionUI();
-    renderGallery(currentFiles);
 }
 
 function updateSelectionUI() {
@@ -665,8 +683,17 @@ function updateVirtualItemsSelection() {
 function clearSelection() {
     selectedFiles.clear();
     selectionMode = false;
+
+    // Remove selection overlays and classes from all items
+    document.querySelectorAll('.grid-item.selected').forEach(item => {
+        item.classList.remove('selected');
+        const overlay = item.querySelector('.selection-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    });
+
     updateSelectionUI();
-    renderGallery(currentFiles);
 }
 
 function toggleSelectionMode() {
@@ -674,9 +701,17 @@ function toggleSelectionMode() {
     if (!selectionMode) {
         // Exiting selection mode, clear selections
         selectedFiles.clear();
+
+        // Remove selection overlays and classes from all items
+        document.querySelectorAll('.grid-item.selected').forEach(item => {
+            item.classList.remove('selected');
+            const overlay = item.querySelector('.selection-overlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        });
     }
     updateSelectionUI();
-    renderGallery(currentFiles);
 }
 
 function downloadSelected() {
