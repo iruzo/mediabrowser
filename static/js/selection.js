@@ -47,17 +47,24 @@ function updateSelectionUI() {
         }
     }
 
-    const downloadBtn = document.getElementById('downloadBtn');
-    const deleteBtn = document.getElementById('deleteBtn');
-    const clearBtn = document.getElementById('clearBtn');
     const selectionActions = document.getElementById('selectionActions');
     const selectionDivider = document.getElementById('selectionDivider');
 
-    if (downloadBtn) downloadBtn.style.display = hasSelection ? 'inline-block' : 'none';
-    if (deleteBtn) deleteBtn.style.display = hasSelection ? 'inline-block' : 'none';
-    if (clearBtn) clearBtn.style.display = hasSelection ? 'inline-block' : 'none';
-    if (selectionActions) selectionActions.style.display = hasSelection ? 'block' : 'none';
-    if (selectionDivider) selectionDivider.style.display = hasSelection ? 'block' : 'none';
+    if (selectionActions) {
+        if (hasSelection) {
+            selectionActions.classList.remove('hidden');
+        } else {
+            selectionActions.classList.add('hidden');
+        }
+    }
+
+    if (selectionDivider) {
+        if (hasSelection) {
+            selectionDivider.classList.remove('hidden');
+        } else {
+            selectionDivider.classList.add('hidden');
+        }
+    }
 
     updateVirtualItemsSelection();
 }
@@ -89,9 +96,8 @@ function updateVirtualItemsSelection() {
     virtualScrollData.selectedItemsCache = currentSelected;
 }
 
-function clearSelection() {
+function clearSelectionItems() {
     selectedFiles.clear();
-    selectionMode = false;
 
     document.querySelectorAll('.grid-item.selected').forEach(item => {
         item.classList.remove('selected');
@@ -100,22 +106,18 @@ function clearSelection() {
             overlay.remove();
         }
     });
+}
 
+function clearSelection() {
+    clearSelectionItems();
+    selectionMode = false;
     updateSelectionUI();
 }
 
 function toggleSelectionMode() {
     selectionMode = !selectionMode;
     if (!selectionMode) {
-        selectedFiles.clear();
-
-        document.querySelectorAll('.grid-item.selected').forEach(item => {
-            item.classList.remove('selected');
-            const overlay = item.querySelector('.selection-overlay');
-            if (overlay) {
-                overlay.remove();
-            }
-        });
+        clearSelectionItems();
     }
     updateSelectionUI();
 }

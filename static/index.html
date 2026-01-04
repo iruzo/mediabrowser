@@ -54,12 +54,12 @@
                 <option value="text">Text</option>
             </select>
 
-            <div class="drawer-divider" id="selectionDivider" style="display:none"></div>
+            <div class="drawer-divider hidden" id="selectionDivider"></div>
 
-            <div id="selectionActions" style="display:none">
-                <button class="drawer-btn" onclick="downloadSelected(); toggleDrawer()" id="downloadBtnDrawer">Download selected</button>
-                <button class="drawer-btn" onclick="deleteSelected(); toggleDrawer()" id="deleteBtnDrawer">Delete selected</button>
-                <button class="drawer-btn" onclick="clearSelection(); toggleDrawer()" id="clearBtnDrawer">Clear selection</button>
+            <div class="hidden" id="selectionActions">
+                <button class="drawer-btn" onclick="downloadSelected(); toggleDrawer()">Download selected</button>
+                <button class="drawer-btn" onclick="deleteSelected(); toggleDrawer()">Delete selected</button>
+                <button class="drawer-btn" onclick="clearSelection(); toggleDrawer()">Clear selection</button>
             </div>
         </div>
     </div>

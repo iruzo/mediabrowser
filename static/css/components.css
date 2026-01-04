@@ -244,3 +244,7 @@
 .drawer-backdrop.visible {
     display: block;
 }
+
+.hidden {
+    display: none;
+}
