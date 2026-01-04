@@ -722,6 +722,7 @@ let zoomLevel = 1;
 let isDragging = false;
 let dragStart = { x: 0, y: 0 };
 let imagePos = { x: 0, y: 0 };
+let rotationAngle = 0;
 
 function openMedia(file) {
     if (file.is_dir) {
@@ -902,6 +903,7 @@ function resetZoom() {
     zoomLevel = 1;
     imagePos = { x: 0, y: 0 };
     isDragging = false;
+    rotationAngle = 0;
     updateMediaTransform();
 }
 
@@ -933,6 +935,16 @@ function moveRight() {
     }
 }
 
+function rotateLeft() {
+    rotationAngle -= 45;
+    updateMediaTransform();
+}
+
+function rotateRight() {
+    rotationAngle += 45;
+    updateMediaTransform();
+}
+
 function updateMediaTransform() {
     const img = document.getElementById('viewerImage');
     const video = document.querySelector('#viewerContent video');
@@ -942,10 +954,10 @@ function updateMediaTransform() {
 
     if (zoomLevel > 1) {
         element.classList.add('zoomed');
-        element.style.transform = `scale(${zoomLevel}) translate(${imagePos.x / zoomLevel}px, ${imagePos.y / zoomLevel}px)`;
+        element.style.transform = `rotate(${rotationAngle}deg) scale(${zoomLevel}) translate(${imagePos.x / zoomLevel}px, ${imagePos.y / zoomLevel}px)`;
     } else {
         element.classList.remove('zoomed');
-        element.style.transform = 'scale(1) translate(0, 0)';
+        element.style.transform = `rotate(${rotationAngle}deg) scale(1) translate(0, 0)`;
         imagePos = { x: 0, y: 0 };
     }
 }
