@@ -49,9 +49,10 @@ function updateSelectionUI() {
 
     const selectionActions = document.getElementById('selectionActions');
     const selectionDivider = document.getElementById('selectionDivider');
+    const selectAllBtn = document.getElementById('selectAllBtn');
 
     if (selectionActions) {
-        if (hasSelection) {
+        if (selectionMode) {
             selectionActions.classList.remove('hidden');
         } else {
             selectionActions.classList.add('hidden');
@@ -59,11 +60,17 @@ function updateSelectionUI() {
     }
 
     if (selectionDivider) {
-        if (hasSelection) {
+        if (selectionMode) {
             selectionDivider.classList.remove('hidden');
         } else {
             selectionDivider.classList.add('hidden');
         }
+    }
+
+    if (selectAllBtn && selectionMode) {
+        const visibleFiles = virtualScrollData.filteredFiles.filter(f => !f.is_dir);
+        const allSelected = visibleFiles.length > 0 && visibleFiles.every(f => selectedFiles.has(f.path));
+        selectAllBtn.textContent = allSelected ? 'Deselect all' : 'Select all';
     }
 
     updateVirtualItemsSelection();
@@ -120,6 +127,32 @@ function toggleSelectionMode() {
         clearSelectionItems();
     }
     updateSelectionUI();
+}
+
+function selectAll() {
+    const visibleFiles = virtualScrollData.filteredFiles.filter(f => !f.is_dir);
+
+    visibleFiles.forEach(file => {
+        selectedFiles.add(file.path);
+    });
+
+    updateSelectionUI();
+}
+
+function deselectAll() {
+    clearSelectionItems();
+    updateSelectionUI();
+}
+
+function toggleSelectAll() {
+    const visibleFiles = virtualScrollData.filteredFiles.filter(f => !f.is_dir);
+    const allSelected = visibleFiles.length > 0 && visibleFiles.every(f => selectedFiles.has(f.path));
+
+    if (allSelected) {
+        deselectAll();
+    } else {
+        selectAll();
+    }
 }
 
 function downloadSelected() {
