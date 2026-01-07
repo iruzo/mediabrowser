@@ -91,28 +91,6 @@ function parseServerHtml(html, currentPath) {
     return files;
 }
 
-function goPrev() {
-    let pathname = window.location.pathname;
-
-    if (pathname.startsWith('/ui')) {
-        pathname = pathname.substring(3);
-    }
-
-    if (pathname.endsWith('/')) {
-        pathname = pathname.slice(0, -1);
-    }
-
-    if (!pathname || pathname === '/') {
-        return;
-    }
-
-    const lastSlash = pathname.lastIndexOf('/');
-    const parentPath = pathname.substring(0, lastSlash);
-
-    const uiPath = parentPath ? '/ui' + parentPath + '/' : '/ui/';
-    window.location.href = uiPath;
-}
-
 function refreshView() {
     navigateToDirectory(currentPath);
 }
