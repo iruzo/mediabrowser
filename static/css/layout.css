@@ -113,6 +113,43 @@
     text-overflow: ellipsis;
 }
 
+.list-item {
+    display: flex;
+    align-items: center;
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 1vh;
+    box-sizing: border-box;
+}
+
+.list-item.directory {
+    background: var(--bg-quinary);
+}
+
+.list-item.file {
+    background: var(--bg-quaternary);
+}
+
+.list-item.selected {
+    border: 2px solid var(--selection-color);
+    box-sizing: border-box;
+}
+
+.list-item:hover {
+    filter: brightness(1.2);
+}
+
+.list-item-name {
+    color: var(--text-primary);
+    font-size: 1.4vh;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .grid-controls {
     display: flex;
     gap: 0.2vh;

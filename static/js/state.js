@@ -7,6 +7,7 @@ let currentSort = 'name';
 let selectedFiles = new Set();
 let selectionMode = false;
 let searchTerm = '';
+let viewMode = localStorage.getItem('viewMode') || 'grid';
 let intersectionObserver = null;
 let gridSize = window.innerWidth <= 480 ? 20 : 30;
 

@@ -42,19 +42,28 @@ function initializeVirtualScroll(grid) {
         height: container.clientHeight
     };
 
-    const gridSizeVh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')) || 30;
-    const baseGridSizePx = (gridSizeVh / 200) * window.innerHeight;
-
     const containerWidth = container.clientWidth - 4;
-    const minColumns = Math.max(1, Math.floor(containerWidth / baseGridSizePx));
-    const actualGridSizePx = minColumns === 1 ?
-        containerWidth :
-        (containerWidth - (minColumns - 1) * 2) / minColumns;
 
-    virtualScrollData.itemHeight = actualGridSizePx + 2;
-    virtualScrollData.actualItemSize = actualGridSizePx;
-    virtualScrollData.columns = minColumns;
-    virtualScrollData.rows = Math.ceil(virtualScrollData.filteredFiles.length / minColumns);
+    if (viewMode === 'list') {
+        const listRowHeight = Math.max(20, (4 / 100) * window.innerHeight);
+        virtualScrollData.itemHeight = listRowHeight;
+        virtualScrollData.actualItemSize = containerWidth;
+        virtualScrollData.columns = 1;
+        virtualScrollData.rows = virtualScrollData.filteredFiles.length;
+    } else {
+        const gridSizeVh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')) || 30;
+        const baseGridSizePx = (gridSizeVh / 200) * window.innerHeight;
+
+        const minColumns = Math.max(1, Math.floor(containerWidth / baseGridSizePx));
+        const actualGridSizePx = minColumns === 1 ?
+            containerWidth :
+            (containerWidth - (minColumns - 1) * 2) / minColumns;
+
+        virtualScrollData.itemHeight = actualGridSizePx + 2;
+        virtualScrollData.actualItemSize = actualGridSizePx;
+        virtualScrollData.columns = minColumns;
+        virtualScrollData.rows = Math.ceil(virtualScrollData.filteredFiles.length / minColumns);
+    }
 
     const spacer = document.createElement('div');
     spacer.id = 'virtual-spacer';
@@ -122,13 +131,15 @@ function renderVisibleItems() {
     for (let i = startIndex; i <= endIndex; i++) {
         if (!virtualScrollData.renderedItems.has(i) && i < virtualScrollData.filteredFiles.length) {
             const file = virtualScrollData.filteredFiles[i];
-            const item = createGridItem(file, i);
+            const item = viewMode === 'list' ? createListItem(file, i) : createGridItem(file, i);
             virtualScrollData.renderedItems.set(i, item);
             spacer.appendChild(item);
         }
     }
 
-    setupLazyLoading();
+    if (viewMode === 'grid') {
+        setupLazyLoading();
+    }
 }
 
 function createGridItem(file, index) {
@@ -177,6 +188,60 @@ function createGridItem(file, index) {
     }
 
     return item;
+}
+
+function createListItem(file, index) {
+    const item = document.createElement('div');
+    item.className = 'list-item';
+    item.dataset.filePath = file.path;
+    item.dataset.fileType = file.file_type;
+    item.dataset.fileName = file.name;
+    item.onclick = (e) => handleFileClick(e, file);
+    item.oncontextmenu = (e) => showContextMenu(e, file);
+
+    item.style.position = 'absolute';
+    item.style.top = `${index * virtualScrollData.itemHeight + 2}px`;
+    item.style.left = '2px';
+    item.style.width = `${virtualScrollData.actualItemSize}px`;
+    item.style.height = `${virtualScrollData.itemHeight - 2}px`;
+
+    if (file.is_dir) {
+        item.classList.add('directory');
+    } else {
+        item.classList.add('file');
+    }
+
+    if (selectedFiles.has(file.path)) {
+        item.classList.add('selected');
+        const overlay = document.createElement('div');
+        overlay.className = 'selection-overlay';
+        item.appendChild(overlay);
+    }
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'list-item-name';
+    nameSpan.textContent = file.name;
+    item.appendChild(nameSpan);
+
+    return item;
+}
+
+function toggleViewMode() {
+    viewMode = viewMode === 'grid' ? 'list' : 'grid';
+    localStorage.setItem('viewMode', viewMode);
+    updateViewModeUI();
+    renderGallery(currentFiles);
+}
+
+function updateViewModeUI() {
+    const btn = document.getElementById('viewModeBtn');
+    if (btn) {
+        btn.textContent = viewMode === 'grid' ? 'List view' : 'Grid view';
+    }
+    const gridControls = document.getElementById('gridSizeControls');
+    if (gridControls) {
+        gridControls.style.display = viewMode === 'list' ? 'none' : '';
+    }
 }
 
 function setupLazyLoading() {

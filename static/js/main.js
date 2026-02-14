@@ -1,4 +1,5 @@
 initializeGridSize();
+updateViewModeUI();
 
 window.addEventListener('resize', resizeHandler);
 
