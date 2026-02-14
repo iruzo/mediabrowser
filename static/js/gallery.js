@@ -309,10 +309,7 @@ function loadItemContent(item) {
         item.innerHTML = '';
         item.appendChild(img);
     } else if (fileType === 'video') {
-        const pathWithoutData = filePath.replace('/data', '') || '/';
-        const servePath = encodeURIPath(pathWithoutData);
-
-        videoLoadQueue.add(item, filePath, servePath);
+        item.classList.add('file');
         return;
     }
 
