@@ -212,6 +212,10 @@ async fn main() {
         .and(warp::query::<MoveQuery>())
         .and_then(handle_move);
 
+    let favicon = warp::path("favicon.ico")
+        .and(warp::get())
+        .map(|| "");
+
     let httpd_serve = warp::path::tail()
         .and(warp::header::headers_cloned())
         .and_then(handle_serve);
@@ -239,6 +243,7 @@ async fn main() {
         .or(api_mkdir)
         .or(api_save)
         .or(api_move)
+        .or(favicon)
         .or(ui_fallback)
         .or(httpd_serve);
 
