@@ -227,6 +227,11 @@ function createListItem(file, index) {
 }
 
 function toggleViewMode() {
+    const container = document.querySelector('.gallery-container');
+    if (container) {
+        sessionStorage.setItem('galleryScrollPosition', container.scrollTop);
+    }
+
     viewMode = viewMode === 'grid' ? 'list' : 'grid';
     localStorage.setItem('viewMode', viewMode);
     updateViewModeUI();
