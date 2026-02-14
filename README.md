@@ -79,6 +79,7 @@ export DATA_DIR=/path/to/your/files
 - `GET /api/download-multiple?paths=/data/file1,/data/file2` - Download as ZIP
 - `DELETE /api/delete?path=/data/file` - Delete file/directory
 - `POST /api/mkdir?path=/data/newfolder` - Create directory
+- `POST /api/move?from=/data/old&to=/data/new` - Move file or directory
 - `GET /api/download?path=/data/file` - Download single file
 
 ### Apache httpd Routes (Root)
