@@ -1,4 +1,13 @@
 @media (max-width: 768px) {
+    .gallery-container {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .gallery-container::-webkit-scrollbar {
+        display: none;
+    }
+
     .drawer {
         left: -100%;
         width: 100%;
