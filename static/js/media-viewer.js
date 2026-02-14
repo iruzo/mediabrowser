@@ -111,6 +111,7 @@ function closeViewer() {
     document.getElementById('zoomControls').style.display = 'none';
     document.getElementById('loopControls').style.display = 'none';
 
+    document.getElementById('viewerDropdown').classList.remove('open');
     document.getElementById('viewer').classList.remove('active');
     selectedFile = null;
     resetZoom();

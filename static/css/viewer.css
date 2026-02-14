@@ -79,54 +79,67 @@
     padding: 0.5vh;
 }
 
-.viewer-controls {
-    position: absolute;
-    top: 0.5vh;
-    right: 0.5vh;
-    background: var(--bg-quaternary);
-    padding: 0.5vh;
-    z-index: 15;
-    pointer-events: auto;
-}
-
-.zoom-controls {
-    position: absolute;
-    top: 0.5vh;
-    left: 0.5vh;
-    background: var(--bg-quaternary);
-    padding: 0.5vh;
-    z-index: 15;
-    pointer-events: auto;
-}
-
-.loop-controls {
+.viewer-dropdown {
     position: absolute;
     bottom: 0.5vh;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--bg-quaternary);
-    padding: 0.5vh;
     z-index: 15;
     pointer-events: auto;
     display: flex;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    gap: 0.3vh;
+    flex-direction: column;
     align-items: center;
 }
 
-.loop-controls > span {
+.viewer-dropdown-toggle {
+    background: var(--bg-quaternary);
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 0.5vh 1vh;
+    font-size: 1.4vh;
+}
+
+.viewer-dropdown-menu {
+    display: none;
+    flex-direction: column;
+    background: var(--bg-quaternary);
+    margin-bottom: 0.3vh;
+    padding: 0.5vh;
+    gap: 0.3vh;
+}
+
+.viewer-dropdown.open .viewer-dropdown-menu {
+    display: flex;
+}
+
+.viewer-dropdown-menu > .viewer-btn {
+    text-align: left;
+    padding: 0.4vh 0.5vh;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.viewer-dropdown-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3vh;
+    align-items: center;
+    border-top: 1px solid var(--border-secondary);
+    padding-top: 0.3vh;
+    margin-top: 0.2vh;
+}
+
+.viewer-dropdown-section > span {
     color: var(--text-primary);
     font-size: 1.4vh;
     padding: 0 0.2vh;
-    flex-shrink: 0;
 }
 
-.loop-controls > .viewer-btn {
+.viewer-dropdown-section > .viewer-btn {
     padding: 0.2vh 0.3vh;
     margin: 0;
     white-space: nowrap;
-    flex-shrink: 0;
 }
 
 .time-input {
@@ -157,22 +170,3 @@
     font-size: 1.4vh;
 }
 
-.nav-controls-prev {
-    position: absolute;
-    bottom: 0.5vh;
-    left: 0.5vh;
-    background: var(--bg-quaternary);
-    padding: 0.5vh;
-    z-index: 15;
-    pointer-events: auto;
-}
-
-.nav-controls-next {
-    position: absolute;
-    bottom: 0.5vh;
-    right: 0.5vh;
-    background: var(--bg-quaternary);
-    padding: 0.5vh;
-    z-index: 15;
-    pointer-events: auto;
-}

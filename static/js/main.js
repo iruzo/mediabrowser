@@ -3,7 +3,13 @@ updateViewModeUI();
 
 window.addEventListener('resize', resizeHandler);
 
-document.addEventListener('click', hideContextMenu);
+document.addEventListener('click', function(e) {
+    hideContextMenu();
+    var dropdown = document.getElementById('viewerDropdown');
+    if (dropdown && !dropdown.contains(e.target)) {
+        dropdown.classList.remove('open');
+    }
+});
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         closeViewer();
