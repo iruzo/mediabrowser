@@ -5,9 +5,13 @@ window.addEventListener('resize', resizeHandler);
 
 document.addEventListener('click', function(e) {
     hideContextMenu();
-    var dropdown = document.getElementById('viewerDropdown');
-    if (dropdown && !dropdown.contains(e.target)) {
-        dropdown.classList.remove('open');
+    var viewerDropdown = document.getElementById('viewerDropdown');
+    if (viewerDropdown && !viewerDropdown.contains(e.target)) {
+        viewerDropdown.classList.remove('open');
+    }
+    var toolbarDropdown = document.getElementById('toolbarDropdown');
+    if (toolbarDropdown && !toolbarDropdown.contains(e.target)) {
+        toolbarDropdown.classList.remove('open');
     }
 });
 document.addEventListener('keydown', (e) => {

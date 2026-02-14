@@ -26,29 +26,18 @@ function toggleFileSelection(file, clickedElement) {
 
 function updateSelectionUI() {
     const hasSelection = selectedFiles.size > 0;
-    const selectBtn = document.getElementById('selectBtn');
-    const selectBtnDrawer = document.getElementById('selectBtnDrawer');
+    const selectModeBtn = document.getElementById('selectModeBtn');
 
-    if (selectBtn) {
-        selectBtn.textContent = selectionMode ? 'done' : 'select';
+    if (selectModeBtn) {
+        selectModeBtn.textContent = selectionMode ? 'done selecting' : 'select mode';
         if (selectionMode) {
-            selectBtn.classList.add('active');
+            selectModeBtn.classList.add('active');
         } else {
-            selectBtn.classList.remove('active');
-        }
-    }
-
-    if (selectBtnDrawer) {
-        selectBtnDrawer.textContent = selectionMode ? 'Done selecting' : 'Select mode';
-        if (selectionMode) {
-            selectBtnDrawer.classList.add('active');
-        } else {
-            selectBtnDrawer.classList.remove('active');
+            selectModeBtn.classList.remove('active');
         }
     }
 
     const selectionActions = document.getElementById('selectionActions');
-    const selectionDivider = document.getElementById('selectionDivider');
     const selectAllBtn = document.getElementById('selectAllBtn');
 
     if (selectionActions) {
@@ -59,18 +48,10 @@ function updateSelectionUI() {
         }
     }
 
-    if (selectionDivider) {
-        if (selectionMode) {
-            selectionDivider.classList.remove('hidden');
-        } else {
-            selectionDivider.classList.add('hidden');
-        }
-    }
-
     if (selectAllBtn && selectionMode) {
         const visibleFiles = virtualScrollData.filteredFiles.filter(f => !f.is_dir);
         const allSelected = visibleFiles.length > 0 && visibleFiles.every(f => selectedFiles.has(f.path));
-        selectAllBtn.textContent = allSelected ? 'Deselect all' : 'Select all';
+        selectAllBtn.textContent = allSelected ? 'deselect all' : 'select all';
     }
 
     updateVirtualItemsSelection();

@@ -241,7 +241,7 @@ function toggleViewMode() {
 function updateViewModeUI() {
     const btn = document.getElementById('viewModeBtn');
     if (btn) {
-        btn.textContent = viewMode === 'grid' ? 'List view' : 'Grid view';
+        btn.textContent = viewMode === 'grid' ? 'list view' : 'grid view';
     }
     const gridControls = document.getElementById('gridSizeControls');
     if (gridControls) {

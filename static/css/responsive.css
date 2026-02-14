@@ -8,11 +8,6 @@
         display: none;
     }
 
-    .drawer {
-        left: -100%;
-        width: 100%;
-    }
-
     .grid-item .file-name {
         font-size: 0.9vh;
         padding: 0.1vh;
