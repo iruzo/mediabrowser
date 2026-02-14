@@ -5,10 +5,10 @@ mod types;
 
 use endpoints::download_multiple::DownloadMultipleQuery;
 use endpoints::{
-    handle_delete, handle_download, handle_download_multiple, handle_mkdir, handle_save,
-    handle_serve, handle_upload,
+    handle_delete, handle_download, handle_download_multiple, handle_mkdir, handle_move,
+    handle_save, handle_serve, handle_upload,
 };
-use types::{FileQuery, ListQuery, DATA_DIR};
+use types::{FileQuery, ListQuery, MoveQuery, DATA_DIR};
 
 const PORT: u16 = 30003;
 
@@ -206,6 +206,12 @@ async fn main() {
         .and(warp::body::bytes())
         .and_then(handle_save);
 
+    let api_move = warp::path("api")
+        .and(warp::path("move"))
+        .and(warp::post())
+        .and(warp::query::<MoveQuery>())
+        .and_then(handle_move);
+
     let httpd_serve = warp::path::tail()
         .and(warp::header::headers_cloned())
         .and_then(handle_serve);
@@ -232,6 +238,7 @@ async fn main() {
         .or(api_delete)
         .or(api_mkdir)
         .or(api_save)
+        .or(api_move)
         .or(ui_fallback)
         .or(httpd_serve);
 

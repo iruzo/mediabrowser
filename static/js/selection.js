@@ -212,6 +212,25 @@ function downloadFile() {
     hideContextMenu();
 }
 
+function renameFile() {
+    if (!selectedFile) {
+        hideContextMenu();
+        return;
+    }
+    const newName = prompt('new name:', selectedFile.name);
+    if (newName && newName !== selectedFile.name) {
+        const parent = selectedFile.path.substring(0, selectedFile.path.lastIndexOf('/'));
+        const newPath = parent + '/' + newName;
+        fetch(`/api/move?from=${encodeURIComponent(selectedFile.path)}&to=${encodeURIComponent(newPath)}`, { method: 'POST' })
+            .then(res => {
+                if (!res.ok) throw new Error();
+                navigateToDirectory(currentPath);
+            })
+            .catch(() => alert('rename failed'));
+    }
+    hideContextMenu();
+}
+
 function deleteFile() {
     if (selectedFile && confirm(`delete ${selectedFile.name}?`)) {
         fetch(`/api/delete?path=${encodeURIComponent(selectedFile.path)}`, { method: 'DELETE' })
