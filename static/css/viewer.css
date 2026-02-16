@@ -8,6 +8,7 @@
     display: none;
     align-items: center;
     justify-content: center;
+    z-index: 30;
 }
 
 .viewer.active {
@@ -170,3 +171,6 @@
     font-size: 1.4vh;
 }
 
+body.viewer-open .toolbar-dropdown {
+    display: none;
+}

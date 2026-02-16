@@ -65,6 +65,8 @@ function showCurrentMedia() {
     }
 
     viewer.classList.add('active');
+    document.body.classList.add('viewer-open');
+    document.getElementById('toolbarDropdown').classList.remove('open');
 }
 
 function nextMedia() {
@@ -113,6 +115,7 @@ function closeViewer() {
 
     document.getElementById('viewerDropdown').classList.remove('open');
     document.getElementById('viewer').classList.remove('active');
+    document.body.classList.remove('viewer-open');
     selectedFile = null;
     resetZoom();
     clearLoop();
