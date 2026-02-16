@@ -92,3 +92,13 @@ function hideNotification() {
 function hideContextMenu() {
     document.getElementById('contextMenu').style.display = 'none';
 }
+
+function triggerDownload(url) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', '');
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+}

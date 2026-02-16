@@ -148,10 +148,10 @@ function downloadSelected() {
 
     if (selectedFiles.size === 1 && !hasDirectory) {
         const filePath = selectedPaths[0];
-        window.open(`/api/download?path=${encodeURIComponent(filePath)}`);
+        triggerDownload(`/api/download?path=${encodeURIComponent(filePath)}`);
     } else {
         const paths = selectedPaths.map(path => encodeURIComponent(path)).join(',');
-        window.open(`/api/download-multiple?paths=${paths}`);
+        triggerDownload(`/api/download-multiple?paths=${paths}`);
     }
 }
 
@@ -185,9 +185,9 @@ function showContextMenu(e, file) {
 function downloadFile() {
     if (selectedFile) {
         if (selectedFile.is_dir) {
-            window.open(`/api/download-multiple?paths=${encodeURIComponent(selectedFile.path)}`);
+            triggerDownload(`/api/download-multiple?paths=${encodeURIComponent(selectedFile.path)}`);
         } else {
-            window.open(`/api/download?path=${encodeURIComponent(selectedFile.path)}`);
+            triggerDownload(`/api/download?path=${encodeURIComponent(selectedFile.path)}`);
         }
     }
     hideContextMenu();
