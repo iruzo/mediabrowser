@@ -7,7 +7,7 @@ edition = "2021"
 tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "fs", "io-util", "signal", "sync"] }
 tokio-util = { version = "0.7", features = ["io"] }
 serde = { version = "1.0", features = ["derive"] }
-warp = "0.3"
+warp = { version = "0.3", default-features = false, features = ["multipart"] }
 futures-util = "0.3"
 mime_guess = "2.0"
 percent-encoding = "2.3"
@@ -15,6 +15,13 @@ bytes = "1.0"
 zip = { version = "2.2", default-features = false, features = ["deflate"] }
 
 [profile]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
 
 [profile.wasm-dev]
 inherits = "dev"

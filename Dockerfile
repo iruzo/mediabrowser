@@ -8,7 +8,7 @@ RUN find /static -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) \
 
 FROM docker.io/library/rust:1.83-alpine AS builder
 
-RUN apk add --no-cache musl-dev
+RUN apk add --no-cache musl-dev binutils
 
 WORKDIR /app
 COPY . .
@@ -16,6 +16,7 @@ COPY --from=minifier /static/ /app/static/
 
 ENV RUSTFLAGS="-C target-feature=+crt-static"
 RUN cargo build --release --target x86_64-unknown-linux-musl
+RUN strip /app/target/x86_64-unknown-linux-musl/release/mediabrowser || true
 
 FROM scratch
 
