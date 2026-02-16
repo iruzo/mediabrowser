@@ -12,7 +12,7 @@ futures-util = "0.3"
 mime_guess = "2.0"
 percent-encoding = "2.3"
 bytes = "1.0"
-zip = { version = "2.2", default-features = false, features = ["deflate"] }
+zip = { version = "2.2", default-features = false }
 
 [profile]
 

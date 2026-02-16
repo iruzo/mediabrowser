@@ -1,4 +1,6 @@
 use crate::types::DATA_DIR;
+use bytes::Bytes;
+use futures_util::stream;
 use percent_encoding::percent_decode_str;
 use serde::Deserialize;
 use std::convert::Infallible;
@@ -7,7 +9,8 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs;
-use tokio_util::io::ReaderStream;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio::sync::{mpsc, oneshot};
 use warp::hyper::Body;
 use warp::{http::StatusCode, Reply};
 use zip::write::SimpleFileOptions;
@@ -34,65 +37,106 @@ pub async fn handle_download_multiple(
     }
 
     let temp_zip_path = create_temp_zip_path();
-    let zip_result = tokio::task::spawn_blocking({
-        let paths = paths;
-        let temp_zip_path = temp_zip_path.clone();
-        move || build_zip_file(&temp_zip_path, &paths)
-    })
-    .await;
-
-    match zip_result {
-        Ok(Ok(())) => {}
-        _ => {
-            let _ = std::fs::remove_file(&temp_zip_path);
-            return Ok(warp::reply::with_status(
-                "Failed to create ZIP archive",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-            .into_response());
-        }
+    if File::create(&temp_zip_path).is_err() {
+        return Ok(warp::reply::with_status(
+            "Failed to create ZIP archive",
+            StatusCode::INTERNAL_SERVER_ERROR,
+        )
+        .into_response());
     }
 
-    let file = match fs::File::open(&temp_zip_path).await {
-        Ok(file) => file,
-        Err(_) => {
-            let _ = std::fs::remove_file(&temp_zip_path);
-            return Ok(warp::reply::with_status(
-                "Failed to read ZIP archive",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-            .into_response());
+    let (writer_done_tx, writer_done_rx) = oneshot::channel::<std::io::Result<()>>();
+    tokio::task::spawn_blocking({
+        let paths = paths;
+        let temp_zip_path = temp_zip_path.clone();
+        move || {
+            let result = build_zip_file(&temp_zip_path, &paths);
+            let _ = writer_done_tx.send(result);
         }
-    };
+    });
 
-    let file_size = match fs::metadata(&temp_zip_path).await {
-        Ok(metadata) => metadata.len(),
-        Err(_) => {
-            let _ = std::fs::remove_file(&temp_zip_path);
-            return Ok(warp::reply::with_status(
-                "Failed to read ZIP archive metadata",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-            .into_response());
-        }
-    };
+    let (tx, rx) = mpsc::channel::<Result<Bytes, std::io::Error>>(8);
+    tokio::spawn(stream_temp_zip_chunks(temp_zip_path.clone(), writer_done_rx, tx));
 
-    // On Unix this unlinks the temp file while keeping the open handle readable.
-    // On other platforms, removal may fail; we ignore that and keep serving.
-    let _ = std::fs::remove_file(&temp_zip_path);
-
-    let stream = ReaderStream::new(file);
+    let stream = stream::unfold(rx, |mut rx| async move {
+        rx.recv().await.map(|item| (item, rx))
+    });
     let body = Body::wrap_stream(stream);
-
     let disposition = "attachment; filename=\"download.zip\"";
 
     Ok(warp::http::Response::builder()
         .status(StatusCode::OK)
         .header("content-type", "application/zip")
         .header("content-disposition", disposition)
-        .header("content-length", file_size.to_string())
         .body(body)
         .unwrap())
+}
+
+async fn stream_temp_zip_chunks(
+    temp_zip_path: PathBuf,
+    mut writer_done_rx: oneshot::Receiver<std::io::Result<()>>,
+    tx: mpsc::Sender<Result<Bytes, std::io::Error>>,
+) {
+    let mut file = match fs::File::open(&temp_zip_path).await {
+        Ok(file) => file,
+        Err(e) => {
+            let _ = tx.send(Err(e)).await;
+            let _ = std::fs::remove_file(&temp_zip_path);
+            return;
+        }
+    };
+
+    let mut offset = 0u64;
+    let mut writer_done = false;
+    let mut writer_error: Option<std::io::Error> = None;
+    let mut buffer = vec![0u8; 64 * 1024];
+
+    loop {
+        if file
+            .seek(std::io::SeekFrom::Start(offset))
+            .await
+            .is_err()
+        {
+            break;
+        }
+
+        match file.read(&mut buffer).await {
+            Ok(0) => {
+                if writer_done {
+                    break;
+                }
+
+                tokio::select! {
+                    done = &mut writer_done_rx => {
+                        writer_done = true;
+                        match done {
+                            Ok(Ok(())) => {}
+                            Ok(Err(e)) => writer_error = Some(e),
+                            Err(_) => writer_error = Some(std::io::Error::other("zip worker stopped unexpectedly")),
+                        }
+                    }
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(20)) => {}
+                }
+            }
+            Ok(n) => {
+                offset += n as u64;
+                let chunk = Bytes::copy_from_slice(&buffer[..n]);
+                if tx.send(Ok(chunk)).await.is_err() {
+                    break;
+                }
+            }
+            Err(e) => {
+                let _ = tx.send(Err(e)).await;
+                break;
+            }
+        }
+    }
+
+    if let Some(e) = writer_error {
+        let _ = tx.send(Err(e)).await;
+    }
+
+    let _ = std::fs::remove_file(&temp_zip_path);
 }
 
 fn create_temp_zip_path() -> PathBuf {
@@ -107,7 +151,7 @@ fn create_temp_zip_path() -> PathBuf {
 fn build_zip_file(zip_path: &Path, paths: &[String]) -> std::io::Result<()> {
     let file = File::create(zip_path)?;
     let mut zip = ZipWriter::new(file);
-    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
     for path_str in paths {
         let file_path = Path::new(path_str);
