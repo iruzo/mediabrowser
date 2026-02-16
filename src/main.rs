@@ -44,117 +44,159 @@ async fn main() {
         .and(warp::path::end())
         .map(|| warp::reply::html(include_str!("../static/index.html")));
 
-    let ui_css_base = warp::path("ui").and(warp::path("css")).and(warp::path("base.css")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/css/base.css"),
-            "content-type",
-            "text/css",
-        )
-    });
+    let ui_css_base = warp::path("ui")
+        .and(warp::path("css"))
+        .and(warp::path("base.css"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/css/base.css"),
+                "content-type",
+                "text/css",
+            )
+        });
 
-    let ui_css_layout = warp::path("ui").and(warp::path("css")).and(warp::path("layout.css")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/css/layout.css"),
-            "content-type",
-            "text/css",
-        )
-    });
+    let ui_css_layout = warp::path("ui")
+        .and(warp::path("css"))
+        .and(warp::path("layout.css"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/css/layout.css"),
+                "content-type",
+                "text/css",
+            )
+        });
 
-    let ui_css_components = warp::path("ui").and(warp::path("css")).and(warp::path("components.css")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/css/components.css"),
-            "content-type",
-            "text/css",
-        )
-    });
+    let ui_css_components = warp::path("ui")
+        .and(warp::path("css"))
+        .and(warp::path("components.css"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/css/components.css"),
+                "content-type",
+                "text/css",
+            )
+        });
 
-    let ui_css_viewer = warp::path("ui").and(warp::path("css")).and(warp::path("viewer.css")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/css/viewer.css"),
-            "content-type",
-            "text/css",
-        )
-    });
+    let ui_css_viewer = warp::path("ui")
+        .and(warp::path("css"))
+        .and(warp::path("viewer.css"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/css/viewer.css"),
+                "content-type",
+                "text/css",
+            )
+        });
 
-    let ui_css_responsive = warp::path("ui").and(warp::path("css")).and(warp::path("responsive.css")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/css/responsive.css"),
-            "content-type",
-            "text/css",
-        )
-    });
+    let ui_css_responsive = warp::path("ui")
+        .and(warp::path("css"))
+        .and(warp::path("responsive.css"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/css/responsive.css"),
+                "content-type",
+                "text/css",
+            )
+        });
 
-    let ui_js_state = warp::path("ui").and(warp::path("js")).and(warp::path("state.js")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/js/state.js"),
-            "content-type",
-            "application/javascript",
-        )
-    });
+    let ui_js_state = warp::path("ui")
+        .and(warp::path("js"))
+        .and(warp::path("state.js"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/js/state.js"),
+                "content-type",
+                "application/javascript",
+            )
+        });
 
-    let ui_js_utils = warp::path("ui").and(warp::path("js")).and(warp::path("utils.js")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/js/utils.js"),
-            "content-type",
-            "application/javascript",
-        )
-    });
+    let ui_js_utils = warp::path("ui")
+        .and(warp::path("js"))
+        .and(warp::path("utils.js"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/js/utils.js"),
+                "content-type",
+                "application/javascript",
+            )
+        });
 
-    let ui_js_navigation = warp::path("ui").and(warp::path("js")).and(warp::path("navigation.js")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/js/navigation.js"),
-            "content-type",
-            "application/javascript",
-        )
-    });
+    let ui_js_navigation = warp::path("ui")
+        .and(warp::path("js"))
+        .and(warp::path("navigation.js"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/js/navigation.js"),
+                "content-type",
+                "application/javascript",
+            )
+        });
 
-    let ui_js_gallery = warp::path("ui").and(warp::path("js")).and(warp::path("gallery.js")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/js/gallery.js"),
-            "content-type",
-            "application/javascript",
-        )
-    });
+    let ui_js_gallery = warp::path("ui")
+        .and(warp::path("js"))
+        .and(warp::path("gallery.js"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/js/gallery.js"),
+                "content-type",
+                "application/javascript",
+            )
+        });
 
-    let ui_js_selection = warp::path("ui").and(warp::path("js")).and(warp::path("selection.js")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/js/selection.js"),
-            "content-type",
-            "application/javascript",
-        )
-    });
+    let ui_js_selection = warp::path("ui")
+        .and(warp::path("js"))
+        .and(warp::path("selection.js"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/js/selection.js"),
+                "content-type",
+                "application/javascript",
+            )
+        });
 
-    let ui_js_media_viewer = warp::path("ui").and(warp::path("js")).and(warp::path("media-viewer.js")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/js/media-viewer.js"),
-            "content-type",
-            "application/javascript",
-        )
-    });
+    let ui_js_media_viewer = warp::path("ui")
+        .and(warp::path("js"))
+        .and(warp::path("media-viewer.js"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/js/media-viewer.js"),
+                "content-type",
+                "application/javascript",
+            )
+        });
 
-    let ui_js_media_controls = warp::path("ui").and(warp::path("js")).and(warp::path("media-controls.js")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/js/media-controls.js"),
-            "content-type",
-            "application/javascript",
-        )
-    });
+    let ui_js_media_controls = warp::path("ui")
+        .and(warp::path("js"))
+        .and(warp::path("media-controls.js"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/js/media-controls.js"),
+                "content-type",
+                "application/javascript",
+            )
+        });
 
-    let ui_js_file_ops = warp::path("ui").and(warp::path("js")).and(warp::path("file-ops.js")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/js/file-ops.js"),
-            "content-type",
-            "application/javascript",
-        )
-    });
+    let ui_js_file_ops = warp::path("ui")
+        .and(warp::path("js"))
+        .and(warp::path("file-ops.js"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/js/file-ops.js"),
+                "content-type",
+                "application/javascript",
+            )
+        });
 
-    let ui_js_main = warp::path("ui").and(warp::path("js")).and(warp::path("main.js")).map(|| {
-        warp::reply::with_header(
-            include_str!("../static/js/main.js"),
-            "content-type",
-            "application/javascript",
-        )
-    });
+    let ui_js_main = warp::path("ui")
+        .and(warp::path("js"))
+        .and(warp::path("main.js"))
+        .map(|| {
+            warp::reply::with_header(
+                include_str!("../static/js/main.js"),
+                "content-type",
+                "application/javascript",
+            )
+        });
 
     let ui_fallback = warp::path("ui")
         .and(warp::path::tail())
@@ -204,9 +246,7 @@ async fn main() {
         .and(warp::query::<MoveQuery>())
         .and_then(handle_move);
 
-    let favicon = warp::path("favicon.ico")
-        .and(warp::get())
-        .map(|| "");
+    let favicon = warp::path("favicon.ico").and(warp::get()).map(|| "");
 
     let httpd_serve = warp::path::tail()
         .and(warp::header::headers_cloned())
