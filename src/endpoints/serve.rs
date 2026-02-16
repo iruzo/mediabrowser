@@ -175,14 +175,9 @@ async fn serve_file_range(
         );
     }
 
-    // Read the requested chunk
-    let mut buffer = vec![0u8; content_length as usize];
-    if let Err(_) = file.read_exact(&mut buffer).await {
-        return Ok(
-            warp::reply::with_status("Read failed", StatusCode::INTERNAL_SERVER_ERROR)
-                .into_response(),
-        );
-    }
+    let limited_reader = file.take(content_length);
+    let stream = ReaderStream::new(limited_reader);
+    let body = Body::wrap_stream(stream);
 
     let content_range = format!("bytes {}-{}/{}", start, end, file_size);
 
@@ -192,7 +187,7 @@ async fn serve_file_range(
         .header("accept-ranges", "bytes")
         .header("content-range", content_range)
         .header("content-length", content_length.to_string())
-        .body(Body::from(buffer))
+        .body(body)
         .unwrap())
 }
 
