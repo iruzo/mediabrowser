@@ -54,76 +54,54 @@ pub async fn handle_upload(
                 if name == "file" {
                     if let Some(filename) = part.filename() {
                         let filename = filename.to_string();
-                        let file_path = target_dir.join(&filename);
-
-                        let mut bytes = Vec::new();
                         let mut stream = part.stream();
 
-                        while let Some(chunk) = stream.try_next().await.unwrap_or(None) {
-                            bytes.extend_from_slice(chunk.chunk());
-                        }
-
-                        // Try to create file exclusively (fails if exists)
-                        use tokio::fs::OpenOptions;
-                        let write_result = OpenOptions::new()
-                            .write(true)
-                            .create_new(true)
-                            .open(&file_path)
-                            .await;
-
-                        match write_result {
-                            Ok(mut file) => {
-                                // File didn't exist, write with original name
-                                if let Err(e) = file.write_all(&bytes).await {
-                                    return Ok(warp::reply::with_status(
-                                        warp::reply::json(&format!("Failed to save file: {}", e)),
-                                        StatusCode::INTERNAL_SERVER_ERROR,
-                                    ));
-                                }
-                                uploaded_files += 1;
-                            }
-                            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                                // File exists, retry with nanosecond suffix
-                                let nanos = SystemTime::now()
-                                    .duration_since(UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_nanos();
-                                let suffix = nanos % 1_000_000;
-
-                                let timestamped_filename =
-                                    if let Some(dot_pos) = filename.rfind('.') {
-                                        format!(
-                                            "{}_{}{}",
-                                            &filename[..dot_pos],
-                                            suffix,
-                                            &filename[dot_pos..]
-                                        )
-                                    } else {
-                                        format!("{}_{}", filename, suffix)
-                                    };
-
-                                let timestamped_path = target_dir.join(timestamped_filename);
-                                match fs::write(&timestamped_path, &bytes).await {
-                                    Ok(_) => {
-                                        uploaded_files += 1;
-                                    }
-                                    Err(e) => {
-                                        return Ok(warp::reply::with_status(
-                                            warp::reply::json(&format!(
-                                                "Failed to save file: {}",
-                                                e
-                                            )),
-                                            StatusCode::INTERNAL_SERVER_ERROR,
-                                        ));
-                                    }
-                                }
-                            }
+                        let mut file = match open_upload_file(&target_dir, &filename).await {
+                            Ok(file) => file,
                             Err(e) => {
-                                // Other error (permissions, disk full, etc.)
                                 return Ok(warp::reply::with_status(
                                     warp::reply::json(&format!("Failed to save file: {}", e)),
                                     StatusCode::INTERNAL_SERVER_ERROR,
                                 ));
+                            }
+                        };
+
+                        loop {
+                            match stream.try_next().await {
+                                Ok(Some(mut chunk)) => {
+                                    while chunk.has_remaining() {
+                                        let bytes = chunk.chunk();
+                                        if bytes.is_empty() {
+                                            break;
+                                        }
+
+                                        if let Err(e) = file.write_all(bytes).await {
+                                            return Ok(warp::reply::with_status(
+                                                warp::reply::json(&format!(
+                                                    "Failed to save file: {}",
+                                                    e
+                                                )),
+                                                StatusCode::INTERNAL_SERVER_ERROR,
+                                            ));
+                                        }
+
+                                        let len = bytes.len();
+                                        chunk.advance(len);
+                                    }
+                                }
+                                Ok(None) => {
+                                    uploaded_files += 1;
+                                    break;
+                                }
+                                Err(e) => {
+                                    return Ok(warp::reply::with_status(
+                                        warp::reply::json(&format!(
+                                            "Failed to process upload stream: {}",
+                                            e
+                                        )),
+                                        StatusCode::BAD_REQUEST,
+                                    ));
+                                }
                             }
                         }
                     }
@@ -143,4 +121,45 @@ pub async fn handle_upload(
         warp::reply::json(&format!("Successfully uploaded {} file(s)", uploaded_files)),
         StatusCode::OK,
     ))
+}
+
+async fn open_upload_file(target_dir: &Path, filename: &str) -> std::io::Result<tokio::fs::File> {
+    use tokio::fs::OpenOptions;
+
+    let original_path = target_dir.join(filename);
+
+    match OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&original_path)
+        .await
+    {
+        Ok(file) => Ok(file),
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let suffix = nanos % 1_000_000;
+
+            let timestamped_filename = if let Some(dot_pos) = filename.rfind('.') {
+                format!(
+                    "{}_{}{}",
+                    &filename[..dot_pos],
+                    suffix,
+                    &filename[dot_pos..]
+                )
+            } else {
+                format!("{}_{}", filename, suffix)
+            };
+
+            let timestamped_path = target_dir.join(timestamped_filename);
+            OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(timestamped_path)
+                .await
+        }
+        Err(e) => Err(e),
+    }
 }
