@@ -71,8 +71,7 @@ export DATA_DIR=/path/to/your/files
 
 ### UI Routes
 - `GET /ui` - Web interface
-- `GET /ui/styles.css` - UI stylesheet
-- `GET /ui/script.js` - UI JavaScript
+- `GET /ui/*` - UI assets and client-side routes
 
 ### API Routes
 - `POST /api/upload?path=/data` - Upload files (multipart form, 256GB limit)

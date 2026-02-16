@@ -22,6 +22,12 @@ const PATH_SEGMENT: &AsciiSet = &CONTROLS
     .add(b'{')
     .add(b'}');
 
+struct DirectoryItem {
+    name: String,
+    sort_key: String,
+    is_dir: bool,
+}
+
 pub async fn handle_serve(
     path: warp::path::Tail,
     headers: HeaderMap,
@@ -212,17 +218,22 @@ async fn serve_directory(
         if let Ok(metadata) = entry.metadata().await {
             if let Some(name) = entry.file_name().to_str() {
                 let is_dir = metadata.is_dir();
-                let size = if is_dir { 0 } else { metadata.len() };
+                let name = name.to_string();
+                let sort_key = name.to_lowercase();
 
-                items.push((name.to_string(), is_dir, size));
+                items.push(DirectoryItem {
+                    name,
+                    sort_key,
+                    is_dir,
+                });
             }
         }
     }
 
-    items.sort_by(|a, b| match (a.1, b.1) {
+    items.sort_by(|a, b| match (a.is_dir, b.is_dir) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
-        _ => a.0.to_lowercase().cmp(&b.0.to_lowercase()),
+        _ => a.sort_key.cmp(&b.sort_key),
     });
 
     let display_path = if requested_path.is_empty() {
@@ -240,7 +251,7 @@ async fn serve_directory(
     .into_response())
 }
 
-fn generate_directory_listing(path: &str, items: &[(String, bool, u64)]) -> String {
+fn generate_directory_listing(path: &str, items: &[DirectoryItem]) -> String {
     let display_path = if path.is_empty() || path == "/" {
         "/"
     } else {
@@ -249,15 +260,16 @@ fn generate_directory_listing(path: &str, items: &[(String, bool, u64)]) -> Stri
 
     let mut list_items = String::new();
 
-    for (name, is_dir, _size) in items {
-        let display_name = if *is_dir {
+    for item in items {
+        let name = &item.name;
+        let display_name = if item.is_dir {
             format!("{}/", name)
         } else {
             name.clone()
         };
 
         let encoded_name = utf8_percent_encode(name, PATH_SEGMENT).to_string();
-        let url = if *is_dir {
+        let url = if item.is_dir {
             format!("{}/", encoded_name)
         } else {
             encoded_name
