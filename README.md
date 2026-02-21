@@ -51,10 +51,10 @@ docker-compose --profile pro up
 
 ### Docker (oneline)
 ```bash
-docker image inspect mediabrowser >/dev/null 2>&1 || docker build -t mediabrowser https://github.com/iruzo/mediabrowser.git && docker run -p 30003:30003 -v $(pwd)/data:/data mediabrowser
+docker image inspect mediabrowser >/dev/null 2>&1 || docker build -t mediabrowser https://github.com/iruzo/mediabrowser.git && docker run -p 30003:30003 -e BIND_ADDR=0.0.0.0 -v $(pwd)/data:/data mediabrowser
 ```
 ```bash
-sudo docker image inspect mediabrowser >/dev/null 2>&1 || sudo docker build -t mediabrowser https://github.com/iruzo/mediabrowser.git && sudo docker run -p 30003:30003 -v $(pwd)/data:/data mediabrowser
+sudo docker image inspect mediabrowser >/dev/null 2>&1 || sudo docker build -t mediabrowser https://github.com/iruzo/mediabrowser.git && sudo docker run -p 30003:30003 -e BIND_ADDR=0.0.0.0 -v $(pwd)/data:/data mediabrowser
 ```
 
 ### Environment Variables
@@ -65,6 +65,13 @@ export RUST_LOG=debug
 
 # Custom data directory (optional, defaults to /data)
 export DATA_DIR=/path/to/your/files
+
+# Bind address (optional, defaults to 127.0.0.1)
+# Use 0.0.0.0 to expose to other devices in the network
+export BIND_ADDR=127.0.0.1
+
+# Port (optional, defaults to 30003)
+export PORT=30003
 ```
 
 ## API Endpoints

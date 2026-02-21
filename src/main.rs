@@ -1,4 +1,5 @@
 use warp::Filter;
+use std::net::Ipv4Addr;
 
 mod endpoints;
 mod types;
@@ -11,6 +12,36 @@ use endpoints::{
 use types::{FileQuery, ListQuery, MoveQuery, DATA_DIR};
 
 const PORT: u16 = 30003;
+const BIND_ADDR: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+
+fn get_bind_addr() -> Ipv4Addr {
+    match std::env::var("BIND_ADDR") {
+        Ok(value) => match value.parse::<Ipv4Addr>() {
+            Ok(addr) => addr,
+            Err(_) => {
+                eprintln!(
+                    "Invalid BIND_ADDR='{}', using default {}",
+                    value, BIND_ADDR
+                );
+                BIND_ADDR
+            }
+        },
+        Err(_) => BIND_ADDR,
+    }
+}
+
+fn get_port() -> u16 {
+    match std::env::var("PORT") {
+        Ok(value) => match value.parse::<u16>() {
+            Ok(port) => port,
+            Err(_) => {
+                eprintln!("Invalid PORT='{}', using default {}", value, PORT);
+                PORT
+            }
+        },
+        Err(_) => PORT,
+    }
+}
 
 #[cfg(unix)]
 async fn shutdown_signal() {
@@ -40,6 +71,9 @@ async fn shutdown_signal() {
 
 #[tokio::main]
 async fn main() {
+    let bind_addr = get_bind_addr();
+    let port = get_port();
+
     let ui_index = warp::path("ui")
         .and(warp::path::end())
         .map(|| warp::reply::html(include_str!("../static/index.html")));
@@ -278,12 +312,12 @@ async fn main() {
         .or(ui_fallback)
         .or(httpd_serve);
 
-    println!("Server starting on http://0.0.0.0:{}", PORT);
-    println!("UI available at: http://0.0.0.0:{}/ui", PORT);
+    println!("Server starting on http://{}:{}", bind_addr, port);
+    println!("UI available at: http://{}:{}/ui", bind_addr, port);
     println!("Serving files from: {}", DATA_DIR);
 
     warp::serve(routes)
-        .bind_with_graceful_shutdown(([0, 0, 0, 0], PORT), shutdown_signal())
+        .bind_with_graceful_shutdown((bind_addr.octets(), port), shutdown_signal())
         .1
         .await;
 }

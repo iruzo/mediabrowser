@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     environment:
       - RUST_LOG=info
+      - BIND_ADDR=0.0.0.0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:30003/ui"]
       interval: 30s
@@ -37,5 +38,6 @@ services:
       - "30003:30003"
     environment:
       - RUST_LOG=debug
+      - BIND_ADDR=0.0.0.0
     profiles:
       - dev
