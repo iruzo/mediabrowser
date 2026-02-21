@@ -5,6 +5,7 @@ pub mod mkdir;
 pub mod mv;
 pub mod save;
 pub mod serve;
+pub mod ui;
 pub mod upload;
 
 // Re-export handler functions
@@ -15,4 +16,5 @@ pub use mkdir::handle_mkdir;
 pub use mv::handle_move;
 pub use save::handle_save;
 pub use serve::handle_serve;
+pub use ui::ui_routes;
 pub use upload::handle_upload;
