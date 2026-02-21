@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "fs", "io-util", "signal", "sync"] }
-tokio-util = { version = "0.7", features = ["io"] }
-serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", default-features = false, features = ["rt-multi-thread", "macros", "fs", "io-util", "signal", "sync"] }
+tokio-util = { version = "0.7", default-features = false, features = ["io"] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
 warp = { version = "0.3", default-features = false, features = ["multipart"] }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 mime_guess = { version = "2.0", default-features = false }
