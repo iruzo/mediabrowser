@@ -6,15 +6,16 @@ use serde::Deserialize;
 use std::convert::Infallible;
 use std::fs::File;
 use std::io::BufReader;
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::fs;
-use tokio::io::{AsyncReadExt, AsyncSeekExt};
-use tokio::sync::{mpsc, oneshot};
+use std::io::{BufWriter, Seek, Write};
+use std::path::Path;
+use tokio::sync::mpsc;
 use warp::hyper::Body;
 use warp::{http::StatusCode, Reply};
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
+
+const STREAM_CHUNK_SIZE: usize = 64 * 1024;
+const STREAM_CHANNEL_CAPACITY: usize = 4;
 
 #[derive(Deserialize)]
 pub struct DownloadMultipleQuery {
@@ -36,27 +37,17 @@ pub async fn handle_download_multiple(
         );
     }
 
-    let temp_zip_path = create_temp_zip_path();
-    if File::create(&temp_zip_path).is_err() {
-        return Ok(warp::reply::with_status(
-            "Failed to create ZIP archive",
-            StatusCode::INTERNAL_SERVER_ERROR,
-        )
-        .into_response());
-    }
-
-    let (writer_done_tx, writer_done_rx) = oneshot::channel::<std::io::Result<()>>();
+    let (tx, rx) = mpsc::channel::<Result<Bytes, std::io::Error>>(STREAM_CHANNEL_CAPACITY);
     tokio::task::spawn_blocking({
         let paths = paths;
-        let temp_zip_path = temp_zip_path.clone();
+        let tx = tx;
         move || {
-            let result = build_zip_file(&temp_zip_path, &paths);
-            let _ = writer_done_tx.send(result);
+            let result = build_zip_stream(&paths, tx.clone());
+            if let Err(e) = result {
+                let _ = tx.blocking_send(Err(e));
+            }
         }
     });
-
-    let (tx, rx) = mpsc::channel::<Result<Bytes, std::io::Error>>(8);
-    tokio::spawn(stream_temp_zip_chunks(temp_zip_path.clone(), writer_done_rx, tx));
 
     let stream = stream::unfold(rx, |mut rx| async move {
         rx.recv().await.map(|item| (item, rx))
@@ -72,85 +63,42 @@ pub async fn handle_download_multiple(
         .unwrap())
 }
 
-async fn stream_temp_zip_chunks(
-    temp_zip_path: PathBuf,
-    mut writer_done_rx: oneshot::Receiver<std::io::Result<()>>,
+struct ChannelWriter {
     tx: mpsc::Sender<Result<Bytes, std::io::Error>>,
-) {
-    let mut file = match fs::File::open(&temp_zip_path).await {
-        Ok(file) => file,
-        Err(e) => {
-            let _ = tx.send(Err(e)).await;
-            let _ = std::fs::remove_file(&temp_zip_path);
-            return;
-        }
-    };
-
-    let mut offset = 0u64;
-    let mut writer_done = false;
-    let mut writer_error: Option<std::io::Error> = None;
-    let mut buffer = vec![0u8; 64 * 1024];
-
-    loop {
-        if file
-            .seek(std::io::SeekFrom::Start(offset))
-            .await
-            .is_err()
-        {
-            break;
-        }
-
-        match file.read(&mut buffer).await {
-            Ok(0) => {
-                if writer_done {
-                    break;
-                }
-
-                tokio::select! {
-                    done = &mut writer_done_rx => {
-                        writer_done = true;
-                        match done {
-                            Ok(Ok(())) => {}
-                            Ok(Err(e)) => writer_error = Some(e),
-                            Err(_) => writer_error = Some(std::io::Error::other("zip worker stopped unexpectedly")),
-                        }
-                    }
-                    _ = tokio::time::sleep(std::time::Duration::from_millis(20)) => {}
-                }
-            }
-            Ok(n) => {
-                offset += n as u64;
-                let chunk = Bytes::copy_from_slice(&buffer[..n]);
-                if tx.send(Ok(chunk)).await.is_err() {
-                    break;
-                }
-            }
-            Err(e) => {
-                let _ = tx.send(Err(e)).await;
-                break;
-            }
-        }
-    }
-
-    if let Some(e) = writer_error {
-        let _ = tx.send(Err(e)).await;
-    }
-
-    let _ = std::fs::remove_file(&temp_zip_path);
 }
 
-fn create_temp_zip_path() -> PathBuf {
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let pid = std::process::id();
-    std::env::temp_dir().join(format!("mediabrowser-{}-{}.zip", pid, nanos))
+impl ChannelWriter {
+    fn new(tx: mpsc::Sender<Result<Bytes, std::io::Error>>) -> Self {
+        Self { tx }
+    }
 }
 
-fn build_zip_file(zip_path: &Path, paths: &[String]) -> std::io::Result<()> {
-    let file = File::create(zip_path)?;
-    let mut zip = ZipWriter::new(file);
+impl Write for ChannelWriter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        let mut sent = 0usize;
+        while sent < buf.len() {
+            let end = (sent + STREAM_CHUNK_SIZE).min(buf.len());
+            let chunk = Bytes::copy_from_slice(&buf[sent..end]);
+            self.tx.blocking_send(Ok(chunk)).map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::BrokenPipe, "stream closed")
+            })?;
+            sent = end;
+        }
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn build_zip_stream(
+    paths: &[String],
+    tx: mpsc::Sender<Result<Bytes, std::io::Error>>,
+) -> std::io::Result<()> {
+    let writer = ChannelWriter::new(tx);
+    let buffered = BufWriter::with_capacity(STREAM_CHUNK_SIZE, writer);
+    let mut zip = ZipWriter::new_stream(buffered);
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
     for path_str in paths {
@@ -176,14 +124,16 @@ fn build_zip_file(zip_path: &Path, paths: &[String]) -> std::io::Result<()> {
         }
     }
 
-    if zip.finish().is_err() {
-        return Err(std::io::Error::other("failed to finalize zip"));
-    }
+    let mut output = zip
+        .finish()
+        .map_err(|_| std::io::Error::other("failed to finalize zip"))?;
+    output.flush()?;
+
     Ok(())
 }
 
-fn add_file_to_zip(
-    zip: &mut ZipWriter<File>,
+fn add_file_to_zip<W: Write + Seek>(
+    zip: &mut ZipWriter<W>,
     source_path: &Path,
     zip_entry_name: &str,
     options: SimpleFileOptions,
@@ -198,8 +148,8 @@ fn add_file_to_zip(
     Ok(())
 }
 
-fn add_directory_to_zip(
-    zip: &mut ZipWriter<File>,
+fn add_directory_to_zip<W: Write + Seek>(
+    zip: &mut ZipWriter<W>,
     dir_path: &Path,
     base_path: &Path,
     options: SimpleFileOptions,
