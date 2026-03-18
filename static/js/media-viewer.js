@@ -23,6 +23,7 @@ function showCurrentMedia() {
     const content = document.getElementById('viewerContent');
     const zoomControls = document.getElementById('zoomControls');
     const loopControls = document.getElementById('loopControls');
+    const saveTextBtn = document.getElementById('saveTextBtn');
     const pathWithoutData = file.path.replace('/data', '') || '/';
     const servePath = encodeURIPath(pathWithoutData);
 
@@ -32,6 +33,7 @@ function showCurrentMedia() {
         updateMediaTransform();
         zoomControls.style.display = 'block';
         loopControls.style.display = 'none';
+        saveTextBtn.style.display = 'none';
     } else if (file.file_type === 'video') {
         content.innerHTML = `<video src="${servePath}" controls></video>`;
         setupMediaZoom();
@@ -39,10 +41,12 @@ function showCurrentMedia() {
         zoomControls.style.display = 'block';
         loopControls.style.display = 'block';
         setupVideoLoop();
+        saveTextBtn.style.display = 'none';
     } else if (file.file_type === 'audio') {
         content.innerHTML = `<audio src="${servePath}" controls></audio>`;
         zoomControls.style.display = 'none';
         loopControls.style.display = 'none';
+        saveTextBtn.style.display = 'none';
     } else {
         fetch(servePath)
             .then(response => response.text())
@@ -50,10 +54,6 @@ function showCurrentMedia() {
                 content.innerHTML = `
                     <div class="text-editor-container">
                         <textarea class="text-editor" id="textEditor">${escapeHtml(text)}</textarea>
-                        <div class="text-editor-controls">
-                            <button class="viewer-btn" onclick="saveTextFile()">save</button>
-                            <button class="viewer-btn" onclick="cancelTextEdit()">cancel</button>
-                        </div>
                     </div>
                 `;
             })
@@ -62,6 +62,7 @@ function showCurrentMedia() {
             });
         zoomControls.style.display = 'none';
         loopControls.style.display = 'none';
+        saveTextBtn.style.display = 'block';
     }
 
     viewer.classList.add('active');
@@ -112,6 +113,7 @@ function closeViewer() {
 
     document.getElementById('zoomControls').style.display = 'none';
     document.getElementById('loopControls').style.display = 'none';
+    document.getElementById('saveTextBtn').style.display = 'none';
 
     document.getElementById('viewerDropdown').classList.remove('open');
     document.getElementById('viewer').classList.remove('active');
@@ -160,8 +162,4 @@ function saveTextFile() {
         .catch(err => {
             alert('Error saving file: ' + err.message);
         });
-}
-
-function cancelTextEdit() {
-    closeViewer();
 }
