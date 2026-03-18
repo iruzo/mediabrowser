@@ -47,37 +47,25 @@ pub async fn handle_serve(
         );
     }
 
-    match fs::metadata(&file_path).await {
-        Ok(metadata) => {
-            if metadata.is_dir() {
-                match serve_directory(&file_path, requested_path).await {
-                    Ok(reply) => Ok(reply.into_response()),
-                    Err(e) => Err(e),
-                }
-            } else {
-                match serve_file(&file_path, &headers).await {
-                    Ok(reply) => Ok(reply.into_response()),
-                    Err(e) => Err(e),
-                }
-            }
+    let metadata = match fs::metadata(&file_path).await {
+        Ok(metadata) => metadata,
+        Err(_) => {
+            return Ok(warp::reply::with_status("Not found", StatusCode::NOT_FOUND).into_response());
         }
-        Err(_) => Ok(warp::reply::with_status("Not found", StatusCode::NOT_FOUND).into_response()),
+    };
+
+    if metadata.is_dir() {
+        serve_directory(&file_path, requested_path).await
+    } else {
+        serve_file(&file_path, &headers, metadata.len()).await
     }
 }
 
 async fn serve_file(
     file_path: &Path,
     headers: &HeaderMap,
+    file_size: u64,
 ) -> Result<warp::reply::Response, Infallible> {
-    let file_size = match fs::metadata(file_path).await {
-        Ok(metadata) => metadata.len(),
-        Err(_) => {
-            return Ok(
-                warp::reply::with_status("File not found", StatusCode::NOT_FOUND).into_response(),
-            );
-        }
-    };
-
     let mime_type = from_path(file_path).first_or_octet_stream().to_string();
 
     // Check for Range header
@@ -120,12 +108,9 @@ fn parse_range(range_str: &str, file_size: u64) -> Option<(u64, u64)> {
         return None;
     }
 
-    let parts: Vec<&str> = range_str.split('-').collect();
-    if parts.len() != 2 {
-        return None;
-    }
+    let (start_str, end_str) = range_str.split_once('-')?;
 
-    match (parts[0].parse::<u64>(), parts[1].parse::<u64>()) {
+    match (start_str.parse::<u64>(), end_str.parse::<u64>()) {
         (Ok(start), Ok(end)) => {
             // "bytes=start-end"
             if start <= end && start < file_size {
@@ -200,7 +185,7 @@ async fn serve_file_range(
 async fn serve_directory(
     dir_path: &Path,
     requested_path: &str,
-) -> Result<impl warp::Reply, Infallible> {
+) -> Result<warp::reply::Response, Infallible> {
     let mut entries = match fs::read_dir(dir_path).await {
         Ok(entries) => entries,
         Err(_) => {

@@ -17,14 +17,16 @@ pub async fn handle_download(query: FileQuery) -> Result<impl warp::Reply, Infal
         );
     }
 
-    let file_size = match fs::metadata(&file_path).await {
-        Ok(metadata) => metadata.len(),
+    let metadata = match fs::metadata(&file_path).await {
+        Ok(metadata) => metadata,
         Err(_) => {
             return Ok(
                 warp::reply::with_status("File not found", StatusCode::NOT_FOUND).into_response(),
             );
         }
     };
+
+    let file_size = metadata.len();
 
     match fs::File::open(&file_path).await {
         Ok(file) => {
