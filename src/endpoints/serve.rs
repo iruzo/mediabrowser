@@ -2,6 +2,7 @@ use crate::types::DATA_DIR;
 use mime_guess::from_path;
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::convert::Infallible;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
@@ -243,31 +244,27 @@ fn generate_directory_listing(path: &str, items: &[DirectoryItem]) -> String {
         path
     };
 
-    let mut list_items = String::new();
+    let mut list_items = String::with_capacity(items.len() * 48);
 
     for item in items {
         let name = &item.name;
-        let display_name = if item.is_dir {
-            format!("{}/", name)
-        } else {
-            name.clone()
-        };
-
         let encoded_name = utf8_percent_encode(name, PATH_SEGMENT).to_string();
-        let url = if item.is_dir {
-            format!("{}/", encoded_name)
-        } else {
-            encoded_name
-        };
-
-        list_items.push_str(&format!(
-            r#"<li><a href="{}"> {}</a></li>
-"#,
-            url, display_name
-        ));
+        list_items.push_str(r#"<li><a href=""#);
+        list_items.push_str(&encoded_name);
+        if item.is_dir {
+            list_items.push('/');
+        }
+        list_items.push_str(r#""> "#);
+        list_items.push_str(name);
+        if item.is_dir {
+            list_items.push('/');
+        }
+        list_items.push_str("</a></li>\n");
     }
 
-    format!(
+    let mut html = String::with_capacity(list_items.len() + display_path.len() * 2 + 128);
+    let _ = write!(
+        html,
         r#"<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <html>
  <head>
@@ -278,5 +275,6 @@ fn generate_directory_listing(path: &str, items: &[DirectoryItem]) -> String {
 <ul>{}</ul>
 </body></html>"#,
         display_path, display_path, list_items
-    )
+    );
+    html
 }

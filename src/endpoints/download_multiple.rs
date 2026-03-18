@@ -108,11 +108,11 @@ fn build_tar_stream(
             Err(_) => continue,
         };
 
+        let archive_path = archive_path_for(file_path);
+
         if metadata.is_file() {
-            let archive_path = archive_path_for(file_path);
             tar.append_path_with_name(file_path, archive_path)?;
         } else if metadata.is_dir() {
-            let archive_path = archive_path_for(file_path);
             tar.append_dir_all(archive_path, file_path)?;
         }
     }
