@@ -4,15 +4,12 @@ use futures_util::stream;
 use percent_encoding::percent_decode_str;
 use serde::Deserialize;
 use std::convert::Infallible;
-use std::fs::File;
-use std::io::BufReader;
-use std::io::{BufWriter, Seek, Write};
-use std::path::Path;
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
+use tar::Builder;
 use tokio::sync::mpsc;
 use warp::hyper::Body;
 use warp::{http::StatusCode, Reply};
-use zip::write::SimpleFileOptions;
-use zip::ZipWriter;
 
 const STREAM_CHUNK_SIZE: usize = 64 * 1024;
 const STREAM_CHANNEL_CAPACITY: usize = 4;
@@ -39,10 +36,9 @@ pub async fn handle_download_multiple(
 
     let (tx, rx) = mpsc::channel::<Result<Bytes, std::io::Error>>(STREAM_CHANNEL_CAPACITY);
     tokio::task::spawn_blocking({
-        let paths = paths;
         let tx = tx;
         move || {
-            let result = build_zip_stream(&paths, tx.clone());
+            let result = build_tar_stream(&paths, tx.clone());
             if let Err(e) = result {
                 let _ = tx.blocking_send(Err(e));
             }
@@ -53,11 +49,11 @@ pub async fn handle_download_multiple(
         rx.recv().await.map(|item| (item, rx))
     });
     let body = Body::wrap_stream(stream);
-    let disposition = "attachment; filename=\"download.zip\"";
+    let disposition = "attachment; filename=\"download.tar\"";
 
     Ok(warp::http::Response::builder()
         .status(StatusCode::OK)
-        .header("content-type", "application/zip")
+        .header("content-type", "application/x-tar")
         .header("content-disposition", disposition)
         .body(body)
         .unwrap())
@@ -92,14 +88,13 @@ impl Write for ChannelWriter {
     }
 }
 
-fn build_zip_stream(
+fn build_tar_stream(
     paths: &[String],
     tx: mpsc::Sender<Result<Bytes, std::io::Error>>,
 ) -> std::io::Result<()> {
     let writer = ChannelWriter::new(tx);
     let buffered = BufWriter::with_capacity(STREAM_CHUNK_SIZE, writer);
-    let mut zip = ZipWriter::new_stream(buffered);
-    let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+    let mut tar = Builder::new(buffered);
 
     for path_str in paths {
         let file_path = Path::new(path_str);
@@ -114,74 +109,25 @@ fn build_zip_stream(
         };
 
         if metadata.is_file() {
-            let filename = file_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("file");
-            add_file_to_zip(&mut zip, file_path, filename, options)?;
+            let archive_path = archive_path_for(file_path);
+            tar.append_path_with_name(file_path, archive_path)?;
         } else if metadata.is_dir() {
-            add_directory_to_zip(&mut zip, file_path, file_path, options)?;
+            let archive_path = archive_path_for(file_path);
+            tar.append_dir_all(archive_path, file_path)?;
         }
     }
 
-    let mut output = zip
-        .finish()
-        .map_err(|_| std::io::Error::other("failed to finalize zip"))?;
+    let mut output = tar.into_inner()?;
     output.flush()?;
 
     Ok(())
 }
 
-fn add_file_to_zip<W: Write + Seek>(
-    zip: &mut ZipWriter<W>,
-    source_path: &Path,
-    zip_entry_name: &str,
-    options: SimpleFileOptions,
-) -> std::io::Result<()> {
-    let file = File::open(source_path)?;
-    let mut reader = BufReader::new(file);
-
-    if zip.start_file(zip_entry_name, options).is_err() {
-        return Ok(());
-    }
-    std::io::copy(&mut reader, zip)?;
-    Ok(())
-}
-
-fn add_directory_to_zip<W: Write + Seek>(
-    zip: &mut ZipWriter<W>,
-    dir_path: &Path,
-    base_path: &Path,
-    options: SimpleFileOptions,
-) -> std::io::Result<()> {
-    let entries = std::fs::read_dir(dir_path)?;
-
-    for entry in entries {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(_) => continue,
-        };
-
-        let path = entry.path();
-        let metadata = match std::fs::metadata(&path) {
-            Ok(metadata) => metadata,
-            Err(_) => continue,
-        };
-
-        let relative_path = path
-            .strip_prefix(base_path)
-            .unwrap_or(&path)
-            .to_string_lossy()
-            .to_string();
-
-        if metadata.is_file() {
-            let _ = add_file_to_zip(zip, &path, &relative_path, options);
-        } else if metadata.is_dir() {
-            let dir_name = format!("{}/", relative_path);
-            let _ = zip.add_directory(&dir_name, options);
-            add_directory_to_zip(zip, &path, base_path, options)?;
-        }
-    }
-
-    Ok(())
+fn archive_path_for(file_path: &Path) -> PathBuf {
+    file_path
+        .strip_prefix(DATA_DIR)
+        .unwrap_or(file_path)
+        .components()
+        .filter(|component| !matches!(component, std::path::Component::RootDir))
+        .collect()
 }

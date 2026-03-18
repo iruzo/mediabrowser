@@ -44,9 +44,7 @@ async fn serve_ui_path(tail: warp::path::Tail) -> Result<warp::reply::Response, 
 }
 
 pub fn ui_routes() -> warp::filters::BoxedFilter<(warp::reply::Response,)> {
-    let ui_index = warp::path("ui")
-        .and(warp::path::end())
-        .map(index_response);
+    let ui_index = warp::path("ui").and(warp::path::end()).map(index_response);
 
     let ui_path = warp::path("ui")
         .and(warp::path::tail())

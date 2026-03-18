@@ -11,7 +11,7 @@
 - **Apache-style HTTP file serving** - Pure httpd server at root path, compatible with standard tools
 - **Enhanced UI** - Simple file browser at `/ui`
 - **Upload support** - Upload files up to 256GB
-- **ZIP downloads** - Download multiple files and directories as ZIP
+- **TAR downloads** - Download multiple files and directories as TAR
 - **File management** - Create folders, delete, modify and upload files
 - **File preview** - View images, videos, audio, and text files
 
@@ -82,7 +82,7 @@ export PORT=30003
 
 ### API Routes
 - `POST /api/upload?path=/data` - Upload files (multipart form, 256GB limit)
-- `GET /api/download-multiple?paths=/data/file1,/data/file2` - Download as ZIP
+- `GET /api/download-multiple?paths=/data/file1,/data/file2` - Download as TAR
 - `DELETE /api/delete?path=/data/file` - Delete file/directory
 - `POST /api/mkdir?path=/data/newfolder` - Create directory
 - `POST /api/move?from=/data/old&to=/data/new` - Move file or directory

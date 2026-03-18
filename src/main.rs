@@ -1,5 +1,5 @@
-use warp::Filter;
 use std::net::Ipv4Addr;
+use warp::Filter;
 
 mod endpoints;
 mod types;
@@ -19,10 +19,7 @@ fn get_bind_addr() -> Ipv4Addr {
         Ok(value) => match value.parse::<Ipv4Addr>() {
             Ok(addr) => addr,
             Err(_) => {
-                eprintln!(
-                    "Invalid BIND_ADDR='{}', using default {}",
-                    value, BIND_ADDR
-                );
+                eprintln!("Invalid BIND_ADDR='{}', using default {}", value, BIND_ADDR);
                 BIND_ADDR
             }
         },
