@@ -4,9 +4,8 @@ function openMedia(file) {
         return;
     }
 
-    const container = document.querySelector('.gallery-container');
-    if (container) {
-        sessionStorage.setItem('galleryScrollPosition', container.scrollTop);
+    if (galleryContainer) {
+        sessionStorage.setItem('galleryScrollPosition', galleryContainer.scrollTop);
     }
 
     const pathWithoutData = file.path.replace('/data', '');

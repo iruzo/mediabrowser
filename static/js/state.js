@@ -10,6 +10,8 @@ let searchTerm = '';
 let viewMode = localStorage.getItem('viewMode') || 'grid';
 let intersectionObserver = null;
 let gridSize = window.innerWidth <= 480 ? 20 : 30;
+const galleryContainer = document.querySelector('.gallery-container');
+const galleryGrid = document.getElementById('galleryGrid');
 
 let zoomLevel = 1;
 let isDragging = false;
@@ -22,54 +24,6 @@ let loopEnabled = false;
 let loopStart = 0;
 let loopEnd = 0;
 
-const videoLoadQueue = {
-    queue: [],
-    loading: 0,
-    maxConcurrent: 6,
-
-    add(item, filePath, servePath) {
-        this.queue.push({ item, filePath, servePath });
-        this.process();
-    },
-
-    process() {
-        while (this.loading < this.maxConcurrent && this.queue.length > 0) {
-            const { item, filePath, servePath } = this.queue.shift();
-            this.loading++;
-            this.loadVideo(item, filePath, servePath);
-        }
-    },
-
-    loadVideo(item, filePath, servePath) {
-        const video = document.createElement('video');
-        video.src = servePath;
-        video.muted = true;
-        video.loading = 'lazy';
-        video.preload = 'metadata';
-
-        const onLoadComplete = () => {
-            this.loading--;
-            this.process();
-        };
-
-        video.addEventListener('loadeddata', onLoadComplete, { once: true });
-        video.addEventListener('error', onLoadComplete, { once: true });
-
-        item.innerHTML = '';
-        item.appendChild(video);
-
-        if (selectedFiles.has(filePath)) {
-            const overlay = document.createElement('div');
-            overlay.className = 'selection-overlay';
-            item.appendChild(overlay);
-        }
-    },
-
-    clear() {
-        this.queue = [];
-    }
-};
-
 let virtualScrollData = {
     filteredFiles: [],
     renderedItems: new Map(),
@@ -78,6 +32,7 @@ let virtualScrollData = {
     containerHeight: 0,
     scrollContainer: null,
     scrollHandler: null,
+    spacer: null,
     visibleRange: { start: 0, end: 0 },
     lastContainerDimensions: { width: 0, height: 0 },
     selectedItemsCache: new Set()

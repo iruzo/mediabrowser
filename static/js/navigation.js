@@ -33,7 +33,7 @@ function loadInitialDirectory() {
                 }
             })
             .catch(() => {
-                document.getElementById('galleryGrid').innerHTML = '<div>error</div>';
+                galleryGrid.innerHTML = '<div>error</div>';
             });
     } else {
         let dataPath = '/data';
@@ -53,7 +53,7 @@ function loadInitialDirectory() {
                 renderGallery(files);
             })
             .catch(() => {
-                document.getElementById('galleryGrid').innerHTML = '<div>error</div>';
+                galleryGrid.innerHTML = '<div>error</div>';
             });
     }
 }

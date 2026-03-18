@@ -1,27 +1,20 @@
 function renderGallery(files) {
-    const grid = document.getElementById('galleryGrid');
-
     if (intersectionObserver) {
         intersectionObserver.disconnect();
     }
-
-    videoLoadQueue.clear();
 
     let filteredFiles = filterFiles(files);
     filteredFiles = filterBySearchTerm(filteredFiles);
     virtualScrollData.filteredFiles = sortFiles(filteredFiles);
 
-    initializeVirtualScroll(grid);
+    initializeVirtualScroll(galleryGrid);
 
     const savedScroll = sessionStorage.getItem('galleryScrollPosition');
-    if (savedScroll) {
-        const container = document.querySelector('.gallery-container');
-        if (container) {
-            requestAnimationFrame(() => {
-                container.scrollTop = parseInt(savedScroll);
-                sessionStorage.removeItem('galleryScrollPosition');
-            });
-        }
+    if (savedScroll && galleryContainer) {
+        requestAnimationFrame(() => {
+            galleryContainer.scrollTop = parseInt(savedScroll, 10);
+            sessionStorage.removeItem('galleryScrollPosition');
+        });
     }
 }
 
@@ -70,6 +63,7 @@ function initializeVirtualScroll(grid) {
     spacer.style.height = `${virtualScrollData.rows * virtualScrollData.itemHeight}px`;
     spacer.style.position = 'relative';
     grid.appendChild(spacer);
+    virtualScrollData.spacer = spacer;
 
     virtualScrollData.scrollHandler = performanceUtils.throttle(handleVirtualScroll, 16);
     container.addEventListener('scroll', virtualScrollData.scrollHandler);
@@ -101,7 +95,8 @@ function renderVisibleItems() {
 
     virtualScrollData.visibleRange = { start: startIndex, end: endIndex };
 
-    const spacer = document.getElementById('virtual-spacer');
+    const spacer = virtualScrollData.spacer;
+    const newLazyItems = [];
 
     for (const [index, item] of virtualScrollData.renderedItems) {
         if (index < startIndex || index > endIndex) {
@@ -134,11 +129,14 @@ function renderVisibleItems() {
             const item = viewMode === 'list' ? createListItem(file, i) : createGridItem(file, i);
             virtualScrollData.renderedItems.set(i, item);
             spacer.appendChild(item);
+            if (item.classList.contains('lazy-load')) {
+                newLazyItems.push(item);
+            }
         }
     }
 
-    if (viewMode === 'grid') {
-        observeLazyItems();
+    if (viewMode === 'grid' && newLazyItems.length > 0) {
+        observeLazyItems(newLazyItems);
     }
 }
 
@@ -227,9 +225,8 @@ function createListItem(file, index) {
 }
 
 function toggleViewMode() {
-    const container = document.querySelector('.gallery-container');
-    if (container) {
-        sessionStorage.setItem('galleryScrollPosition', container.scrollTop);
+    if (galleryContainer) {
+        sessionStorage.setItem('galleryScrollPosition', galleryContainer.scrollTop);
     }
 
     viewMode = viewMode === 'grid' ? 'list' : 'grid';
@@ -278,10 +275,10 @@ function ensureLazyLoadObserver() {
     });
 }
 
-function observeLazyItems() {
+function observeLazyItems(items) {
     ensureLazyLoadObserver();
 
-    document.querySelectorAll('.lazy-load').forEach(item => {
+    items.forEach(item => {
         if (item.dataset.lazyObserved === 'true') {
             return;
         }
@@ -425,15 +422,12 @@ function updateGridSize() {
     localStorage.setItem('gridSize', gridSize);
 
     if (virtualScrollData.filteredFiles.length > 0) {
-        const container = document.querySelector('.gallery-container');
-        const currentScroll = container ? container.scrollTop : 0;
+        const currentScroll = galleryContainer ? galleryContainer.scrollTop : 0;
+        initializeVirtualScroll(galleryGrid);
 
-        const grid = document.getElementById('galleryGrid');
-        initializeVirtualScroll(grid);
-
-        if (container) {
+        if (galleryContainer) {
             requestAnimationFrame(() => {
-                container.scrollTop = currentScroll;
+                galleryContainer.scrollTop = currentScroll;
             });
         }
     }
@@ -459,8 +453,7 @@ const resizeHandler = performanceUtils.debounce(() => {
 
                 const scrollPercentage = container.scrollTop / (container.scrollHeight - container.clientHeight || 1);
 
-                const grid = document.getElementById('galleryGrid');
-                initializeVirtualScroll(grid);
+                initializeVirtualScroll(galleryGrid);
 
                 requestAnimationFrame(() => {
                     const newScrollTop = scrollPercentage * (container.scrollHeight - container.clientHeight);
