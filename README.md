@@ -81,6 +81,7 @@ export PORT=30003
 - `GET /ui/*` - UI assets and client-side routes
 
 ### API Routes
+- `GET /api/list?path=/data` - List directory contents as JSON for the web UI
 - `POST /api/upload?path=/data` - Upload files (multipart form, 256GB limit)
 - `GET /api/download-multiple?paths=/data/file1,/data/file2` - Download as TAR
 - `DELETE /api/delete?path=/data/file` - Delete file/directory

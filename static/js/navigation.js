@@ -17,11 +17,8 @@ function loadInitialDirectory() {
 
         currentPath = dataPath;
 
-        const servePath = dataPath === '/data' ? '/' : dataPath.replace('/data', '') + '/';
-        fetch(servePath)
-            .then(response => response.text())
-            .then(html => {
-                const files = parseServerHtml(html, dataPath);
+        fetchDirectory(dataPath)
+            .then(files => {
                 currentFiles = files;
 
                 const file = currentFiles.find(f => f.path === filePath);
@@ -44,11 +41,8 @@ function loadInitialDirectory() {
 
         currentPath = dataPath;
 
-        const servePath = dataPath === '/data' ? '/' : dataPath.replace('/data', '') + '/';
-        fetch(servePath)
-            .then(response => response.text())
-            .then(html => {
-                const files = parseServerHtml(html, dataPath);
+        fetchDirectory(dataPath)
+            .then(files => {
                 currentFiles = files;
                 renderGallery(files);
             })
@@ -58,37 +52,17 @@ function loadInitialDirectory() {
     }
 }
 
-function parseServerHtml(html, currentPath) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const links = doc.querySelectorAll('ul li a');
-    const files = [];
+async function fetchDirectory(path) {
+    const response = await fetch(`/api/list?path=${encodeURIComponent(path)}`);
+    if (!response.ok) {
+        throw new Error('failed to load directory');
+    }
 
-    links.forEach(link => {
-        const href = link.getAttribute('href');
-        const text = link.textContent.trim();
-
-        if (!href || href === '../') return;
-
-        const isDir = href.endsWith('/');
-        const name = isDir ? text.replace(/\/$/, '') : text;
-        const filePath = currentPath === '/data'
-            ? `/data/${name}`
-            : `${currentPath}/${name}`;
-
-        const fileType = isDir ? 'directory' : determineFileType(name);
-
-        files.push({
-            name: name,
-            path: filePath,
-            is_dir: isDir,
-            file_type: fileType,
-            size: 0,
-            modified: ''
-        });
-    });
-
-    return files;
+    const files = await response.json();
+    return files.map(file => ({
+        ...file,
+        file_type: file.is_dir ? 'directory' : determineFileType(file.name)
+    }));
 }
 
 function refreshView() {

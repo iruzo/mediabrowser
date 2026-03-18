@@ -379,7 +379,7 @@ function sortFiles(files) {
             case 'name':
                 return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
             case 'date':
-                return new Date(b.modified) - new Date(a.modified);
+                return b.modified - a.modified;
             case 'size':
                 return b.size - a.size;
             case 'type':

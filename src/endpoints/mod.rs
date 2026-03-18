@@ -1,6 +1,7 @@
 pub mod delete;
 pub mod download;
 pub mod download_multiple;
+pub mod list;
 pub mod mkdir;
 pub mod mv;
 pub mod save;
@@ -12,6 +13,7 @@ pub mod upload;
 pub use delete::handle_delete;
 pub use download::handle_download;
 pub use download_multiple::handle_download_multiple;
+pub use list::handle_list;
 pub use mkdir::handle_mkdir;
 pub use mv::handle_move;
 pub use save::handle_save;

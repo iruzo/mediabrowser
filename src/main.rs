@@ -6,7 +6,7 @@ mod types;
 
 use endpoints::download_multiple::DownloadMultipleQuery;
 use endpoints::{
-    handle_delete, handle_download, handle_download_multiple, handle_mkdir, handle_move,
+    handle_delete, handle_download, handle_download_multiple, handle_list, handle_mkdir, handle_move,
     handle_save, handle_serve, handle_upload, ui_routes,
 };
 use types::{FileQuery, ListQuery, MoveQuery, DATA_DIR};
@@ -90,6 +90,12 @@ async fn main() {
         .and(warp::multipart::form().max_length(1024 * 1024 * 1024 * 256)) // 256GB limit
         .and_then(handle_upload);
 
+    let api_list = warp::path("api")
+        .and(warp::path("list"))
+        .and(warp::get())
+        .and(warp::query::<ListQuery>())
+        .and_then(handle_list);
+
     let api_delete = warp::path("api")
         .and(warp::path("delete"))
         .and(warp::delete())
@@ -125,6 +131,7 @@ async fn main() {
         .or(api_download)
         .or(api_download_multiple)
         .or(api_upload)
+        .or(api_list)
         .or(api_delete)
         .or(api_mkdir)
         .or(api_save)
