@@ -1,4 +1,9 @@
 @media (max-width: 768px) {
+    body {
+        overflow-y: auto;
+        min-height: calc(100dvh + 1px);
+    }
+
     .gallery-container {
         scrollbar-width: none;
         -ms-overflow-style: none;
