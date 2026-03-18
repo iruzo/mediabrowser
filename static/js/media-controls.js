@@ -22,6 +22,25 @@ function setupMediaZoom() {
         }
     });
 
+    element.addEventListener('dblclick', (e) => {
+        if (zoomLevel === 1) {
+            e.stopPropagation();
+            zoomLevel = 2;
+            updateMediaTransform();
+        } else {
+            e.stopPropagation();
+            resetZoom();
+        }
+    });
+
+    initializeMediaZoomDocumentListeners();
+}
+
+function initializeMediaZoomDocumentListeners() {
+    if (mediaZoomListenersInitialized) {
+        return;
+    }
+
     document.addEventListener('mousemove', (e) => {
         if (isDragging) {
             imagePos.x = e.clientX - dragStart.x;
@@ -38,16 +57,7 @@ function setupMediaZoom() {
         }
     });
 
-    element.addEventListener('dblclick', (e) => {
-        if (zoomLevel === 1) {
-            e.stopPropagation();
-            zoomLevel = 2;
-            updateMediaTransform();
-        } else {
-            e.stopPropagation();
-            resetZoom();
-        }
-    });
+    mediaZoomListenersInitialized = true;
 }
 
 function zoomIn() {

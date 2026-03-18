@@ -29,8 +29,8 @@ function initializeVirtualScroll(grid) {
     grid.innerHTML = '';
     virtualScrollData.renderedItems.clear();
 
-    if (virtualScrollData.scrollContainer) {
-        virtualScrollData.scrollContainer.removeEventListener('scroll', handleVirtualScroll);
+    if (virtualScrollData.scrollContainer && virtualScrollData.scrollHandler) {
+        virtualScrollData.scrollContainer.removeEventListener('scroll', virtualScrollData.scrollHandler);
     }
 
     const container = grid.parentElement;
@@ -71,8 +71,8 @@ function initializeVirtualScroll(grid) {
     spacer.style.position = 'relative';
     grid.appendChild(spacer);
 
-    const throttledScroll = performanceUtils.throttle(handleVirtualScroll, 16);
-    container.addEventListener('scroll', throttledScroll);
+    virtualScrollData.scrollHandler = performanceUtils.throttle(handleVirtualScroll, 16);
+    container.addEventListener('scroll', virtualScrollData.scrollHandler);
 
     renderVisibleItems();
 }
@@ -138,7 +138,7 @@ function renderVisibleItems() {
     }
 
     if (viewMode === 'grid') {
-        setupLazyLoading();
+        observeLazyItems();
     }
 }
 
@@ -249,33 +249,44 @@ function updateViewModeUI() {
     }
 }
 
-function setupLazyLoading() {
+function ensureLazyLoadObserver() {
     if (intersectionObserver) {
-        intersectionObserver.disconnect();
+        return;
     }
 
     intersectionObserver = new IntersectionObserver((entries) => {
-        const processEntry = (entry) => {
-            if (entry.isIntersecting) {
-                const item = entry.target;
-                if (item.classList.contains('lazy-load')) {
-                    loadItemContent(item);
-                    intersectionObserver.unobserve(item);
+        requestAnimationFrame(() => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) {
+                    return;
                 }
-            }
-        };
 
-        const processEntries = () => {
-            entries.forEach(processEntry);
-        };
-        requestAnimationFrame(processEntries);
+                const item = entry.target;
+                if (!item.classList.contains('lazy-load')) {
+                    return;
+                }
+
+                intersectionObserver.unobserve(item);
+                delete item.dataset.lazyObserved;
+                loadItemContent(item);
+            });
+        });
     }, {
         root: null,
         rootMargin: '25px',
         threshold: 0.2
     });
+}
+
+function observeLazyItems() {
+    ensureLazyLoadObserver();
 
     document.querySelectorAll('.lazy-load').forEach(item => {
+        if (item.dataset.lazyObserved === 'true') {
+            return;
+        }
+
+        item.dataset.lazyObserved = 'true';
         intersectionObserver.observe(item);
     });
 }
