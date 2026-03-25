@@ -2,6 +2,7 @@ initializeGridSize();
 updateViewModeUI();
 
 window.addEventListener('resize', resizeHandler);
+window.addEventListener('resize', updateToolbarDropdownPosition);
 
 document.addEventListener('click', function(e) {
     hideContextMenu();
@@ -24,5 +25,38 @@ document.addEventListener('keydown', (e) => {
         nextMedia();
     }
 });
+
+function updateToolbarDropdownPosition() {
+    const toolbarDropdown = document.getElementById('toolbarDropdown');
+    if (!toolbarDropdown) {
+        return;
+    }
+
+    const visualViewport = window.visualViewport;
+    if (!visualViewport) {
+        toolbarDropdown.style.bottom = '';
+        return;
+    }
+
+    const layoutHeight = window.innerHeight;
+    const visibleBottom = visualViewport.height + visualViewport.offsetTop;
+    const keyboardInset = Math.max(0, layoutHeight - visibleBottom);
+    const baseOffset = 8;
+
+    toolbarDropdown.style.bottom = `${keyboardInset + baseOffset}px`;
+}
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateToolbarDropdownPosition);
+    window.visualViewport.addEventListener('scroll', updateToolbarDropdownPosition);
+}
+
+const searchInput = document.getElementById('searchInput');
+if (searchInput) {
+    searchInput.addEventListener('focus', updateToolbarDropdownPosition);
+    searchInput.addEventListener('blur', updateToolbarDropdownPosition);
+}
+
+updateToolbarDropdownPosition();
 
 loadInitialDirectory();

@@ -6,7 +6,7 @@ COPY static/ /static/
 RUN find /static -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) \
     -exec minify -o {} {} \;
 
-FROM docker.io/library/rust:1.83-alpine AS builder
+FROM docker.io/library/rust:1.85-alpine AS builder
 
 RUN apk add --no-cache musl-dev binutils
 
