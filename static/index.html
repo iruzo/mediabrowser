@@ -43,6 +43,7 @@
             </div>
             <div class="hidden" id="selectionActions">
                 <button class="toolbar-dropdown-btn" onclick="toggleSelectAll()" id="selectAllBtn">select all</button>
+                <button class="toolbar-dropdown-btn" onclick="renameSelected()">rename selected</button>
                 <button class="toolbar-dropdown-btn" onclick="downloadSelected()">download selected</button>
                 <button class="toolbar-dropdown-btn" onclick="deleteSelected()">delete selected</button>
                 <button class="toolbar-dropdown-btn" onclick="clearSelection()">clear selection</button>
@@ -89,12 +90,6 @@
             <button class="viewer-dropdown-toggle" onclick="document.getElementById('viewerDropdown').classList.toggle('open')">menu</button>
         </div>
         <div id="viewerContent"></div>
-    </div>
-
-    <div class="context-menu" id="contextMenu">
-        <div class="context-menu-item" onclick="downloadFile()">download</div>
-        <div class="context-menu-item" onclick="renameFile()">rename</div>
-        <div class="context-menu-item" onclick="deleteFile()">delete</div>
     </div>
 
     <div class="upload-progress" id="uploadProgress" style="display:none;">

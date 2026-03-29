@@ -47,21 +47,6 @@
     border-color: var(--border-secondary);
 }
 
-.context-menu {
-    position: fixed;
-    background: var(--bg-quaternary);
-    border: 1px solid var(--border-secondary);
-    display: none;
-    min-width: 10vh;
-}
-
-.context-menu-item {
-    padding: 0.5vh 1vh;
-    cursor: pointer;
-    font-size: 1.4vh;
-    color: var(--text-primary);
-}
-
 #fileInput {
     display: none;
 }

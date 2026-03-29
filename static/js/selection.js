@@ -136,33 +136,95 @@ function toggleSelectAll() {
     }
 }
 
+function getSelectedEntries() {
+    const selectedPaths = new Set(selectedFiles);
+
+    return currentFiles.filter(file => selectedPaths.has(file.path));
+}
+
+function getRenamedPath(file, name, index, multiple) {
+    const lastSlashIndex = file.path.lastIndexOf('/');
+    const dirPath = file.path.substring(0, lastSlashIndex);
+
+    if (!multiple) {
+        return `${dirPath}/${name}`;
+    }
+
+    if (file.is_dir) {
+        return `${dirPath}/${name}${index + 1}`;
+    }
+
+    const lastDotIndex = file.name.lastIndexOf('.');
+    if (lastDotIndex > 0) {
+        const extension = file.name.substring(lastDotIndex);
+        return `${dirPath}/${name}${index + 1}${extension}`;
+    }
+
+    return `${dirPath}/${name}${index + 1}`;
+}
+
+async function renameSelected() {
+    const selectedEntries = getSelectedEntries();
+    if (selectedEntries.length === 0) {
+        return;
+    }
+
+    const promptLabel = selectedEntries.length === 1 ? 'New name:' : 'Base name:';
+    const name = prompt(promptLabel, selectedEntries.length === 1 ? selectedEntries[0].name : '');
+
+    if (name === null) {
+        return;
+    }
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+        return;
+    }
+
+    try {
+        for (const [index, file] of selectedEntries.entries()) {
+            const renamedPath = getRenamedPath(file, trimmedName, index, selectedEntries.length > 1);
+            const response = await fetch(
+                `/api/move?from=${encodeURIComponent(file.path)}&to=${encodeURIComponent(renamedPath)}`,
+                { method: 'POST' }
+            );
+
+            if (!response.ok) {
+                throw new Error('failed to rename');
+            }
+        }
+
+        clearSelection();
+        navigateToDirectory(currentPath);
+    } catch {
+        alert('Some files failed to rename');
+    }
+}
+
 function downloadSelected() {
-    if (selectedFiles.size === 0) return;
+    const selectedEntries = getSelectedEntries();
+    if (selectedEntries.length === 0) return;
 
-    const selectedPaths = Array.from(selectedFiles);
+    const hasDirectory = selectedEntries.some(file => file.is_dir);
 
-    const hasDirectory = selectedPaths.some(path => {
-        const file = currentFiles.find(f => f.path === path);
-        return file && file.is_dir;
-    });
-
-    if (selectedFiles.size === 1 && !hasDirectory) {
-        const filePath = selectedPaths[0];
+    if (selectedEntries.length === 1 && !hasDirectory) {
+        const filePath = selectedEntries[0].path;
         triggerDownload(`/api/download?path=${encodeURIComponent(filePath)}`);
     } else {
-        const paths = selectedPaths.map(path => encodeURIComponent(path)).join(',');
+        const paths = selectedEntries.map(file => encodeURIComponent(file.path)).join(',');
         triggerDownload(`/api/download-multiple?paths=${paths}`);
     }
 }
 
 function deleteSelected() {
-    if (selectedFiles.size === 0) return;
+    const selectedEntries = getSelectedEntries();
+    if (selectedEntries.length === 0) return;
 
-    const fileCount = selectedFiles.size;
+    const fileCount = selectedEntries.length;
     if (!confirm(`Delete ${fileCount} selected file(s)?`)) return;
 
-    const deletePromises = Array.from(selectedFiles).map(filePath =>
-        fetch(`/api/delete?path=${encodeURIComponent(filePath)}`, { method: 'DELETE' })
+    const deletePromises = selectedEntries.map(file =>
+        fetch(`/api/delete?path=${encodeURIComponent(file.path)}`, { method: 'DELETE' })
     );
 
     Promise.all(deletePromises)
@@ -171,52 +233,4 @@ function deleteSelected() {
             navigateToDirectory(currentPath);
         })
         .catch(() => alert('Some files failed to delete'));
-}
-
-function showContextMenu(e, file) {
-    e.preventDefault();
-    selectedFile = file;
-    const menu = document.getElementById('contextMenu');
-    menu.style.display = 'block';
-    menu.style.left = e.pageX + 'px';
-    menu.style.top = e.pageY + 'px';
-}
-
-function downloadFile() {
-    if (selectedFile) {
-        if (selectedFile.is_dir) {
-            triggerDownload(`/api/download-multiple?paths=${encodeURIComponent(selectedFile.path)}`);
-        } else {
-            triggerDownload(`/api/download?path=${encodeURIComponent(selectedFile.path)}`);
-        }
-    }
-    hideContextMenu();
-}
-
-function renameFile() {
-    if (!selectedFile) {
-        hideContextMenu();
-        return;
-    }
-    const newName = prompt('new name:', selectedFile.name);
-    if (newName && newName !== selectedFile.name) {
-        const parent = selectedFile.path.substring(0, selectedFile.path.lastIndexOf('/'));
-        const newPath = parent + '/' + newName;
-        fetch(`/api/move?from=${encodeURIComponent(selectedFile.path)}&to=${encodeURIComponent(newPath)}`, { method: 'POST' })
-            .then(res => {
-                if (!res.ok) throw new Error();
-                navigateToDirectory(currentPath);
-            })
-            .catch(() => alert('rename failed'));
-    }
-    hideContextMenu();
-}
-
-function deleteFile() {
-    if (selectedFile && confirm(`delete ${selectedFile.name}?`)) {
-        fetch(`/api/delete?path=${encodeURIComponent(selectedFile.path)}`, { method: 'DELETE' })
-            .then(() => navigateToDirectory(currentPath))
-            .catch(() => alert('delete failed'));
-    }
-    hideContextMenu();
 }

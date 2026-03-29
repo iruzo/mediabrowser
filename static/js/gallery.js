@@ -92,7 +92,6 @@ function renderVisibleItems() {
     for (const [index, item] of virtualScrollData.renderedItems) {
         if (index < startIndex || index > endIndex) {
             item.onclick = null;
-            item.oncontextmenu = null;
 
             const img = item.querySelector('img');
             const video = item.querySelector('video');
@@ -138,7 +137,6 @@ function createGridItem(file, index) {
     item.dataset.fileType = file.file_type;
     item.dataset.fileName = file.name;
     item.onclick = (e) => handleFileClick(e, file);
-    item.oncontextmenu = (e) => showContextMenu(e, file);
 
     const columns = virtualScrollData.columns;
     const row = Math.floor(index / columns);

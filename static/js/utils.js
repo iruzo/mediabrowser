@@ -89,10 +89,6 @@ function hideNotification() {
     }
 }
 
-function hideContextMenu() {
-    document.getElementById('contextMenu').style.display = 'none';
-}
-
 function triggerDownload(url) {
     const link = document.createElement('a');
     link.href = url;
