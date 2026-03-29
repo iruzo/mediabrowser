@@ -1,164 +1,172 @@
 function openMedia(file) {
-    if (file.is_dir) {
-        navigateToDirectory(file.path);
-        return;
-    }
+  if (file.is_dir) {
+    navigateToDirectory(file.path);
+    return;
+  }
 
-    if (galleryContainer) {
-        sessionStorage.setItem('galleryScrollPosition', galleryContainer.scrollTop);
-    }
+  if (galleryContainer) {
+    sessionStorage.setItem("galleryScrollPosition", galleryContainer.scrollTop);
+  }
 
-    const pathWithoutData = file.path.replace('/data', '');
-    const fileUrl = '/ui' + encodeURIPath(pathWithoutData);
-    window.location.href = fileUrl;
+  const pathWithoutData = file.path.replace("/data", "");
+  const fileUrl = "/ui" + encodeURIPath(pathWithoutData);
+  window.location.href = fileUrl;
 }
 
 function showCurrentMedia() {
-    if (currentMediaIndex < 0 || currentMediaIndex >= currentFiles.length) return;
+  if (currentMediaIndex < 0 || currentMediaIndex >= currentFiles.length) return;
 
-    const file = currentFiles[currentMediaIndex];
-    selectedFile = file;
-    const viewer = document.getElementById('viewer');
-    const content = document.getElementById('viewerContent');
-    const zoomControls = document.getElementById('zoomControls');
-    const loopControls = document.getElementById('loopControls');
-    const saveTextBtn = document.getElementById('saveTextBtn');
-    const pathWithoutData = file.path.replace('/data', '') || '/';
-    const servePath = encodeURIPath(pathWithoutData);
+  const file = currentFiles[currentMediaIndex];
+  selectedFile = file;
+  const viewer = document.getElementById("viewer");
+  const content = document.getElementById("viewerContent");
+  const zoomControls = document.getElementById("zoomControls");
+  const loopControls = document.getElementById("loopControls");
+  const saveTextBtn = document.getElementById("saveTextBtn");
+  const pathWithoutData = file.path.replace("/data", "") || "/";
+  const servePath = encodeURIPath(pathWithoutData);
 
-    if (file.file_type === 'image') {
-        content.innerHTML = `<img src="${servePath}" alt="${escapeHtml(file.name)}" id="viewerImage">`;
-        setupMediaZoom();
-        updateMediaTransform();
-        zoomControls.style.display = 'block';
-        loopControls.style.display = 'none';
-        saveTextBtn.style.display = 'none';
-    } else if (file.file_type === 'video') {
-        content.innerHTML = `<video src="${servePath}" controls></video>`;
-        setupMediaZoom();
-        updateMediaTransform();
-        zoomControls.style.display = 'block';
-        loopControls.style.display = 'block';
-        setupVideoLoop();
-        saveTextBtn.style.display = 'none';
-    } else if (file.file_type === 'audio') {
-        content.innerHTML = `<audio src="${servePath}" controls></audio>`;
-        zoomControls.style.display = 'none';
-        loopControls.style.display = 'none';
-        saveTextBtn.style.display = 'none';
-    } else {
-        fetch(servePath)
-            .then(response => response.text())
-            .then(text => {
-                content.innerHTML = `
+  if (file.file_type === "image") {
+    content.innerHTML = `<img src="${servePath}" alt="${escapeHtml(file.name)}" id="viewerImage">`;
+    setupMediaZoom();
+    updateMediaTransform();
+    zoomControls.style.display = "block";
+    loopControls.style.display = "none";
+    saveTextBtn.style.display = "none";
+  } else if (file.file_type === "video") {
+    content.innerHTML = `<video src="${servePath}" controls></video>`;
+    setupMediaZoom();
+    updateMediaTransform();
+    zoomControls.style.display = "block";
+    loopControls.style.display = "block";
+    setupVideoLoop();
+    saveTextBtn.style.display = "none";
+  } else if (file.file_type === "audio") {
+    content.innerHTML = `<audio src="${servePath}" controls></audio>`;
+    zoomControls.style.display = "none";
+    loopControls.style.display = "none";
+    saveTextBtn.style.display = "none";
+  } else {
+    fetch(servePath)
+      .then((response) => response.text())
+      .then((text) => {
+        content.innerHTML = `
                     <div class="text-editor-container">
                         <textarea class="text-editor" id="textEditor">${escapeHtml(text)}</textarea>
                     </div>
                 `;
-            })
-            .catch(() => {
-                content.innerHTML = `<div class="text-viewer">Failed to load file content</div>`;
-            });
-        zoomControls.style.display = 'none';
-        loopControls.style.display = 'none';
-        saveTextBtn.style.display = 'block';
-    }
+      })
+      .catch(() => {
+        content.innerHTML = `<div class="text-viewer">Failed to load file content</div>`;
+      });
+    zoomControls.style.display = "none";
+    loopControls.style.display = "none";
+    saveTextBtn.style.display = "block";
+  }
 
-    viewer.classList.add('active');
-    document.body.classList.add('viewer-open');
-    document.getElementById('toolbarDropdown').classList.remove('open');
+  viewer.classList.add("active");
+  document.body.classList.add("viewer-open");
+  document.getElementById("toolbarDropdown").classList.remove("open");
 }
 
 function nextMedia() {
-    const mediaFiles = currentFiles.filter(f => !f.is_dir);
-    if (mediaFiles.length === 0) return;
+  const mediaFiles = currentFiles.filter((f) => !f.is_dir);
+  if (mediaFiles.length === 0) return;
 
-    const currentMediaFile = mediaFiles.find(f => f.path === selectedFile.path);
-    const currentIndex = mediaFiles.indexOf(currentMediaFile);
-    const nextIndex = currentIndex < mediaFiles.length - 1 ? currentIndex + 1 : 0;
+  const currentMediaFile = mediaFiles.find((f) => f.path === selectedFile.path);
+  const currentIndex = mediaFiles.indexOf(currentMediaFile);
+  const nextIndex = currentIndex < mediaFiles.length - 1 ? currentIndex + 1 : 0;
 
-    currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[nextIndex].path);
-    clearLoop();
-    showCurrentMedia();
+  currentMediaIndex = currentFiles.findIndex(
+    (f) => f.path === mediaFiles[nextIndex].path,
+  );
+  clearLoop();
+  showCurrentMedia();
 }
 
 function previousMedia() {
-    const mediaFiles = currentFiles.filter(f => !f.is_dir);
-    if (mediaFiles.length === 0) return;
+  const mediaFiles = currentFiles.filter((f) => !f.is_dir);
+  if (mediaFiles.length === 0) return;
 
-    const currentMediaFile = mediaFiles.find(f => f.path === selectedFile.path);
-    const currentIndex = mediaFiles.indexOf(currentMediaFile);
-    const prevIndex = currentIndex > 0 ? currentIndex - 1 : mediaFiles.length - 1;
+  const currentMediaFile = mediaFiles.find((f) => f.path === selectedFile.path);
+  const currentIndex = mediaFiles.indexOf(currentMediaFile);
+  const prevIndex = currentIndex > 0 ? currentIndex - 1 : mediaFiles.length - 1;
 
-    currentMediaIndex = currentFiles.findIndex(f => f.path === mediaFiles[prevIndex].path);
-    clearLoop();
-    showCurrentMedia();
+  currentMediaIndex = currentFiles.findIndex(
+    (f) => f.path === mediaFiles[prevIndex].path,
+  );
+  clearLoop();
+  showCurrentMedia();
 }
 
 function closeViewer() {
-    const video = document.querySelector('#viewerContent video');
-    if (video) {
-        video.pause();
-        video.src = '';
-        video.load();
-    }
+  const video = document.querySelector("#viewerContent video");
+  if (video) {
+    video.pause();
+    video.src = "";
+    video.load();
+  }
 
-    const audio = document.querySelector('#viewerContent audio');
-    if (audio) {
-        audio.pause();
-        audio.src = '';
-        audio.load();
-    }
+  const audio = document.querySelector("#viewerContent audio");
+  if (audio) {
+    audio.pause();
+    audio.src = "";
+    audio.load();
+  }
 
-    document.getElementById('zoomControls').style.display = 'none';
-    document.getElementById('loopControls').style.display = 'none';
-    document.getElementById('saveTextBtn').style.display = 'none';
+  document.getElementById("zoomControls").style.display = "none";
+  document.getElementById("loopControls").style.display = "none";
+  document.getElementById("saveTextBtn").style.display = "none";
 
-    document.getElementById('viewerDropdown').classList.remove('open');
-    document.getElementById('viewer').classList.remove('active');
-    document.body.classList.remove('viewer-open');
-    selectedFile = null;
-    resetZoom();
-    clearLoop();
+  document.getElementById("viewerDropdown").classList.remove("open");
+  document.getElementById("viewer").classList.remove("active");
+  document.body.classList.remove("viewer-open");
+  selectedFile = null;
+  resetZoom();
+  clearLoop();
 
-    navigateToDirectory(currentPath);
+  navigateToDirectory(currentPath);
 }
 
 function downloadCurrent() {
-    if (selectedFile) {
-        if (selectedFile.is_dir) {
-            triggerDownload(`/api/download-multiple?paths=${encodeURIComponent(selectedFile.path)}`);
-        } else {
-            triggerDownload(`/api/download?path=${encodeURIComponent(selectedFile.path)}`);
-        }
+  if (selectedFile) {
+    if (selectedFile.is_dir) {
+      triggerDownload(
+        `/api/download-multiple?paths=${encodeURIComponent(selectedFile.path)}`,
+      );
+    } else {
+      triggerDownload(
+        `/api/download?path=${encodeURIComponent(selectedFile.path)}`,
+      );
     }
+  }
 }
 
 function saveTextFile() {
-    const textarea = document.getElementById('textEditor');
-    if (!textarea || !selectedFile) return;
+  const textarea = document.getElementById("textEditor");
+  if (!textarea || !selectedFile) return;
 
-    if (!confirm(`Save changes to ${selectedFile.name}?`)) {
-        return;
-    }
+  if (!confirm(`Save changes to ${selectedFile.name}?`)) {
+    return;
+  }
 
-    const content = textarea.value;
+  const content = textarea.value;
 
-    fetch(`/api/save?path=${encodeURIComponent(selectedFile.path)}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'text/plain',
-        },
-        body: content
+  fetch(`/api/save?path=${encodeURIComponent(selectedFile.path)}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain",
+    },
+    body: content,
+  })
+    .then((response) => {
+      if (response.ok) {
+        alert("File saved successfully");
+      } else {
+        alert("Failed to save file");
+      }
     })
-        .then(response => {
-            if (response.ok) {
-                alert('File saved successfully');
-            } else {
-                alert('Failed to save file');
-            }
-        })
-        .catch(err => {
-            alert('Error saving file: ' + err.message);
-        });
+    .catch((err) => {
+      alert("Error saving file: " + err.message);
+    });
 }

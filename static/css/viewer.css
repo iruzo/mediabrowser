@@ -1,184 +1,186 @@
 .viewer {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--bg-primary);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 30;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
 }
 
 .viewer.active {
-    display: flex;
+  display: flex;
 }
 
 #viewerContent {
-    width: 100vw;
-    height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.viewer img, .viewer video {
-    max-width: 100vw;
-    max-height: 100vh;
-    object-fit: contain;
-    cursor: grab;
-    pointer-events: auto;
-    position: relative;
-    z-index: 5;
+.viewer img,
+.viewer video {
+  max-width: 100vw;
+  max-height: 100vh;
+  object-fit: contain;
+  cursor: grab;
+  pointer-events: auto;
+  position: relative;
+  z-index: 5;
 }
 
-.viewer img.zoomed, .viewer video.zoomed {
-    cursor: move;
-    max-width: none;
-    max-height: none;
-    pointer-events: auto;
+.viewer img.zoomed,
+.viewer video.zoomed {
+  cursor: move;
+  max-width: none;
+  max-height: none;
+  pointer-events: auto;
 }
 
 .text-viewer {
-    max-width: 90vw;
-    max-height: 90vh;
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    padding: 2vh;
-    overflow: auto;
-    font-family: monospace;
-    font-size: 1.5vh;
-    white-space: pre-wrap;
-    border: 1px solid var(--border-secondary);
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+  max-width: 90vw;
+  max-height: 90vh;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 2vh;
+  overflow: auto;
+  font-family: monospace;
+  font-size: 1.5vh;
+  white-space: pre-wrap;
+  border: 1px solid var(--border-secondary);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .text-viewer::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 .text-editor-container {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
 }
 
 .text-editor {
-    width: 100%;
-    height: 100%;
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    padding: 2vh;
-    font-family: monospace;
-    font-size: 1.5vh;
-    border: 1px solid var(--border-secondary);
-    resize: none;
-    outline: none;
-    box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 2vh;
+  font-family: monospace;
+  font-size: 1.5vh;
+  border: 1px solid var(--border-secondary);
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
 }
 
 .viewer-dropdown {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 15;
-    pointer-events: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 15;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .viewer-dropdown-toggle {
-    background: var(--bg-quaternary);
-    border: none;
-    color: var(--text-primary);
-    padding: 0.5vh 1vh;
-    cursor: pointer;
-    font-size: 1.4vh;
-    width: 100%;
-    border-radius: 0;
+  background: var(--bg-quaternary);
+  border: none;
+  color: var(--text-primary);
+  padding: 0.5vh 1vh;
+  cursor: pointer;
+  font-size: 1.4vh;
+  width: 100%;
+  border-radius: 0;
 }
 
 .viewer-dropdown-menu {
-    display: none;
-    flex-direction: column;
-    background: var(--bg-quaternary);
-    margin-bottom: 0;
-    padding: 0.5vh;
-    gap: 0.3vh;
-    width: 100%;
-    box-sizing: border-box;
-    border-top: 1px solid var(--border-color);
+  display: none;
+  flex-direction: column;
+  background: var(--bg-quaternary);
+  margin-bottom: 0;
+  padding: 0.5vh;
+  gap: 0.3vh;
+  width: 100%;
+  box-sizing: border-box;
+  border-top: 1px solid var(--border-color);
 }
 
 .viewer-dropdown.open .viewer-dropdown-menu {
-    display: flex;
+  display: flex;
 }
 
 .viewer-dropdown-menu > .viewer-btn {
-    text-align: left;
-    padding: 0.5vh 0.6vh;
-    margin: 0;
-    white-space: nowrap;
-    width: 100%;
+  text-align: left;
+  padding: 0.5vh 0.6vh;
+  margin: 0;
+  white-space: nowrap;
+  width: 100%;
 }
 
 .viewer-dropdown-section {
-    display: flex;
-    align-items: center;
-    gap: 0.3vh;
-    border-top: 1px solid var(--border-secondary);
-    padding-top: 0.3vh;
-    margin-top: 0.2vh;
-    flex-wrap: wrap;
+  display: flex;
+  align-items: center;
+  gap: 0.3vh;
+  border-top: 1px solid var(--border-secondary);
+  padding-top: 0.3vh;
+  margin-top: 0.2vh;
+  flex-wrap: wrap;
 }
 
 .viewer-dropdown-section > span {
-    color: var(--text-secondary);
-    font-size: 1.2vh;
-    padding: 0 0.3vh;
-    white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 1.2vh;
+  padding: 0 0.3vh;
+  white-space: nowrap;
 }
 
 .viewer-dropdown-section > .viewer-btn {
-    padding: 0.5vh 0.6vh;
-    margin: 0;
-    white-space: nowrap;
-    width: auto;
+  padding: 0.5vh 0.6vh;
+  margin: 0;
+  white-space: nowrap;
+  width: auto;
 }
 
 .time-input {
-    background: var(--bg-primary);
-    border: 1px solid var(--border-secondary);
-    color: var(--text-primary);
-    font-size: 1.2vh;
-    padding: 0.3vh 0.3vh;
-    border-radius: 0;
-    width: 4.5vh;
-    text-align: center;
-    font-family: monospace;
-    flex-shrink: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
+  font-size: 1.2vh;
+  padding: 0.3vh 0.3vh;
+  border-radius: 0;
+  width: 4.5vh;
+  text-align: center;
+  font-family: monospace;
+  flex-shrink: 0;
 }
 
 .time-input:focus {
-    outline: none;
-    border-color: var(--border-secondary);
+  outline: none;
+  border-color: var(--border-secondary);
 }
 
 .viewer-btn {
-    background: none;
-    border: none;
-    color: var(--text-primary);
-    cursor: pointer;
-    padding: 0.5vh 0.6vh;
-    margin: 0;
-    font-size: 1.2vh;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0.5vh 0.6vh;
+  margin: 0;
+  font-size: 1.2vh;
 }
 
 body.viewer-open .toolbar-dropdown {
-    display: none;
+  display: none;
 }

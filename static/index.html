@@ -1,105 +1,227 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>mediabrowser</title>
-    <link rel="stylesheet" href="/ui/css/base.css">
-    <link rel="stylesheet" href="/ui/css/layout.css">
-    <link rel="stylesheet" href="/ui/css/components.css">
-    <link rel="stylesheet" href="/ui/css/viewer.css">
-    <link rel="stylesheet" href="/ui/css/responsive.css">
-</head>
-<body>
+    <link rel="stylesheet" href="/ui/css/base.css" />
+    <link rel="stylesheet" href="/ui/css/layout.css" />
+    <link rel="stylesheet" href="/ui/css/components.css" />
+    <link rel="stylesheet" href="/ui/css/viewer.css" />
+    <link rel="stylesheet" href="/ui/css/responsive.css" />
+  </head>
+  <body>
     <div class="toolbar-dropdown" id="toolbarDropdown">
-        <div class="toolbar-dropdown-menu">
-            <button class="toolbar-dropdown-btn" onclick="triggerUpload()">upload</button>
-            <button class="toolbar-dropdown-btn" onclick="createFolder()">create folder</button>
-            <button class="toolbar-dropdown-btn" onclick="toggleSelectionMode()" id="selectModeBtn">select mode</button>
-            <button class="toolbar-dropdown-btn" onclick="toggleNameMode()" id="nameModeBtn">names off</button>
-            <div class="toolbar-dropdown-section" id="gridSizeControls">
-                <span>grid size</span>
-                <button class="toolbar-dropdown-btn" onclick="decreaseGridSize()">-</button>
-                <button class="toolbar-dropdown-btn" onclick="increaseGridSize()">+</button>
-            </div>
-            <div class="toolbar-dropdown-section">
-                <span>sort</span>
-                <select class="toolbar-dropdown-select" onchange="changeSort(this.value)">
-                    <option value="name">name</option>
-                    <option value="date">date</option>
-                    <option value="size">size</option>
-                    <option value="type">type</option>
-                </select>
-            </div>
-            <div class="toolbar-dropdown-section">
-                <span>filter</span>
-                <select class="toolbar-dropdown-select" onchange="changeFilter(this.value)">
-                    <option value="all">all</option>
-                    <option value="image">images</option>
-                    <option value="video">videos</option>
-                    <option value="audio">audio</option>
-                    <option value="text">text</option>
-                </select>
-            </div>
-            <div class="hidden" id="selectionActions">
-                <button class="toolbar-dropdown-btn" onclick="toggleSelectAll()" id="selectAllBtn">select all</button>
-                <button class="toolbar-dropdown-btn" onclick="renameSelected()">rename selected</button>
-                <button class="toolbar-dropdown-btn" onclick="downloadSelected()">download selected</button>
-                <button class="toolbar-dropdown-btn" onclick="deleteSelected()">delete selected</button>
-                <button class="toolbar-dropdown-btn" onclick="clearSelection()">clear selection</button>
-            </div>
+      <div class="toolbar-dropdown-menu">
+        <button class="toolbar-dropdown-btn" onclick="triggerUpload()">
+          upload
+        </button>
+        <button class="toolbar-dropdown-btn" onclick="createFolder()">
+          create folder
+        </button>
+        <button
+          class="toolbar-dropdown-btn"
+          onclick="toggleSelectionMode()"
+          id="selectModeBtn"
+        >
+          select mode
+        </button>
+        <button
+          class="toolbar-dropdown-btn"
+          onclick="toggleNameMode()"
+          id="nameModeBtn"
+        >
+          names off
+        </button>
+        <div class="toolbar-dropdown-section" id="gridSizeControls">
+          <span>grid size</span>
+          <button class="toolbar-dropdown-btn" onclick="decreaseGridSize()">
+            -
+          </button>
+          <button class="toolbar-dropdown-btn" onclick="increaseGridSize()">
+            +
+          </button>
         </div>
-        <button class="toolbar-dropdown-toggle" onclick="document.getElementById('toolbarDropdown').classList.toggle('open')">menu</button>
-        <div class="toolbar-dropdown-search">
-            <input type="text" class="search-bar" placeholder="Search files..." id="searchInput" oninput="filterBySearch(this.value)">
+        <div class="toolbar-dropdown-section">
+          <span>sort</span>
+          <select
+            class="toolbar-dropdown-select"
+            onchange="changeSort(this.value)"
+          >
+            <option value="name">name</option>
+            <option value="date">date</option>
+            <option value="size">size</option>
+            <option value="type">type</option>
+          </select>
         </div>
+        <div class="toolbar-dropdown-section">
+          <span>filter</span>
+          <select
+            class="toolbar-dropdown-select"
+            onchange="changeFilter(this.value)"
+          >
+            <option value="all">all</option>
+            <option value="image">images</option>
+            <option value="video">videos</option>
+            <option value="audio">audio</option>
+            <option value="text">text</option>
+          </select>
+        </div>
+        <div class="hidden" id="selectionActions">
+          <button
+            class="toolbar-dropdown-btn"
+            onclick="toggleSelectAll()"
+            id="selectAllBtn"
+          >
+            select all
+          </button>
+          <button class="toolbar-dropdown-btn" onclick="renameSelected()">
+            rename selected
+          </button>
+          <button class="toolbar-dropdown-btn" onclick="downloadSelected()">
+            download selected
+          </button>
+          <button class="toolbar-dropdown-btn" onclick="deleteSelected()">
+            delete selected
+          </button>
+          <button class="toolbar-dropdown-btn" onclick="clearSelection()">
+            clear selection
+          </button>
+        </div>
+      </div>
+      <button
+        class="toolbar-dropdown-toggle"
+        onclick="
+          document.getElementById('toolbarDropdown').classList.toggle('open')
+        "
+      >
+        menu
+      </button>
+      <div class="toolbar-dropdown-search">
+        <input
+          type="text"
+          class="search-bar"
+          placeholder="Search files..."
+          id="searchInput"
+          oninput="filterBySearch(this.value)"
+        />
+      </div>
     </div>
 
     <div class="gallery-container">
-        <div class="gallery-grid" id="galleryGrid"></div>
+      <div class="gallery-grid" id="galleryGrid"></div>
     </div>
 
     <div class="viewer" id="viewer">
-        <div class="viewer-dropdown" id="viewerDropdown">
-            <div class="viewer-dropdown-menu">
-                <button class="viewer-btn" onclick="closeViewer()">close</button>
-                <button class="viewer-btn" onclick="downloadCurrent()">download</button>
-                <button class="viewer-btn" id="saveTextBtn" onclick="saveTextFile()" style="display:none;">save</button>
-                <button class="viewer-btn" onclick="previousMedia()">prev</button>
-                <button class="viewer-btn" onclick="nextMedia()">next</button>
-                <div class="viewer-dropdown-section" id="zoomControls" style="display:none;">
-                    <button class="viewer-btn" onclick="zoomIn()">+</button>
-                    <button class="viewer-btn" onclick="zoomOut()">-</button>
-                    <button class="viewer-btn" onclick="moveUp()">up</button>
-                    <button class="viewer-btn" onclick="moveDown()">down</button>
-                    <button class="viewer-btn" onclick="moveLeft()">left</button>
-                    <button class="viewer-btn" onclick="moveRight()">right</button>
-                    <button class="viewer-btn" onclick="rotateLeft()" title="Rotate left 45 degrees">rleft</button>
-                    <button class="viewer-btn" onclick="rotateRight()" title="Rotate right 45 degrees">rright</button>
-                    <button class="viewer-btn" onclick="resetZoom()">reset</button>
-                </div>
-                <div class="viewer-dropdown-section" id="loopControls" style="display:none;">
-                    <button class="viewer-btn" onclick="seekBackward()" title="Seek backward 1 second">-1s</button>
-                    <input type="text" id="loopStartInput" class="time-input" placeholder="0:00" title="Loop start time (MM:SS)" onchange="onLoopTimeChange(true)">
-                    <span>-</span>
-                    <input type="text" id="loopEndInput" class="time-input" placeholder="0:00" title="Loop end time (MM:SS)" onchange="onLoopTimeChange(false)">
-                    <button class="viewer-btn" onclick="seekForward()" title="Seek forward 1 second">+1s</button>
-                    <button class="viewer-btn" onclick="clearLoop()" title="Clear loop">clear</button>
-                </div>
-            </div>
-            <button class="viewer-dropdown-toggle" onclick="document.getElementById('viewerDropdown').classList.toggle('open')">menu</button>
+      <div class="viewer-dropdown" id="viewerDropdown">
+        <div class="viewer-dropdown-menu">
+          <button class="viewer-btn" onclick="closeViewer()">close</button>
+          <button class="viewer-btn" onclick="downloadCurrent()">
+            download
+          </button>
+          <button
+            class="viewer-btn"
+            id="saveTextBtn"
+            onclick="saveTextFile()"
+            style="display: none"
+          >
+            save
+          </button>
+          <button class="viewer-btn" onclick="previousMedia()">prev</button>
+          <button class="viewer-btn" onclick="nextMedia()">next</button>
+          <div
+            class="viewer-dropdown-section"
+            id="zoomControls"
+            style="display: none"
+          >
+            <button class="viewer-btn" onclick="zoomIn()">+</button>
+            <button class="viewer-btn" onclick="zoomOut()">-</button>
+            <button class="viewer-btn" onclick="moveUp()">up</button>
+            <button class="viewer-btn" onclick="moveDown()">down</button>
+            <button class="viewer-btn" onclick="moveLeft()">left</button>
+            <button class="viewer-btn" onclick="moveRight()">right</button>
+            <button
+              class="viewer-btn"
+              onclick="rotateLeft()"
+              title="Rotate left 45 degrees"
+            >
+              rleft
+            </button>
+            <button
+              class="viewer-btn"
+              onclick="rotateRight()"
+              title="Rotate right 45 degrees"
+            >
+              rright
+            </button>
+            <button class="viewer-btn" onclick="resetZoom()">reset</button>
+          </div>
+          <div
+            class="viewer-dropdown-section"
+            id="loopControls"
+            style="display: none"
+          >
+            <button
+              class="viewer-btn"
+              onclick="seekBackward()"
+              title="Seek backward 1 second"
+            >
+              -1s
+            </button>
+            <input
+              type="text"
+              id="loopStartInput"
+              class="time-input"
+              placeholder="0:00"
+              title="Loop start time (MM:SS)"
+              onchange="onLoopTimeChange(true)"
+            />
+            <span>-</span>
+            <input
+              type="text"
+              id="loopEndInput"
+              class="time-input"
+              placeholder="0:00"
+              title="Loop end time (MM:SS)"
+              onchange="onLoopTimeChange(false)"
+            />
+            <button
+              class="viewer-btn"
+              onclick="seekForward()"
+              title="Seek forward 1 second"
+            >
+              +1s
+            </button>
+            <button class="viewer-btn" onclick="clearLoop()" title="Clear loop">
+              clear
+            </button>
+          </div>
         </div>
-        <div id="viewerContent"></div>
+        <button
+          class="viewer-dropdown-toggle"
+          onclick="
+            document.getElementById('viewerDropdown').classList.toggle('open')
+          "
+        >
+          menu
+        </button>
+      </div>
+      <div id="viewerContent"></div>
     </div>
 
-    <div class="upload-progress" id="uploadProgress" style="display:none;">
-        <div class="upload-progress-header">
-            <span id="uploadProgressText">Uploading: 0/0</span>
-        </div>
-        <div class="upload-progress-files" id="uploadProgressFiles"></div>
+    <div class="upload-progress" id="uploadProgress" style="display: none">
+      <div class="upload-progress-header">
+        <span id="uploadProgressText">Uploading: 0/0</span>
+      </div>
+      <div class="upload-progress-files" id="uploadProgressFiles"></div>
     </div>
 
-    <input type="file" id="fileInput" multiple onchange="handleFileSelect(this.files)">
+    <input
+      type="file"
+      id="fileInput"
+      multiple
+      onchange="handleFileSelect(this.files)"
+    />
 
     <script src="/ui/js/state.js"></script>
     <script src="/ui/js/utils.js"></script>
@@ -110,5 +232,5 @@
     <script src="/ui/js/media-controls.js"></script>
     <script src="/ui/js/file-ops.js"></script>
     <script src="/ui/js/main.js"></script>
-</body>
+  </body>
 </html>

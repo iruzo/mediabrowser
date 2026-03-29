@@ -1,20 +1,20 @@
 @media (max-width: 768px) {
-    body {
-        overflow-y: auto;
-        min-height: calc(100dvh + 1px);
-    }
+  body {
+    overflow-y: auto;
+    min-height: calc(100dvh + 1px);
+  }
 
-    .gallery-container {
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-    }
+  .gallery-container {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
 
-    .gallery-container::-webkit-scrollbar {
-        display: none;
-    }
+  .gallery-container::-webkit-scrollbar {
+    display: none;
+  }
 
-    .grid-item .file-name {
-        font-size: 0.9vh;
-        padding: 0.1vh;
-    }
+  .grid-item .file-name {
+    font-size: 0.9vh;
+    padding: 0.1vh;
+  }
 }

@@ -1,103 +1,104 @@
 .gallery-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    overflow-y: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .gallery-container::-webkit-scrollbar {
-    display: none;
+  display: none;
 }
 
 .gallery-grid {
-    position: relative;
-    padding: 0;
+  position: relative;
+  padding: 0;
 }
 
 #virtual-spacer {
-    position: relative;
-    width: 100%;
+  position: relative;
+  width: 100%;
 }
 
 .grid-item {
-    aspect-ratio: 1;
-    background: var(--bg-tertiary);
-    cursor: pointer;
-    overflow: hidden;
-    position: relative;
+  aspect-ratio: 1;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
 }
 
 .grid-item.directory {
-    background: var(--bg-quinary);
+  background: var(--bg-quinary);
 }
 
 .grid-item.file {
-    background: var(--bg-quaternary);
+  background: var(--bg-quaternary);
 }
 
 .grid-item.lazy-load {
-    background: var(--bg-tertiary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .grid-item.lazy-load .file-name {
-    position: static;
-    background: transparent;
-    text-align: center;
+  position: static;
+  background: transparent;
+  text-align: center;
 }
 
 .grid-item.selected {
-    border: 2px solid var(--selection-color);
-    box-sizing: border-box;
+  border: 2px solid var(--selection-color);
+  box-sizing: border-box;
 }
 
 .selection-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--selection-overlay);
-    pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--selection-overlay);
+  pointer-events: none;
 }
 
-.grid-item img, .grid-item video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+.grid-item img,
+.grid-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .grid-item .file-name {
-    display: none;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-size: 1vh;
-    padding: 0.1vh 0.2vh;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
+  display: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 1vh;
+  padding: 0.1vh 0.2vh;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .grid-item.show-names .file-name {
-    display: block;
+  display: block;
 }
 
 .grid-item.always-show-name .file-name {
-    display: block;
+  display: block;
 }
 
 .grid-controls {
-    display: flex;
-    gap: 0.2vh;
+  display: flex;
+  gap: 0.2vh;
 }
