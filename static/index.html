@@ -11,10 +11,6 @@
     <link rel="stylesheet" href="/ui/css/responsive.css">
 </head>
 <body>
-    <div class="toolbar">
-        <input type="text" class="search-bar" placeholder="Search files..." id="searchInput" oninput="filterBySearch(this.value)">
-    </div>
-
     <div class="toolbar-dropdown" id="toolbarDropdown">
         <div class="toolbar-dropdown-menu">
             <button class="toolbar-dropdown-btn" onclick="triggerUpload()">upload</button>
@@ -53,6 +49,9 @@
             </div>
         </div>
         <button class="toolbar-dropdown-toggle" onclick="document.getElementById('toolbarDropdown').classList.toggle('open')">menu</button>
+        <div class="toolbar-dropdown-search">
+            <input type="text" class="search-bar" placeholder="Search files..." id="searchInput" oninput="filterBySearch(this.value)">
+        </div>
     </div>
 
     <div class="gallery-container">

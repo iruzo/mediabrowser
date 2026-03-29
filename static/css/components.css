@@ -144,6 +144,18 @@
     display: flex;
 }
 
+.toolbar-dropdown-search {
+    width: 100vw;
+    box-sizing: border-box;
+    padding: 0 0.5vh;
+    margin-bottom: 0.3vh;
+}
+
+.toolbar-dropdown-search .search-bar {
+    display: block;
+    width: 100%;
+}
+
 .toolbar-dropdown-btn {
     background: none;
     border: none;

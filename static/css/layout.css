@@ -1,31 +1,6 @@
-.toolbar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4.5vh;
-    max-height: 4.5vh;
-    background: var(--bg-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.5vh 1vh;
-    border-bottom: 1px solid var(--border-color);
-    flex-wrap: nowrap;
-    overflow: hidden;
-    gap: 0.5vh;
-}
-
-.toolbar > div {
-    display: flex;
-    gap: 0.3vh;
-    flex-shrink: 0;
-    align-items: center;
-}
-
 .gallery-container {
     position: fixed;
-    top: 4.5vh;
+    top: 0;
     left: 0;
     right: 0;
     bottom: 0;
