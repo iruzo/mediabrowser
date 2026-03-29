@@ -9,14 +9,16 @@ use warp::Reply;
 static UI_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/static");
 
 fn index_response() -> warp::reply::Response {
-    match UI_DIR.get_file("index.html") {
+    match UI_DIR.get_file("core/index.html") {
         Some(file) => warp::http::Response::builder()
             .status(StatusCode::OK)
             .header("content-type", "text/html; charset=utf-8")
             .body(Body::from(file.contents()))
             .unwrap(),
-        None => warp::reply::with_status("Missing index.html", StatusCode::INTERNAL_SERVER_ERROR)
-            .into_response(),
+        None => {
+            warp::reply::with_status("Missing core/index.html", StatusCode::INTERNAL_SERVER_ERROR)
+                .into_response()
+        }
     }
 }
 
