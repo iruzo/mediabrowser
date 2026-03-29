@@ -55,7 +55,11 @@ pub async fn handle_list(query: ListQuery) -> Result<warp::reply::Response, Infa
             path: entry.path().to_string_lossy().into_owned(),
             name,
             is_dir: metadata.is_dir(),
-            size: if metadata.is_file() { metadata.len() } else { 0 },
+            size: if metadata.is_file() {
+                metadata.len()
+            } else {
+                0
+            },
             modified: modified_millis(&metadata),
         });
     }

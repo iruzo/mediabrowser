@@ -6,8 +6,8 @@ mod types;
 
 use endpoints::download_multiple::DownloadMultipleQuery;
 use endpoints::{
-    handle_delete, handle_download, handle_download_multiple, handle_list, handle_mkdir, handle_move,
-    handle_save, handle_serve, handle_upload, ui_routes,
+    handle_delete, handle_download, handle_download_multiple, handle_list, handle_mkdir,
+    handle_move, handle_save, handle_serve, handle_upload, ui_routes,
 };
 use types::{FileQuery, ListQuery, MoveQuery, DATA_DIR};
 

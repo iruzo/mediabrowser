@@ -55,7 +55,8 @@ pub async fn handle_upload(
                     continue;
                 };
 
-                if let Err((status, message)) = save_upload_part(part, target_dir, &filename).await {
+                if let Err((status, message)) = save_upload_part(part, target_dir, &filename).await
+                {
                     return Ok(upload_response(message, status));
                 }
 
@@ -83,14 +84,12 @@ async fn save_upload_part(
     filename: &str,
 ) -> Result<(), (StatusCode, String)> {
     let mut stream = part.stream();
-    let mut file = open_upload_file(target_dir, filename)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to save file: {}", e),
-            )
-        })?;
+    let mut file = open_upload_file(target_dir, filename).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to save file: {}", e),
+        )
+    })?;
 
     loop {
         match stream.try_next().await {
