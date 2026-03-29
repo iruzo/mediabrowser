@@ -111,13 +111,13 @@
 
 .toolbar-dropdown {
     position: fixed;
-    bottom: 0.5vh;
+    bottom: 0;
     left: 0;
     right: 0;
     z-index: 15;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
 }
 
 .toolbar-dropdown-toggle {
@@ -127,17 +127,20 @@
     padding: 0.5vh 1vh;
     cursor: pointer;
     font-size: 1.4vh;
+    width: 100%;
+    border-radius: 0;
 }
 
 .toolbar-dropdown-menu {
     display: none;
     flex-direction: column;
     background: var(--bg-quaternary);
-    margin-bottom: 0.3vh;
+    margin-bottom: 0;
     padding: 0.5vh;
     gap: 0.3vh;
-    width: 100vw;
+    width: 100%;
     box-sizing: border-box;
+    border-top: 1px solid var(--border-color);
 }
 
 .toolbar-dropdown.open .toolbar-dropdown-menu {
@@ -145,15 +148,16 @@
 }
 
 .toolbar-dropdown-search {
-    width: 100vw;
+    width: 100%;
     box-sizing: border-box;
-    padding: 0 0.5vh;
-    margin-bottom: 0.3vh;
+    padding: 0;
 }
 
 .toolbar-dropdown-search .search-bar {
     display: block;
     width: 100%;
+    border-radius: 0;
+    min-width: 0;
 }
 
 .toolbar-dropdown-btn {
@@ -165,6 +169,7 @@
     font-size: 1.2vh;
     text-align: left;
     white-space: nowrap;
+    width: 100%;
 }
 
 .toolbar-dropdown-btn.active {

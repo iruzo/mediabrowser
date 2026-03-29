@@ -1,5 +1,5 @@
 initializeGridSize();
-updateViewModeUI();
+updateNameModeUI();
 
 window.addEventListener('resize', resizeHandler);
 window.addEventListener('resize', updateToolbarDropdownPosition);
@@ -41,9 +41,8 @@ function updateToolbarDropdownPosition() {
     const layoutHeight = window.innerHeight;
     const visibleBottom = visualViewport.height + visualViewport.offsetTop;
     const keyboardInset = Math.max(0, layoutHeight - visibleBottom);
-    const baseOffset = 8;
 
-    toolbarDropdown.style.bottom = `${keyboardInset + baseOffset}px`;
+    toolbarDropdown.style.bottom = `${keyboardInset}px`;
 }
 
 if (window.visualViewport) {

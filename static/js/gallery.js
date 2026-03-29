@@ -36,27 +36,18 @@ function initializeVirtualScroll(grid) {
     };
 
     const containerWidth = container.clientWidth - 4;
+    const gridSizeVh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')) || 30;
+    const baseGridSizePx = (gridSizeVh / 200) * window.innerHeight;
 
-    if (viewMode === 'list') {
-        const listRowHeight = Math.max(20, (4 / 100) * window.innerHeight);
-        virtualScrollData.itemHeight = listRowHeight;
-        virtualScrollData.actualItemSize = containerWidth;
-        virtualScrollData.columns = 1;
-        virtualScrollData.rows = virtualScrollData.filteredFiles.length;
-    } else {
-        const gridSizeVh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')) || 30;
-        const baseGridSizePx = (gridSizeVh / 200) * window.innerHeight;
+    const minColumns = Math.max(1, Math.floor(containerWidth / baseGridSizePx));
+    const actualGridSizePx = minColumns === 1 ?
+        containerWidth :
+        (containerWidth - (minColumns - 1) * 2) / minColumns;
 
-        const minColumns = Math.max(1, Math.floor(containerWidth / baseGridSizePx));
-        const actualGridSizePx = minColumns === 1 ?
-            containerWidth :
-            (containerWidth - (minColumns - 1) * 2) / minColumns;
-
-        virtualScrollData.itemHeight = actualGridSizePx + 2;
-        virtualScrollData.actualItemSize = actualGridSizePx;
-        virtualScrollData.columns = minColumns;
-        virtualScrollData.rows = Math.ceil(virtualScrollData.filteredFiles.length / minColumns);
-    }
+    virtualScrollData.itemHeight = actualGridSizePx + 2;
+    virtualScrollData.actualItemSize = actualGridSizePx;
+    virtualScrollData.columns = minColumns;
+    virtualScrollData.rows = Math.ceil(virtualScrollData.filteredFiles.length / minColumns);
 
     const spacer = document.createElement('div');
     spacer.id = 'virtual-spacer';
@@ -126,7 +117,7 @@ function renderVisibleItems() {
     for (let i = startIndex; i <= endIndex; i++) {
         if (!virtualScrollData.renderedItems.has(i) && i < virtualScrollData.filteredFiles.length) {
             const file = virtualScrollData.filteredFiles[i];
-            const item = viewMode === 'list' ? createListItem(file, i) : createGridItem(file, i);
+            const item = createGridItem(file, i);
             virtualScrollData.renderedItems.set(i, item);
             spacer.appendChild(item);
             if (item.classList.contains('lazy-load')) {
@@ -135,7 +126,7 @@ function renderVisibleItems() {
         }
     }
 
-    if (viewMode === 'grid' && newLazyItems.length > 0) {
+    if (newLazyItems.length > 0) {
         observeLazyItems(newLazyItems);
     }
 }
@@ -161,11 +152,16 @@ function createGridItem(file, index) {
     item.style.width = `${gridSizePx}px`;
     item.style.height = `${gridSizePx}px`;
 
+    if (showNames) {
+        item.classList.add('show-names');
+    }
+
     if (selectedFiles.has(file.path)) {
         item.classList.add('selected');
     }
 
     if (file.is_dir) {
+        item.classList.add('always-show-name');
         item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
         item.classList.add('directory');
     } else if (file.file_type === 'image') {
@@ -175,6 +171,7 @@ function createGridItem(file, index) {
         item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
         item.classList.add('lazy-load');
     } else {
+        item.classList.add('always-show-name');
         item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
         item.classList.add('file');
     }
@@ -188,61 +185,21 @@ function createGridItem(file, index) {
     return item;
 }
 
-function createListItem(file, index) {
-    const item = document.createElement('div');
-    item.className = 'list-item';
-    item.dataset.filePath = file.path;
-    item.dataset.fileType = file.file_type;
-    item.dataset.fileName = file.name;
-    item.onclick = (e) => handleFileClick(e, file);
-    item.oncontextmenu = (e) => showContextMenu(e, file);
-
-    item.style.position = 'absolute';
-    item.style.top = `${index * virtualScrollData.itemHeight + 2}px`;
-    item.style.left = '2px';
-    item.style.width = `${virtualScrollData.actualItemSize}px`;
-    item.style.height = `${virtualScrollData.itemHeight - 2}px`;
-
-    if (file.is_dir) {
-        item.classList.add('directory');
-    } else {
-        item.classList.add('file');
-    }
-
-    if (selectedFiles.has(file.path)) {
-        item.classList.add('selected');
-        const overlay = document.createElement('div');
-        overlay.className = 'selection-overlay';
-        item.appendChild(overlay);
-    }
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'list-item-name';
-    nameSpan.textContent = file.name;
-    item.appendChild(nameSpan);
-
-    return item;
-}
-
-function toggleViewMode() {
+function toggleNameMode() {
     if (galleryContainer) {
         sessionStorage.setItem('galleryScrollPosition', galleryContainer.scrollTop);
     }
 
-    viewMode = viewMode === 'grid' ? 'list' : 'grid';
-    localStorage.setItem('viewMode', viewMode);
-    updateViewModeUI();
+    showNames = !showNames;
+    localStorage.setItem('showNames', showNames);
+    updateNameModeUI();
     renderGallery(currentFiles);
 }
 
-function updateViewModeUI() {
-    const btn = document.getElementById('viewModeBtn');
+function updateNameModeUI() {
+    const btn = document.getElementById('nameModeBtn');
     if (btn) {
-        btn.textContent = viewMode === 'grid' ? 'list view' : 'grid view';
-    }
-    const gridControls = document.getElementById('gridSizeControls');
-    if (gridControls) {
-        gridControls.style.display = viewMode === 'list' ? 'none' : '';
+        btn.textContent = showNames ? 'names on' : 'names off';
     }
 }
 
@@ -292,6 +249,7 @@ function loadItemContent(item) {
     const filePath = item.dataset.filePath;
     const fileType = item.dataset.fileType;
     const fileName = item.dataset.fileName;
+    const label = item.querySelector('.file-name');
 
     item.classList.remove('lazy-load');
 
@@ -316,6 +274,9 @@ function loadItemContent(item) {
         img.src = servePath;
         item.innerHTML = '';
         item.appendChild(img);
+        if (label) {
+            item.appendChild(label);
+        }
     } else if (fileType === 'video') {
         item.classList.add('file');
         return;
