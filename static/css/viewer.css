@@ -82,34 +82,37 @@
 
 .viewer-dropdown {
     position: absolute;
-    bottom: 0.5vh;
+    bottom: 0;
     left: 0;
     right: 0;
     z-index: 15;
     pointer-events: auto;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
 }
 
 .viewer-dropdown-toggle {
     background: var(--bg-quaternary);
     border: none;
     color: var(--text-primary);
-    cursor: pointer;
     padding: 0.5vh 1vh;
+    cursor: pointer;
     font-size: 1.4vh;
+    width: 100%;
+    border-radius: 0;
 }
 
 .viewer-dropdown-menu {
     display: none;
     flex-direction: column;
     background: var(--bg-quaternary);
-    margin-bottom: 0.3vh;
+    margin-bottom: 0;
     padding: 0.5vh;
     gap: 0.3vh;
-    width: 100vw;
+    width: 100%;
     box-sizing: border-box;
+    border-top: 1px solid var(--border-color);
 }
 
 .viewer-dropdown.open .viewer-dropdown-menu {
@@ -118,40 +121,43 @@
 
 .viewer-dropdown-menu > .viewer-btn {
     text-align: left;
-    padding: 0.4vh 0.5vh;
+    padding: 0.5vh 0.6vh;
     margin: 0;
     white-space: nowrap;
+    width: 100%;
 }
 
 .viewer-dropdown-section {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.3vh;
     align-items: center;
+    gap: 0.3vh;
     border-top: 1px solid var(--border-secondary);
     padding-top: 0.3vh;
     margin-top: 0.2vh;
+    flex-wrap: wrap;
 }
 
 .viewer-dropdown-section > span {
-    color: var(--text-primary);
-    font-size: 1.4vh;
-    padding: 0 0.2vh;
+    color: var(--text-secondary);
+    font-size: 1.2vh;
+    padding: 0 0.3vh;
+    white-space: nowrap;
 }
 
 .viewer-dropdown-section > .viewer-btn {
-    padding: 0.2vh 0.3vh;
+    padding: 0.5vh 0.6vh;
     margin: 0;
     white-space: nowrap;
+    width: auto;
 }
 
 .time-input {
     background: var(--bg-primary);
-    border: 1px solid var(--bg-quaternary);
+    border: 1px solid var(--border-secondary);
     color: var(--text-primary);
-    font-size: 1.4vh;
+    font-size: 1.2vh;
     padding: 0.3vh 0.3vh;
-    border-radius: 0.2vh;
+    border-radius: 0;
     width: 4.5vh;
     text-align: center;
     font-family: monospace;
@@ -160,7 +166,7 @@
 
 .time-input:focus {
     outline: none;
-    border-color: var(--text-secondary);
+    border-color: var(--border-secondary);
 }
 
 .viewer-btn {
@@ -168,9 +174,9 @@
     border: none;
     color: var(--text-primary);
     cursor: pointer;
-    padding: 0.2vh;
-    margin: 0 0.2vh;
-    font-size: 1.4vh;
+    padding: 0.5vh 0.6vh;
+    margin: 0;
+    font-size: 1.2vh;
 }
 
 body.viewer-open .toolbar-dropdown {
