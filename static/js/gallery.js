@@ -35,7 +35,7 @@ function initializeVirtualScroll(grid) {
         height: container.clientHeight
     };
 
-    const containerWidth = container.clientWidth - 4;
+    const containerWidth = container.clientWidth;
     const gridSizeVh = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-size')) || 30;
     const baseGridSizePx = (gridSizeVh / 200) * window.innerHeight;
 
@@ -145,8 +145,8 @@ function createGridItem(file, index) {
     const gridSizePx = virtualScrollData.actualItemSize;
 
     item.style.position = 'absolute';
-    item.style.top = `${row * virtualScrollData.itemHeight + 2}px`;
-    item.style.left = `${col * (gridSizePx + 2) + 2}px`;
+    item.style.top = `${row * virtualScrollData.itemHeight}px`;
+    item.style.left = `${col * (gridSizePx + 2)}px`;
     item.style.width = `${gridSizePx}px`;
     item.style.height = `${gridSizePx}px`;
 
