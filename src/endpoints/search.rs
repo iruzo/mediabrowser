@@ -46,7 +46,8 @@ pub async fn handle_search(query: SearchQuery) -> Result<warp::reply::Response, 
 
     if !dir_path.is_dir() {
         return Ok(
-            warp::reply::with_status("Cannot read directory", StatusCode::NOT_FOUND).into_response(),
+            warp::reply::with_status("Cannot read directory", StatusCode::NOT_FOUND)
+                .into_response(),
         );
     }
 
