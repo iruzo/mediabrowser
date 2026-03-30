@@ -176,8 +176,9 @@ function createGridItem(file, index) {
   }
 
   const hasPreview = file.file_type === "image";
+  const label = file.is_dir ? `${file.name}/` : file.name;
 
-  item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
+  item.innerHTML = `<div class="file-name">${escapeHtml(label)}</div>`;
 
   if (!hasPreview || file.is_dir) {
     item.classList.add("always-show-name");
