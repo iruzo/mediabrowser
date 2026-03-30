@@ -1,5 +1,6 @@
 let currentPath = "/data";
 let currentFiles = [];
+let currentDirectoryFiles = [];
 let selectedFile = null;
 let currentMediaIndex = -1;
 let currentFilter = "all";
@@ -7,6 +8,7 @@ let currentSort = "name";
 let selectedFiles = new Set();
 let selectionMode = false;
 let searchTerm = "";
+let activeSearchRequest = 0;
 let showNames = localStorage.getItem("showNames") === "true";
 let intersectionObserver = null;
 let gridSize = window.innerWidth <= 480 ? 20 : 30;

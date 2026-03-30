@@ -7,9 +7,9 @@ mod types;
 use endpoints::download_multiple::DownloadMultipleQuery;
 use endpoints::{
     handle_delete, handle_download, handle_download_multiple, handle_list, handle_mkdir,
-    handle_move, handle_save, handle_serve, handle_upload, ui_routes,
+    handle_move, handle_save, handle_search, handle_serve, handle_upload, ui_routes,
 };
-use types::{FileQuery, ListQuery, MoveQuery, DATA_DIR};
+use types::{FileQuery, ListQuery, MoveQuery, SearchQuery, DATA_DIR};
 
 const PORT: u16 = 30003;
 const BIND_ADDR: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
@@ -96,6 +96,12 @@ async fn main() {
         .and(warp::query::<ListQuery>())
         .and_then(handle_list);
 
+    let api_search = warp::path("api")
+        .and(warp::path("search"))
+        .and(warp::get())
+        .and(warp::query::<SearchQuery>())
+        .and_then(handle_search);
+
     let api_delete = warp::path("api")
         .and(warp::path("delete"))
         .and(warp::delete())
@@ -132,6 +138,7 @@ async fn main() {
         .or(api_download_multiple)
         .or(api_upload)
         .or(api_list)
+        .or(api_search)
         .or(api_delete)
         .or(api_mkdir)
         .or(api_save)

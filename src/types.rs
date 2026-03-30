@@ -6,6 +6,12 @@ pub struct ListQuery {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct SearchQuery {
+    pub path: Option<String>,
+    pub query: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct FileQuery {
     pub path: String,
 }

@@ -14,6 +14,7 @@
 - **TAR downloads** - Download multiple files and directories as TAR
 - **File management** - Create folders, delete, modify and upload files
 - **File preview** - View images, videos, audio, and text files
+- **Recursive search** - Search files and directories recursively from the current UI path
 
 ## Usage
 
@@ -82,6 +83,7 @@ export PORT=30003
 
 ### API Routes
 - `GET /api/list?path=/data` - List directory contents as JSON for the web UI
+- `GET /api/search?path=/data&query=name` - Search files and directories recursively as JSON for the web UI
 - `POST /api/upload?path=/data` - Upload files (multipart form, 256GB limit)
 - `GET /api/download-multiple?paths=/data/file1,/data/file2` - Download as TAR
 - `DELETE /api/delete?path=/data/file` - Delete file/directory

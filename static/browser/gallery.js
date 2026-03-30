@@ -334,19 +334,55 @@ function changeSort(sortType) {
   renderGallery(currentFiles);
 }
 
-const debouncedFilterBySearch = performanceUtils.debounce((term) => {
-  searchTerm = term.toLowerCase();
-  renderGallery(currentFiles);
+const debouncedSearch = performanceUtils.debounce((term, requestId) => {
+  runSearch(term, requestId);
 }, 300);
 
 function filterBySearch(term) {
-  searchTerm = term.toLowerCase();
-  debouncedFilterBySearch(term);
+  searchTerm = term.trim();
+  const requestId = ++activeSearchRequest;
+
+  if (!searchTerm) {
+    currentFiles = currentDirectoryFiles;
+    renderGallery(currentDirectoryFiles);
+    return;
+  }
+
+  debouncedSearch(searchTerm, requestId);
 }
 
 function filterBySearchTerm(files) {
-  if (!searchTerm) return files;
-  return files.filter((file) => file.name.toLowerCase().includes(searchTerm));
+  return files;
+}
+
+async function runSearch(term, requestId) {
+  try {
+    const response = await fetch(
+      `/api/search?path=${encodeURIComponent(currentPath)}&query=${encodeURIComponent(term)}`,
+    );
+
+    if (!response.ok) {
+      throw new Error("failed to search");
+    }
+
+    if (requestId !== activeSearchRequest) {
+      return;
+    }
+
+    const files = await response.json();
+    currentFiles = files.map((file) => ({
+      ...file,
+      file_type: file.is_dir ? "directory" : determineFileType(file.name),
+    }));
+    renderGallery(currentFiles);
+  } catch {
+    if (requestId !== activeSearchRequest) {
+      return;
+    }
+
+    currentFiles = [];
+    renderGallery([]);
+  }
 }
 
 function sortFiles(files) {

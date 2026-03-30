@@ -47,6 +47,7 @@ function loadInitialDirectory() {
 
     fetchDirectory(dataPath)
       .then((files) => {
+        currentDirectoryFiles = files;
         currentFiles = files;
         renderGallery(files);
       })
