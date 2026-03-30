@@ -3,16 +3,6 @@ const toolbarDropdown = document.getElementById("toolbarDropdown");
 const viewerDropdown = document.getElementById("viewerDropdown");
 const toolbarToggle = document.querySelector(".toolbar-dropdown-toggle");
 
-function focusSearchInput() {
-  if (document.body.classList.contains("viewer-open")) {
-    return;
-  }
-
-  if (searchInput) {
-    searchInput.focus();
-  }
-}
-
 function closeDropdownOnOutsideClick(dropdown, target) {
   if (dropdown && !dropdown.contains(target)) {
     dropdown.classList.remove("open");
@@ -42,7 +32,6 @@ function init() {
 
   window.addEventListener("resize", resizeHandler);
   window.addEventListener("resize", updateToolbarDropdownPosition);
-  window.addEventListener("focus", focusSearchInput);
 
   document.addEventListener("click", (e) => {
     closeDropdownOnOutsideClick(viewerDropdown, e.target);
@@ -82,7 +71,6 @@ function init() {
   }
 
   updateToolbarDropdownPosition();
-  focusSearchInput();
   loadInitialDirectory();
 }
 
