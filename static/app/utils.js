@@ -86,26 +86,6 @@ function parseTime(timeStr) {
   return mins * 60 + secs;
 }
 
-function showNotification(message) {
-  let notification = document.getElementById("uploadNotification");
-  if (!notification) {
-    notification = document.createElement("div");
-    notification.id = "uploadNotification";
-    notification.style.cssText =
-      "position:fixed;bottom:20px;right:20px;background:#333;color:#fff;padding:20px 30px;border-radius:8px;font-size:16px;z-index:10000;box-shadow:0 4px 6px rgba(0,0,0,0.3);";
-    document.body.appendChild(notification);
-  }
-  notification.textContent = message;
-  notification.style.display = "block";
-}
-
-function hideNotification() {
-  const notification = document.getElementById("uploadNotification");
-  if (notification) {
-    notification.style.display = "none";
-  }
-}
-
 function triggerDownload(url) {
   const link = document.createElement("a");
   link.href = url;

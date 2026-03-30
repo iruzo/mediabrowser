@@ -1,0 +1,13 @@
+.notification {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 10000;
+  display: none;
+  padding: 10px 14px;
+  background: var(--bg-quaternary);
+  color: var(--text-primary);
+  font-size: 14px;
+  border-radius: 4px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
