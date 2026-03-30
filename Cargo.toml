@@ -20,10 +20,11 @@ walkdir = { version = "2.5.0", default-features = false }
 
 [profile.release]
 opt-level = "z"
-lto = true
+lto = "fat"
 codegen-units = 1
 panic = "abort"
 strip = "symbols"
+debug = 0
 
 [profile.wasm-dev]
 inherits = "dev"
