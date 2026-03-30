@@ -129,6 +129,11 @@
   width: 100%;
 }
 
+.viewer-dropdown-menu > .viewer-btn:nth-child(odd),
+.viewer-dropdown-menu > .viewer-dropdown-section:nth-child(odd) {
+  background: var(--bg-tertiary);
+}
+
 .viewer-dropdown-section {
   display: flex;
   align-items: center;

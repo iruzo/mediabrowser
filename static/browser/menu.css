@@ -157,6 +157,12 @@
   width: 100%;
 }
 
+.toolbar-dropdown-menu > .toolbar-dropdown-btn:nth-child(odd),
+.toolbar-dropdown-menu > .toolbar-dropdown-section:nth-child(odd),
+#selectionActions > .toolbar-dropdown-btn:nth-child(odd) {
+  background: var(--bg-tertiary);
+}
+
 .toolbar-dropdown-btn.active {
   background: var(--selection-color);
 }
