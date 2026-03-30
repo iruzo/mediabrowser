@@ -179,20 +179,19 @@ function createGridItem(file, index) {
     item.classList.add("selected");
   }
 
+  const hasPreview = file.file_type === "image";
+
+  item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
+
+  if (!hasPreview || file.is_dir) {
+    item.classList.add("always-show-name");
+  }
+
   if (file.is_dir) {
-    item.classList.add("always-show-name");
-    item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
     item.classList.add("directory");
-  } else if (file.file_type === "image") {
-    item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
+  } else if (hasPreview) {
     item.classList.add("lazy-load");
-  } else if (file.file_type === "video") {
-    item.classList.add("always-show-name");
-    item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
-    item.classList.add("file");
   } else {
-    item.classList.add("always-show-name");
-    item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
     item.classList.add("file");
   }
 
