@@ -4,6 +4,7 @@ function showNotification(message) {
     notification = document.createElement("div");
     notification.id = "uploadNotification";
     notification.className = "notification";
+    notification.addEventListener("click", hideNotification);
     document.body.appendChild(notification);
   }
 
