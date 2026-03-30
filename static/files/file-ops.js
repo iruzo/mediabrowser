@@ -1,15 +1,16 @@
 function triggerUpload() {
-  showNotification("Loading...");
+  showUploadPickerNotification();
   document.getElementById("fileInput").click();
 }
 
 function handleFileSelect(files) {
   if (files.length === 0) {
-    hideNotification();
+    hideUploadPickerNotification();
     return;
   }
 
-  showNotification(`Uploading ${files.length} file(s)...`);
+  hideUploadPickerNotification();
+  showUploadProgress(0, files.length);
 
   setTimeout(() => uploadFiles(files), 0);
 }
@@ -43,7 +44,7 @@ async function uploadFiles(files) {
       failedFiles.push(`${file.name}: ${err.message}`);
     } finally {
       completedCount++;
-      showNotification(`Uploading: ${completedCount}/${totalFiles}`);
+      showUploadProgress(completedCount, totalFiles);
     }
   }
 
@@ -64,7 +65,7 @@ async function uploadFiles(files) {
 
   await Promise.all(workers);
 
-  hideNotification();
+  hideUploadProgress();
 
   const successCount = totalFiles - failedFiles.length;
   if (failedFiles.length > 0) {
