@@ -90,10 +90,6 @@
   text-overflow: ellipsis;
 }
 
-.grid-item.show-names .file-name {
-  display: block;
-}
-
 .grid-item.always-show-name .file-name {
   display: block;
 }

@@ -171,10 +171,6 @@ function createGridItem(file, index) {
   item.style.width = `${gridSizePx}px`;
   item.style.height = `${gridSizePx}px`;
 
-  if (showNames) {
-    item.classList.add("show-names");
-  }
-
   if (selectedFiles.has(file.path)) {
     item.classList.add("selected");
   }
@@ -202,24 +198,6 @@ function createGridItem(file, index) {
   }
 
   return item;
-}
-
-function toggleNameMode() {
-  if (galleryContainer) {
-    sessionStorage.setItem("galleryScrollPosition", galleryContainer.scrollTop);
-  }
-
-  showNames = !showNames;
-  localStorage.setItem("showNames", showNames);
-  updateNameModeUI();
-  renderGallery(currentFiles);
-}
-
-function updateNameModeUI() {
-  const btn = document.getElementById("nameModeBtn");
-  if (btn) {
-    btn.textContent = showNames ? "names on" : "names off";
-  }
 }
 
 function ensureLazyLoadObserver() {

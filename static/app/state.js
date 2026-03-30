@@ -9,7 +9,6 @@ let selectedFiles = new Set();
 let selectionMode = false;
 let searchTerm = "";
 let activeSearchRequest = 0;
-let showNames = localStorage.getItem("showNames") === "true";
 let intersectionObserver = null;
 let gridSize = window.innerWidth <= 480 ? 20 : 30;
 const galleryContainer = document.querySelector(".gallery-container");

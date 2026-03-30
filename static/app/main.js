@@ -1,5 +1,4 @@
 initializeGridSize();
-updateNameModeUI();
 
 window.addEventListener("resize", resizeHandler);
 window.addEventListener("resize", updateToolbarDropdownPosition);
