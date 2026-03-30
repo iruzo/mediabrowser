@@ -187,8 +187,9 @@ function createGridItem(file, index) {
     item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
     item.classList.add("lazy-load");
   } else if (file.file_type === "video") {
+    item.classList.add("always-show-name");
     item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
-    item.classList.add("lazy-load");
+    item.classList.add("file");
   } else {
     item.classList.add("always-show-name");
     item.innerHTML = `<div class="file-name">${escapeHtml(file.name)}</div>`;
