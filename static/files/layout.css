@@ -82,7 +82,7 @@
   right: 0;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 1vh;
+  font-size: clamp(13px, 1.6vw, 20px);
   padding: 0.1vh 0.2vh;
   overflow: hidden;
   white-space: nowrap;

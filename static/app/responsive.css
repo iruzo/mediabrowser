@@ -12,9 +12,4 @@
   .gallery-container::-webkit-scrollbar {
     display: none;
   }
-
-  .grid-item .file-name {
-    font-size: 0.9vh;
-    padding: 0.1vh;
-  }
 }
