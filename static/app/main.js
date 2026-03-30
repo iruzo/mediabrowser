@@ -1,30 +1,25 @@
-initializeGridSize();
+const searchInput = document.getElementById("searchInput");
+const toolbarDropdown = document.getElementById("toolbarDropdown");
+const viewerDropdown = document.getElementById("viewerDropdown");
+const toolbarToggle = document.querySelector(".toolbar-dropdown-toggle");
 
-window.addEventListener("resize", resizeHandler);
-window.addEventListener("resize", updateToolbarDropdownPosition);
+function focusSearchInput() {
+  if (document.body.classList.contains("viewer-open")) {
+    return;
+  }
 
-document.addEventListener("click", function (e) {
-  var viewerDropdown = document.getElementById("viewerDropdown");
-  if (viewerDropdown && !viewerDropdown.contains(e.target)) {
-    viewerDropdown.classList.remove("open");
+  if (searchInput) {
+    searchInput.focus();
   }
-  var toolbarDropdown = document.getElementById("toolbarDropdown");
-  if (toolbarDropdown && !toolbarDropdown.contains(e.target)) {
-    toolbarDropdown.classList.remove("open");
+}
+
+function closeDropdownOnOutsideClick(dropdown, target) {
+  if (dropdown && !dropdown.contains(target)) {
+    dropdown.classList.remove("open");
   }
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    closeViewer();
-  } else if (e.key === "ArrowLeft") {
-    previousMedia();
-  } else if (e.key === "ArrowRight") {
-    nextMedia();
-  }
-});
+}
 
 function updateToolbarDropdownPosition() {
-  const toolbarDropdown = document.getElementById("toolbarDropdown");
   if (!toolbarDropdown) {
     return;
   }
@@ -42,23 +37,53 @@ function updateToolbarDropdownPosition() {
   toolbarDropdown.style.bottom = `${keyboardInset}px`;
 }
 
-if (window.visualViewport) {
-  window.visualViewport.addEventListener(
-    "resize",
-    updateToolbarDropdownPosition,
-  );
-  window.visualViewport.addEventListener(
-    "scroll",
-    updateToolbarDropdownPosition,
-  );
+function init() {
+  initializeGridSize();
+
+  window.addEventListener("resize", resizeHandler);
+  window.addEventListener("resize", updateToolbarDropdownPosition);
+  window.addEventListener("focus", focusSearchInput);
+
+  document.addEventListener("click", (e) => {
+    closeDropdownOnOutsideClick(viewerDropdown, e.target);
+    closeDropdownOnOutsideClick(toolbarDropdown, e.target);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeViewer();
+    } else if (e.key === "ArrowLeft") {
+      previousMedia();
+    } else if (e.key === "ArrowRight") {
+      nextMedia();
+    }
+  });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener(
+      "resize",
+      updateToolbarDropdownPosition,
+    );
+    window.visualViewport.addEventListener(
+      "scroll",
+      updateToolbarDropdownPosition,
+    );
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener("focus", updateToolbarDropdownPosition);
+    searchInput.addEventListener("blur", updateToolbarDropdownPosition);
+  }
+
+  if (toolbarToggle) {
+    toolbarToggle.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+    });
+  }
+
+  updateToolbarDropdownPosition();
+  focusSearchInput();
+  loadInitialDirectory();
 }
 
-const searchInput = document.getElementById("searchInput");
-if (searchInput) {
-  searchInput.addEventListener("focus", updateToolbarDropdownPosition);
-  searchInput.addEventListener("blur", updateToolbarDropdownPosition);
-}
-
-updateToolbarDropdownPosition();
-
-loadInitialDirectory();
+init();
