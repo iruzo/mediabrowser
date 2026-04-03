@@ -20,7 +20,7 @@ services:
       - pro
 
   dev:
-    image: docker.io/library/rust:latest
+    image: docker.io/library/rust:1.94.1-alpine
     entrypoint: ['/bin/sh', '-c']
     command:
       - |
