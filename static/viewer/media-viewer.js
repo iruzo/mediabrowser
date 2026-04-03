@@ -1,3 +1,8 @@
+const LARGE_TEXT_FILE_SIZE = 512 * 1024;
+const TEXT_CHUNK_SIZE = 64 * 1024;
+
+let textStreamState = null;
+
 function openMedia(file) {
   if (file.is_dir) {
     navigateToDirectory(file.path);
@@ -26,6 +31,8 @@ function showCurrentMedia() {
   const pathWithoutData = file.path.replace("/data", "") || "/";
   const servePath = encodeURIPath(pathWithoutData);
 
+  cleanupTextStreamViewer();
+
   if (file.file_type === "image") {
     content.innerHTML = `<img src="${servePath}" alt="${escapeHtml(file.name)}" id="viewerImage">`;
     setupMediaZoom();
@@ -47,26 +54,151 @@ function showCurrentMedia() {
     loopControls.style.display = "none";
     saveTextBtn.style.display = "none";
   } else {
-    fetch(servePath)
-      .then((response) => response.text())
-      .then((text) => {
-        content.innerHTML = `
-                    <div class="text-editor-container">
-                        <textarea class="text-editor" id="textEditor">${escapeHtml(text)}</textarea>
-                    </div>
-                `;
-      })
-      .catch(() => {
-        content.innerHTML = `<div class="text-viewer">Failed to load file content</div>`;
-      });
+    if (file.size > LARGE_TEXT_FILE_SIZE) {
+      showLargeTextViewer(file, servePath, content);
+    } else {
+      showSmallTextEditor(servePath, content);
+    }
     zoomControls.style.display = "none";
     loopControls.style.display = "none";
-    saveTextBtn.style.display = "block";
+    saveTextBtn.style.display =
+      file.size > LARGE_TEXT_FILE_SIZE ? "none" : "block";
   }
 
   viewer.classList.add("active");
   document.body.classList.add("viewer-open");
   document.getElementById("toolbarDropdown").classList.remove("open");
+}
+
+function showSmallTextEditor(servePath, content) {
+  fetch(servePath)
+    .then((response) => response.text())
+    .then((text) => {
+      const container = document.createElement("div");
+      container.className = "text-editor-container";
+
+      const textarea = document.createElement("textarea");
+      textarea.className = "text-editor";
+      textarea.id = "textEditor";
+      textarea.value = text;
+
+      container.appendChild(textarea);
+      content.innerHTML = "";
+      content.appendChild(container);
+    })
+    .catch(() => {
+      content.innerHTML = `<div class="text-viewer">Failed to load file content</div>`;
+    });
+}
+
+function showLargeTextViewer(file, servePath, content) {
+  const viewer = document.createElement("div");
+  viewer.className = "text-stream-viewer";
+
+  const body = document.createElement("pre");
+  body.className = "text-stream-content";
+
+  const status = document.createElement("div");
+  status.className = "text-stream-status";
+  status.textContent = `0/${file.size} bytes`;
+
+  viewer.appendChild(body);
+  viewer.appendChild(status);
+  content.innerHTML = "";
+  content.appendChild(viewer);
+
+  textStreamState = {
+    filePath: file.path,
+    servePath,
+    viewer,
+    body,
+    status,
+    offset: 0,
+    size: file.size,
+    loading: false,
+    done: false,
+    decoder: new TextDecoder(),
+    onScroll: null,
+  };
+
+  textStreamState.onScroll = () => {
+    if (
+      !textStreamState ||
+      textStreamState.loading ||
+      textStreamState.done ||
+      viewer.scrollTop + viewer.clientHeight < viewer.scrollHeight - 400
+    ) {
+      return;
+    }
+
+    loadNextTextChunk();
+  };
+
+  viewer.addEventListener("scroll", textStreamState.onScroll);
+  loadNextTextChunk();
+}
+
+async function loadNextTextChunk() {
+  if (!textStreamState || textStreamState.loading || textStreamState.done) {
+    return;
+  }
+
+  const start = textStreamState.offset;
+  const end = Math.min(textStreamState.size - 1, start + TEXT_CHUNK_SIZE - 1);
+
+  textStreamState.loading = true;
+  textStreamState.status.textContent = `${start}/${textStreamState.size} bytes`;
+
+  try {
+    const response = await fetch(textStreamState.servePath, {
+      headers: {
+        Range: `bytes=${start}-${end}`,
+      },
+    });
+
+    if (!response.ok && response.status !== 206) {
+      throw new Error("failed to load text chunk");
+    }
+
+    const chunk = new Uint8Array(await response.arrayBuffer());
+    const text = textStreamState.decoder.decode(chunk, {
+      stream: end + 1 < textStreamState.size,
+    });
+
+    textStreamState.body.textContent += text;
+    textStreamState.offset = end + 1;
+    textStreamState.done = textStreamState.offset >= textStreamState.size;
+
+    if (textStreamState.done) {
+      textStreamState.body.textContent += textStreamState.decoder.decode();
+      textStreamState.status.textContent = `${textStreamState.size}/${textStreamState.size} bytes`;
+    } else {
+      textStreamState.status.textContent = `${textStreamState.offset}/${textStreamState.size} bytes`;
+    }
+  } catch {
+    if (textStreamState) {
+      textStreamState.status.textContent = "Failed to load file content";
+    }
+  } finally {
+    if (textStreamState) {
+      textStreamState.loading = false;
+    }
+  }
+}
+
+function cleanupTextStreamViewer() {
+  if (!textStreamState) {
+    return;
+  }
+
+  if (textStreamState.viewer && textStreamState.onScroll) {
+    textStreamState.viewer.removeEventListener(
+      "scroll",
+      textStreamState.onScroll,
+    );
+  }
+
+  textStreamState = null;
 }
 
 function nextMedia() {
@@ -122,6 +254,7 @@ function closeViewer() {
   document.getElementById("viewer").classList.remove("active");
   document.body.classList.remove("viewer-open");
   selectedFile = null;
+  cleanupTextStreamViewer();
   resetZoom();
   clearLoop();
 

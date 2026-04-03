@@ -82,6 +82,40 @@
   box-sizing: border-box;
 }
 
+.text-stream-viewer {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.text-stream-viewer::-webkit-scrollbar {
+  display: none;
+}
+
+.text-stream-content {
+  padding: 2vh;
+  font-family: monospace;
+  font-size: 1.5vh;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.text-stream-status {
+  position: sticky;
+  bottom: 0;
+  padding: 0.8vh 2vh;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-secondary);
+  font-family: monospace;
+  font-size: 1.2vh;
+}
+
 .viewer-dropdown {
   position: absolute;
   bottom: 0;
