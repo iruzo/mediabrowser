@@ -85,7 +85,7 @@ export PORT=30003
 - `GET /api/list?path=/data` - List directory contents as JSON for the web UI
 - `GET /api/search?path=/data&query=name` - Search files and directories recursively as JSON for the web UI
 - `POST /api/upload?path=/data` - Upload files (multipart form, 256GB limit)
-- `GET /api/download-multiple?paths=/data/file1,/data/file2` - Download as TAR
+- `GET /api/download-bulk?paths=/data/file1,/data/file2` - Download as TAR
 - `DELETE /api/delete?path=/data/file` - Delete file/directory
 - `POST /api/mkdir?path=/data/newfolder` - Create directory
 - `POST /api/move?from=/data/old&to=/data/new` - Move file or directory

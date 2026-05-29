@@ -107,7 +107,7 @@ function downloadCurrent() {
   if (selectedFile) {
     if (selectedFile.is_dir) {
       triggerDownload(
-        `/api/download-multiple?paths=${encodeURIComponent(selectedFile.path)}`,
+        `/api/download-bulk?paths=${encodeURIComponent(selectedFile.path)}`,
       );
     } else {
       triggerDownload(

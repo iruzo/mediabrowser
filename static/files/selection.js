@@ -230,7 +230,7 @@ function downloadSelected() {
     const paths = selectedEntries
       .map((file) => encodeURIComponent(file.path))
       .join(",");
-    triggerDownload(`/api/download-multiple?paths=${paths}`);
+    triggerDownload(`/api/download-bulk?paths=${paths}`);
   }
 }
 

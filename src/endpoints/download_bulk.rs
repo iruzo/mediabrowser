@@ -15,12 +15,12 @@ const STREAM_CHUNK_SIZE: usize = 64 * 1024;
 const STREAM_CHANNEL_CAPACITY: usize = 4;
 
 #[derive(Deserialize)]
-pub struct DownloadMultipleQuery {
+pub struct DownloadBulkQuery {
     pub paths: String,
 }
 
-pub async fn handle_download_multiple(
-    query: DownloadMultipleQuery,
+pub async fn handle_download_bulk(
+    query: DownloadBulkQuery,
 ) -> Result<impl warp::Reply, Infallible> {
     let paths: Vec<String> = query
         .paths

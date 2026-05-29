@@ -4,9 +4,9 @@ use warp::Filter;
 mod endpoints;
 mod types;
 
-use endpoints::download_multiple::DownloadMultipleQuery;
+use endpoints::download_bulk::DownloadBulkQuery;
 use endpoints::{
-    handle_delete, handle_download, handle_download_multiple, handle_list, handle_mkdir,
+    handle_delete, handle_download, handle_download_bulk, handle_list, handle_mkdir,
     handle_move, handle_save, handle_search, handle_serve, handle_upload, ui_routes,
 };
 use types::{FileQuery, ListQuery, MoveQuery, SearchQuery, DATA_DIR};
@@ -77,11 +77,11 @@ async fn main() {
         .and(warp::query::<FileQuery>())
         .and_then(handle_download);
 
-    let api_download_multiple = warp::path("api")
-        .and(warp::path("download-multiple"))
+    let api_download_bulk = warp::path("api")
+        .and(warp::path("download-bulk"))
         .and(warp::get())
-        .and(warp::query::<DownloadMultipleQuery>())
-        .and_then(handle_download_multiple);
+        .and(warp::query::<DownloadBulkQuery>())
+        .and_then(handle_download_bulk);
 
     let api_upload = warp::path("api")
         .and(warp::path("upload"))
@@ -135,7 +135,7 @@ async fn main() {
 
     let routes = ui_routes()
         .or(api_download)
-        .or(api_download_multiple)
+        .or(api_download_bulk)
         .or(api_upload)
         .or(api_list)
         .or(api_search)

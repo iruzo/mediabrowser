@@ -1,6 +1,6 @@
 pub mod delete;
 pub mod download;
-pub mod download_multiple;
+pub mod download_bulk;
 pub mod list;
 pub mod mkdir;
 pub mod mv;
@@ -13,7 +13,7 @@ pub mod upload;
 // Re-export handler functions
 pub use delete::handle_delete;
 pub use download::handle_download;
-pub use download_multiple::handle_download_multiple;
+pub use download_bulk::handle_download_bulk;
 pub use list::handle_list;
 pub use mkdir::handle_mkdir;
 pub use mv::handle_move;
