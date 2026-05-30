@@ -12,13 +12,15 @@ use tokio::sync::Semaphore;
 use warp::http::StatusCode;
 use warp::Reply;
 
-// Global semaphore to limit concurrent uploads to 3
+const MAX_UPLOADS: usize = 3;
+
 static UPLOAD_SEMAPHORE: OnceLock<Semaphore> = OnceLock::new();
 
-// Use 3 for better HDD support
 fn get_upload_semaphore() -> &'static Semaphore {
-    UPLOAD_SEMAPHORE.get_or_init(|| Semaphore::new(3))
+    UPLOAD_SEMAPHORE.get_or_init(|| Semaphore::new(MAX_UPLOADS))
 }
+
+type UploadResult<T> = Result<T, (StatusCode, String)>;
 
 pub async fn handle_upload(
     query: ListQuery,
@@ -80,33 +82,16 @@ async fn save_upload_part(
     part: warp::multipart::Part,
     target_dir: &Path,
     filename: &str,
-) -> Result<(), (StatusCode, String)> {
+) -> UploadResult<()> {
     let mut stream = part.stream();
-    let mut file = open_upload_file(target_dir, filename).await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to save file: {}", e),
-        )
-    })?;
+    let mut file = open_upload_file(target_dir, filename)
+        .await
+        .map_err(save_file_error)?;
 
     loop {
         match stream.try_next().await {
             Ok(Some(mut chunk)) => {
-                while chunk.has_remaining() {
-                    let bytes = chunk.chunk();
-                    if bytes.is_empty() {
-                        break;
-                    }
-
-                    file.write_all(bytes).await.map_err(|e| {
-                        (
-                            StatusCode::INTERNAL_SERVER_ERROR,
-                            format!("Failed to save file: {}", e),
-                        )
-                    })?;
-
-                    chunk.advance(bytes.len());
-                }
+                write_chunk(&mut file, &mut chunk).await?;
             }
             Ok(None) => return Ok(()),
             Err(e) => {
@@ -119,22 +104,36 @@ async fn save_upload_part(
     }
 }
 
+async fn write_chunk(file: &mut tokio::fs::File, chunk: &mut impl Buf) -> UploadResult<()> {
+    while chunk.has_remaining() {
+        let bytes = chunk.chunk();
+        if bytes.is_empty() {
+            break;
+        }
+
+        file.write_all(bytes).await.map_err(save_file_error)?;
+        chunk.advance(bytes.len());
+    }
+
+    Ok(())
+}
+
+fn save_file_error(e: std::io::Error) -> (StatusCode, String) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        format!("Failed to save file: {}", e),
+    )
+}
+
 fn upload_response(message: impl Into<String>, status: StatusCode) -> warp::reply::Response {
     let message = message.into();
     warp::reply::with_status(warp::reply::json(&message), status).into_response()
 }
 
 async fn open_upload_file(target_dir: &Path, filename: &str) -> std::io::Result<tokio::fs::File> {
-    use tokio::fs::OpenOptions;
-
     let original_path = target_dir.join(filename);
 
-    match OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&original_path)
-        .await
-    {
+    match create_upload_file(&original_path).await {
         Ok(file) => Ok(file),
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
             let nanos = SystemTime::now()
@@ -155,12 +154,16 @@ async fn open_upload_file(target_dir: &Path, filename: &str) -> std::io::Result<
             };
 
             let timestamped_path = target_dir.join(timestamped_filename);
-            OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(timestamped_path)
-                .await
+            create_upload_file(&timestamped_path).await
         }
         Err(e) => Err(e),
     }
+}
+
+async fn create_upload_file(path: &Path) -> std::io::Result<tokio::fs::File> {
+    tokio::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .await
 }
