@@ -195,21 +195,21 @@ async function renameSelected() {
   }
 
   try {
-    for (const [index, file] of selectedEntries.entries()) {
-      const renamedPath = getRenamedPath(
-        file,
-        trimmedName,
-        index,
-        selectedEntries.length > 1,
-      );
-      const response = await fetch(
-        `/api/move?from=${encodeURIComponent(file.path)}&to=${encodeURIComponent(renamedPath)}`,
-        { method: "POST" },
-      );
+    const items = selectedEntries.map((file, index) => ({
+      from: file.path,
+      to: getRenamedPath(file, trimmedName, index, selectedEntries.length > 1),
+    }));
 
-      if (!response.ok) {
-        throw new Error("failed to rename");
-      }
+    const response = await fetch("/api/mv", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(items),
+    });
+
+    if (!response.ok) {
+      throw new Error("failed to rename");
     }
 
     clearSelection();

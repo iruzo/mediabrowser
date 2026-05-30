@@ -88,7 +88,7 @@ export PORT=30003
 - `POST /api/downloads` - Download multiple files/directories as TAR using JSON body `{ "paths": ["file1", "dir/file2"] }`
 - `DELETE /api/delete?path=file` - Delete file/directory
 - `POST /api/mkdir?path=newfolder` - Create directory
-- `POST /api/move?from=old&to=new` - Move file or directory
+- `POST /api/mv` - Move or rename files/directories using JSON body `[{"from":"old","to":"new"}]`
 - `GET /api/download/path/to/file` - Download single file
 
 ### Apache httpd Routes (Root)

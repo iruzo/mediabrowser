@@ -5,11 +5,12 @@ mod endpoints;
 mod types;
 
 use endpoints::download_bulk::DownloadBulkRequest;
+use endpoints::mv::MvItem;
 use endpoints::{
-    handle_delete, handle_download, handle_downloads, handle_list, handle_mkdir, handle_move,
-    handle_save, handle_search, handle_serve, handle_upload, ui_routes,
+    handle_delete, handle_download, handle_downloads, handle_file_server, handle_list,
+    handle_mkdir, handle_mv, handle_save, handle_search, handle_upload, ui_routes,
 };
-use types::{data_dir, FileQuery, ListQuery, MoveQuery, SearchQuery};
+use types::{data_dir, FileQuery, ListQuery, SearchQuery};
 
 const PORT: u16 = 30003;
 const BIND_ADDR: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
@@ -122,17 +123,18 @@ async fn main() {
         .and(warp::body::bytes())
         .and_then(handle_save);
 
-    let api_move = warp::path("api")
-        .and(warp::path("move"))
+    let api_mv = warp::path("api")
+        .and(warp::path("mv"))
         .and(warp::post())
-        .and(warp::query::<MoveQuery>())
-        .and_then(handle_move);
+        .and(warp::body::content_length_limit(1024 * 1024))
+        .and(warp::body::json::<Vec<MvItem>>())
+        .and_then(handle_mv);
 
     let favicon = warp::path("favicon.ico").and(warp::get()).map(|| "");
 
-    let httpd_serve = warp::path::tail()
+    let file_server = warp::path::tail()
         .and(warp::header::headers_cloned())
-        .and_then(handle_serve);
+        .and_then(handle_file_server);
 
     let routes = ui_routes()
         .or(api_download)
@@ -143,9 +145,9 @@ async fn main() {
         .or(api_delete)
         .or(api_mkdir)
         .or(api_save)
-        .or(api_move)
+        .or(api_mv)
         .or(favicon)
-        .or(httpd_serve);
+        .or(file_server);
 
     println!("Server starting on http://{}:{}", bind_addr, port);
     println!("UI available at: http://{}:{}/ui", bind_addr, port);

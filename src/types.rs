@@ -18,12 +18,6 @@ pub struct FileQuery {
     pub path: String,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct MoveQuery {
-    pub from: String,
-    pub to: String,
-}
-
 static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 pub fn data_dir() -> &'static Path {

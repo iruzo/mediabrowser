@@ -29,7 +29,7 @@ struct DirectoryItem {
     is_dir: bool,
 }
 
-pub async fn handle_serve(
+pub async fn handle_file_server(
     path: warp::path::Tail,
     headers: HeaderMap,
 ) -> Result<impl warp::Reply, Infallible> {
