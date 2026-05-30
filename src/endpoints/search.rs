@@ -1,9 +1,8 @@
-use crate::types::{SearchQuery, DATA_DIR};
+use crate::types::{api_path, data_path, SearchQuery};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::convert::Infallible;
-use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use walkdir::WalkDir;
 use warp::http::StatusCode;
@@ -21,17 +20,15 @@ struct SearchItem {
 }
 
 pub async fn handle_search(query: SearchQuery) -> Result<warp::reply::Response, Infallible> {
-    let path = query.path.unwrap_or_else(|| DATA_DIR.to_string());
+    let path = query.path.unwrap_or_default();
     let search = query.query.unwrap_or_default();
 
     let decoded_path = percent_decode_str(&path).decode_utf8_lossy();
-    let dir_path = PathBuf::from(decoded_path.as_ref());
-
-    if !dir_path.starts_with(DATA_DIR) {
+    let Some(dir_path) = data_path(decoded_path.as_ref()) else {
         return Ok(
             warp::reply::with_status("Access denied", StatusCode::FORBIDDEN).into_response(),
         );
-    }
+    };
 
     let terms: Vec<String> = search
         .split_whitespace()
@@ -60,10 +57,6 @@ pub async fn handle_search(query: SearchQuery) -> Result<warp::reply::Response, 
         .filter_map(Result::ok)
     {
         let path = entry.path();
-        if !path.starts_with(DATA_DIR) {
-            continue;
-        }
-
         let relative = path
             .strip_prefix(&dir_path)
             .ok()
@@ -81,7 +74,7 @@ pub async fn handle_search(query: SearchQuery) -> Result<warp::reply::Response, 
 
         items.push(SearchItem {
             name: entry.file_name().to_string_lossy().into_owned(),
-            path: path.to_string_lossy().into_owned(),
+            path: api_path(path),
             is_dir: metadata.is_dir(),
             size: if metadata.is_file() {
                 metadata.len()

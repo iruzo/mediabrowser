@@ -82,14 +82,14 @@ export PORT=30003
 - `GET /ui/*` - UI assets and client-side routes
 
 ### API Routes
-- `GET /api/list?path=/data` - List directory contents as JSON for the web UI
-- `GET /api/search?path=/data&query=name` - Search files and directories recursively as JSON for the web UI
-- `POST /api/upload?path=/data` - Upload files (multipart form, 256GB limit)
-- `GET /api/download-bulk?paths=/data/file1,/data/file2` - Download as TAR
-- `DELETE /api/delete?path=/data/file` - Delete file/directory
-- `POST /api/mkdir?path=/data/newfolder` - Create directory
-- `POST /api/move?from=/data/old&to=/data/new` - Move file or directory
-- `GET /api/download?path=/data/file` - Download single file
+- `GET /api/list?path=folder` - List directory contents as JSON for the web UI
+- `GET /api/search?path=folder&query=name` - Search files and directories recursively as JSON for the web UI
+- `POST /api/upload?path=folder` - Upload files (multipart form, 256GB limit)
+- `POST /api/downloads` - Download multiple files/directories as TAR using JSON body `{ "paths": ["file1", "dir/file2"] }`
+- `DELETE /api/delete?path=file` - Delete file/directory
+- `POST /api/mkdir?path=newfolder` - Create directory
+- `POST /api/move?from=old&to=new` - Move file or directory
+- `GET /api/download/path/to/file` - Download single file
 
 ### Apache httpd Routes (Root)
 - `GET /` - Apache-style directory listing (root)

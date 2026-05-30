@@ -1,8 +1,7 @@
-use crate::types::{ListQuery, DATA_DIR};
+use crate::types::{api_path, data_path, ListQuery};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use std::convert::Infallible;
-use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use tokio::fs;
 use warp::http::StatusCode;
@@ -18,15 +17,13 @@ struct ListItem {
 }
 
 pub async fn handle_list(query: ListQuery) -> Result<warp::reply::Response, Infallible> {
-    let path = query.path.unwrap_or_else(|| DATA_DIR.to_string());
+    let path = query.path.unwrap_or_default();
     let decoded_path = percent_decode_str(&path).decode_utf8_lossy();
-    let dir_path = PathBuf::from(decoded_path.as_ref());
-
-    if !dir_path.starts_with(DATA_DIR) {
+    let Some(dir_path) = data_path(decoded_path.as_ref()) else {
         return Ok(
             warp::reply::with_status("Access denied", StatusCode::FORBIDDEN).into_response(),
         );
-    }
+    };
 
     let mut entries = match fs::read_dir(&dir_path).await {
         Ok(entries) => entries,
@@ -52,7 +49,7 @@ pub async fn handle_list(query: ListQuery) -> Result<warp::reply::Response, Infa
         };
 
         items.push(ListItem {
-            path: entry.path().to_string_lossy().into_owned(),
+            path: api_path(&entry.path()),
             name,
             is_dir: metadata.is_dir(),
             size: if metadata.is_file() {

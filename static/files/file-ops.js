@@ -82,7 +82,7 @@ async function uploadFiles(files) {
 function createFolder() {
   const name = prompt("folder name:");
   if (name) {
-    const folderPath = `${currentPath}/${name}`;
+    const folderPath = currentPath ? `${currentPath}/${name}` : name;
     fetch(`/api/mkdir?path=${encodeURIComponent(folderPath)}`, {
       method: "POST",
     })

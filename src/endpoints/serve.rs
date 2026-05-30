@@ -1,9 +1,9 @@
-use crate::types::DATA_DIR;
+use crate::types::data_path;
 use mime_guess::from_path;
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::convert::Infallible;
 use std::fmt::Write as _;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
@@ -36,17 +36,11 @@ pub async fn handle_serve(
     let requested_path = path.as_str();
     let decoded_path = percent_decode_str(requested_path).decode_utf8_lossy();
 
-    let file_path = if decoded_path.is_empty() || decoded_path == "/" {
-        PathBuf::from(DATA_DIR)
-    } else {
-        PathBuf::from(DATA_DIR).join(decoded_path.as_ref())
-    };
-
-    if !file_path.starts_with(DATA_DIR) {
+    let Some(file_path) = data_path(decoded_path.as_ref()) else {
         return Ok(
             warp::reply::with_status("Access denied", StatusCode::FORBIDDEN).into_response(),
         );
-    }
+    };
 
     let metadata = match fs::metadata(&file_path).await {
         Ok(metadata) => metadata,

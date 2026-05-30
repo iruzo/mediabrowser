@@ -1,4 +1,4 @@
-use crate::types::{ListQuery, DATA_DIR};
+use crate::types::{data_path, ListQuery};
 use bytes::Buf;
 use futures_util::TryStreamExt;
 use percent_encoding::percent_decode_str;
@@ -27,13 +27,11 @@ pub async fn handle_upload(
     // Acquire semaphore permit to limit concurrent uploads globally
     let _permit = get_upload_semaphore().acquire().await.unwrap();
 
-    let target_path = query.path.unwrap_or_else(|| DATA_DIR.to_string());
+    let target_path = query.path.unwrap_or_default();
     let decoded_path = percent_decode_str(&target_path).decode_utf8_lossy();
-    let target_dir = Path::new(&*decoded_path);
-
-    if !target_dir.starts_with(DATA_DIR) {
+    let Some(target_dir) = data_path(decoded_path.as_ref()) else {
         return Ok(upload_response("Access denied", StatusCode::FORBIDDEN));
-    }
+    };
 
     if let Err(e) = fs::create_dir_all(&target_dir).await {
         return Ok(upload_response(
@@ -55,7 +53,7 @@ pub async fn handle_upload(
                     continue;
                 };
 
-                if let Err((status, message)) = save_upload_part(part, target_dir, &filename).await
+                if let Err((status, message)) = save_upload_part(part, &target_dir, &filename).await
                 {
                     return Ok(upload_response(message, status));
                 }

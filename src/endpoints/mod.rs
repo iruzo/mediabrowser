@@ -13,7 +13,7 @@ pub mod upload;
 // Re-export handler functions
 pub use delete::handle_delete;
 pub use download::handle_download;
-pub use download_bulk::handle_download_bulk;
+pub use download_bulk::handle_downloads;
 pub use list::handle_list;
 pub use mkdir::handle_mkdir;
 pub use mv::handle_move;

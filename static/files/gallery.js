@@ -270,8 +270,7 @@ function loadItemContent(item) {
       img.alt = "Failed to load";
     };
 
-    const pathWithoutData = filePath.replace("/data", "") || "/";
-    const servePath = encodeURIPath(pathWithoutData);
+    const servePath = `/${encodeURIPath(filePath)}`;
     img.src = servePath;
     item.innerHTML = "";
     item.appendChild(img);

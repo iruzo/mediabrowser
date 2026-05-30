@@ -152,23 +152,25 @@ function getSelectedEntries() {
 
 function getRenamedPath(file, name, index, multiple) {
   const lastSlashIndex = file.path.lastIndexOf("/");
-  const dirPath = file.path.substring(0, lastSlashIndex);
+  const dirPath = lastSlashIndex >= 0 ? file.path.substring(0, lastSlashIndex) : "";
+  const renamedName = multiple ? `${name}${index + 1}` : name;
 
   if (!multiple) {
-    return `${dirPath}/${name}`;
+    return dirPath ? `${dirPath}/${name}` : name;
   }
 
   if (file.is_dir) {
-    return `${dirPath}/${name}${index + 1}`;
+    return dirPath ? `${dirPath}/${renamedName}` : renamedName;
   }
 
   const lastDotIndex = file.name.lastIndexOf(".");
   if (lastDotIndex > 0) {
     const extension = file.name.substring(lastDotIndex);
-    return `${dirPath}/${name}${index + 1}${extension}`;
+    const renamedFile = `${renamedName}${extension}`;
+    return dirPath ? `${dirPath}/${renamedFile}` : renamedFile;
   }
 
-  return `${dirPath}/${name}${index + 1}`;
+  return dirPath ? `${dirPath}/${renamedName}` : renamedName;
 }
 
 async function renameSelected() {
@@ -217,20 +219,20 @@ async function renameSelected() {
   }
 }
 
-function downloadSelected() {
+async function downloadSelected() {
   const selectedEntries = getSelectedEntries();
   if (selectedEntries.length === 0) return;
 
   const hasDirectory = selectedEntries.some((file) => file.is_dir);
 
   if (selectedEntries.length === 1 && !hasDirectory) {
-    const filePath = selectedEntries[0].path;
-    triggerDownload(`/api/download?path=${encodeURIComponent(filePath)}`);
+    downloadFilePath(selectedEntries[0].path);
   } else {
-    const paths = selectedEntries
-      .map((file) => encodeURIComponent(file.path))
-      .join(",");
-    triggerDownload(`/api/download-bulk?paths=${paths}`);
+    try {
+      await downloadBulkPaths(selectedEntries.map((file) => file.path));
+    } catch (err) {
+      alert(err.message);
+    }
   }
 }
 

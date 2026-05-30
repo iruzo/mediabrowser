@@ -1,7 +1,5 @@
 function navigateToDirectory(path) {
-  const urlPath =
-    path === "/data" ? "/ui/" : "/ui" + path.replace("/data", "") + "/";
-  window.location.href = urlPath;
+  window.location.href = path ? `/ui/${encodeURIPath(path)}/` : "/ui/";
 }
 
 function loadInitialDirectory() {
@@ -11,15 +9,13 @@ function loadInitialDirectory() {
     pathname !== "/ui" && pathname !== "/ui/" && !pathname.endsWith("/");
 
   if (isFileUrl) {
-    const pathWithoutUI = pathname.substring(3);
-    const lastSlashIndex = pathWithoutUI.lastIndexOf("/");
-    const dirPathSuffix = pathWithoutUI.substring(0, lastSlashIndex);
-    const dataPath = dirPathSuffix ? "/data" + dirPathSuffix : "/data";
-    const filePath = "/data" + pathWithoutUI;
+    const filePath = pathname.substring(4).replace(/^\/+/, "");
+    const lastSlashIndex = filePath.lastIndexOf("/");
+    const dirPath = lastSlashIndex >= 0 ? filePath.substring(0, lastSlashIndex) : "";
 
-    currentPath = dataPath;
+    currentPath = dirPath;
 
-    fetchDirectory(dataPath)
+    fetchDirectory(dirPath)
       .then((files) => {
         currentFiles = files;
 
@@ -37,15 +33,14 @@ function loadInitialDirectory() {
         galleryGrid.innerHTML = "<div>error</div>";
       });
   } else {
-    let dataPath = "/data";
+    let dirPath = "";
     if (pathname.startsWith("/ui/") && pathname !== "/ui/") {
-      const pathWithoutUI = pathname.substring(3);
-      dataPath = "/data" + pathWithoutUI.slice(0, -1);
+      dirPath = pathname.substring(4).replace(/\/$/, "");
     }
 
-    currentPath = dataPath;
+    currentPath = dirPath;
 
-    fetchDirectory(dataPath)
+    fetchDirectory(dirPath)
       .then((files) => {
         currentDirectoryFiles = files;
         currentFiles = files;

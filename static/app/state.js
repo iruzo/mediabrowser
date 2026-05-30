@@ -1,4 +1,4 @@
-let currentPath = "/data";
+let currentPath = "";
 let currentFiles = [];
 let currentDirectoryFiles = [];
 let selectedFile = null;

@@ -4,12 +4,12 @@ use warp::Filter;
 mod endpoints;
 mod types;
 
-use endpoints::download_bulk::DownloadBulkQuery;
+use endpoints::download_bulk::DownloadBulkRequest;
 use endpoints::{
-    handle_delete, handle_download, handle_download_bulk, handle_list, handle_mkdir,
-    handle_move, handle_save, handle_search, handle_serve, handle_upload, ui_routes,
+    handle_delete, handle_download, handle_downloads, handle_list, handle_mkdir, handle_move,
+    handle_save, handle_search, handle_serve, handle_upload, ui_routes,
 };
-use types::{FileQuery, ListQuery, MoveQuery, SearchQuery, DATA_DIR};
+use types::{data_dir, FileQuery, ListQuery, MoveQuery, SearchQuery};
 
 const PORT: u16 = 30003;
 const BIND_ADDR: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
@@ -74,14 +74,15 @@ async fn main() {
     let api_download = warp::path("api")
         .and(warp::path("download"))
         .and(warp::get())
-        .and(warp::query::<FileQuery>())
+        .and(warp::path::tail())
         .and_then(handle_download);
 
-    let api_download_bulk = warp::path("api")
-        .and(warp::path("download-bulk"))
-        .and(warp::get())
-        .and(warp::query::<DownloadBulkQuery>())
-        .and_then(handle_download_bulk);
+    let api_downloads = warp::path("api")
+        .and(warp::path("downloads"))
+        .and(warp::post())
+        .and(warp::body::content_length_limit(1024 * 1024))
+        .and(warp::body::json::<DownloadBulkRequest>())
+        .and_then(handle_downloads);
 
     let api_upload = warp::path("api")
         .and(warp::path("upload"))
@@ -135,7 +136,7 @@ async fn main() {
 
     let routes = ui_routes()
         .or(api_download)
-        .or(api_download_bulk)
+        .or(api_downloads)
         .or(api_upload)
         .or(api_list)
         .or(api_search)
@@ -148,7 +149,7 @@ async fn main() {
 
     println!("Server starting on http://{}:{}", bind_addr, port);
     println!("UI available at: http://{}:{}/ui", bind_addr, port);
-    println!("Serving files from: {}", DATA_DIR);
+    println!("Serving files from: {}", data_dir().display());
 
     warp::serve(routes)
         .bind_with_graceful_shutdown((bind_addr.octets(), port), shutdown_signal())

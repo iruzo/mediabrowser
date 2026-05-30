@@ -1,20 +1,17 @@
-use crate::types::{FileQuery, DATA_DIR};
+use crate::types::{data_path, FileQuery};
 use percent_encoding::percent_decode_str;
 use std::convert::Infallible;
-use std::path::Path;
 use tokio::fs;
 use warp::http::StatusCode;
 
 pub async fn handle_delete(query: FileQuery) -> Result<impl warp::Reply, Infallible> {
     let decoded_path = percent_decode_str(&query.path).decode_utf8_lossy();
-    let file_path = Path::new(&*decoded_path);
-
-    if !file_path.starts_with(DATA_DIR) {
+    let Some(file_path) = data_path(decoded_path.as_ref()) else {
         return Ok(warp::reply::with_status(
             warp::reply::json(&"Access denied"),
             StatusCode::FORBIDDEN,
         ));
-    }
+    };
 
     let result = if file_path.is_dir() {
         fs::remove_dir_all(&file_path).await

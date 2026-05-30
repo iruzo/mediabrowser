@@ -1,7 +1,6 @@
-use crate::types::DATA_DIR;
+use crate::types::{api_path, data_path};
 use bytes::Bytes;
 use futures_util::stream;
-use percent_encoding::percent_decode_str;
 use serde::Deserialize;
 use std::convert::Infallible;
 use std::io::{BufWriter, Write};
@@ -15,20 +14,35 @@ const STREAM_CHUNK_SIZE: usize = 64 * 1024;
 const STREAM_CHANNEL_CAPACITY: usize = 4;
 
 #[derive(Deserialize)]
-pub struct DownloadBulkQuery {
-    pub paths: String,
+pub struct DownloadBulkRequest {
+    pub paths: Vec<String>,
 }
 
-pub async fn handle_download_bulk(
-    query: DownloadBulkQuery,
-) -> Result<impl warp::Reply, Infallible> {
-    let paths: Vec<String> = query
-        .paths
-        .split(',')
-        .map(|s| percent_decode_str(s.trim()).decode_utf8_lossy().to_string())
-        .collect();
+pub async fn handle_downloads(
+    request: DownloadBulkRequest,
+) -> Result<warp::reply::Response, Infallible> {
+    create_tar_response(request.paths)
+}
 
-    if paths.is_empty() {
+fn create_tar_response(paths: Vec<String>) -> Result<warp::reply::Response, Infallible> {
+    let mut data_paths = Vec::new();
+
+    for path in paths {
+        let path = path.trim();
+        if path.is_empty() {
+            continue;
+        }
+
+        let Some(full_path) = data_path(path) else {
+            return Ok(
+                warp::reply::with_status("Access denied", StatusCode::FORBIDDEN).into_response(),
+            );
+        };
+
+        data_paths.push(full_path);
+    }
+
+    if data_paths.is_empty() {
         return Ok(
             warp::reply::with_status("No files specified", StatusCode::BAD_REQUEST).into_response(),
         );
@@ -38,7 +52,7 @@ pub async fn handle_download_bulk(
     tokio::task::spawn_blocking({
         let tx = tx;
         move || {
-            let result = build_tar_stream(&paths, tx.clone());
+            let result = build_tar_stream(&data_paths, tx.clone());
             if let Err(e) = result {
                 let _ = tx.blocking_send(Err(e));
             }
@@ -89,20 +103,14 @@ impl Write for ChannelWriter {
 }
 
 fn build_tar_stream(
-    paths: &[String],
+    paths: &[PathBuf],
     tx: mpsc::Sender<Result<Bytes, std::io::Error>>,
 ) -> std::io::Result<()> {
     let writer = ChannelWriter::new(tx);
     let buffered = BufWriter::with_capacity(STREAM_CHUNK_SIZE, writer);
     let mut tar = Builder::new(buffered);
 
-    for path_str in paths {
-        let file_path = Path::new(path_str);
-
-        if !file_path.starts_with(DATA_DIR) {
-            continue;
-        }
-
+    for file_path in paths {
         let metadata = match std::fs::metadata(file_path) {
             Ok(metadata) => metadata,
             Err(_) => continue,
@@ -124,10 +132,5 @@ fn build_tar_stream(
 }
 
 fn archive_path_for(file_path: &Path) -> PathBuf {
-    file_path
-        .strip_prefix(DATA_DIR)
-        .unwrap_or(file_path)
-        .components()
-        .filter(|component| !matches!(component, std::path::Component::RootDir))
-        .collect()
+    PathBuf::from(api_path(file_path))
 }

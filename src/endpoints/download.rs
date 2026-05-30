@@ -1,21 +1,18 @@
-use crate::types::{FileQuery, DATA_DIR};
+use crate::types::data_path;
 use percent_encoding::percent_decode_str;
 use std::convert::Infallible;
-use std::path::Path;
 use tokio::fs;
 use tokio_util::io::ReaderStream;
 use warp::hyper::Body;
 use warp::{http::StatusCode, Reply};
 
-pub async fn handle_download(query: FileQuery) -> Result<impl warp::Reply, Infallible> {
-    let decoded_path = percent_decode_str(&query.path).decode_utf8_lossy();
-    let file_path = Path::new(&*decoded_path);
-
-    if !file_path.starts_with(DATA_DIR) {
+pub async fn handle_download(path: warp::path::Tail) -> Result<impl warp::Reply, Infallible> {
+    let decoded_path = percent_decode_str(path.as_str()).decode_utf8_lossy();
+    let Some(file_path) = data_path(decoded_path.as_ref()) else {
         return Ok(
             warp::reply::with_status("Access denied", StatusCode::FORBIDDEN).into_response(),
         );
-    }
+    };
 
     let metadata = match fs::metadata(&file_path).await {
         Ok(metadata) => metadata,

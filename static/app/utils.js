@@ -86,12 +86,35 @@ function parseTime(timeStr) {
   return mins * 60 + secs;
 }
 
-function triggerDownload(url) {
+function triggerDownload(url, filename) {
   const link = document.createElement("a");
   link.href = url;
-  link.setAttribute("download", "");
+  link.setAttribute("download", filename || "");
   link.style.display = "none";
   document.body.appendChild(link);
   link.click();
   link.remove();
+}
+
+function downloadFilePath(path) {
+  triggerDownload(`/api/download/${encodeURIPath(path)}`);
+}
+
+async function downloadBulkPaths(paths) {
+  const response = await fetch("/api/downloads", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ paths }),
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || "Failed to download files");
+  }
+
+  const url = URL.createObjectURL(await response.blob());
+  triggerDownload(url, "download.tar");
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -8,8 +8,7 @@ function openMedia(file) {
     sessionStorage.setItem("galleryScrollPosition", galleryContainer.scrollTop);
   }
 
-  const pathWithoutData = file.path.replace("/data", "");
-  const fileUrl = "/ui" + encodeURIPath(pathWithoutData);
+  const fileUrl = `/ui/${encodeURIPath(file.path)}`;
   window.location.href = fileUrl;
 }
 
@@ -23,8 +22,7 @@ function showCurrentMedia() {
   const zoomControls = document.getElementById("zoomControls");
   const loopControls = document.getElementById("loopControls");
   const saveTextBtn = document.getElementById("saveTextBtn");
-  const pathWithoutData = file.path.replace("/data", "") || "/";
-  const servePath = encodeURIPath(pathWithoutData);
+  const servePath = `/${encodeURIPath(file.path)}`;
 
   cleanupTextStreamViewer();
 
@@ -103,16 +101,16 @@ function closeViewer() {
   navigateToDirectory(currentPath);
 }
 
-function downloadCurrent() {
+async function downloadCurrent() {
   if (selectedFile) {
     if (selectedFile.is_dir) {
-      triggerDownload(
-        `/api/download-bulk?paths=${encodeURIComponent(selectedFile.path)}`,
-      );
+      try {
+        await downloadBulkPaths([selectedFile.path]);
+      } catch (err) {
+        alert(err.message);
+      }
     } else {
-      triggerDownload(
-        `/api/download?path=${encodeURIComponent(selectedFile.path)}`,
-      );
+      downloadFilePath(selectedFile.path);
     }
   }
 }
