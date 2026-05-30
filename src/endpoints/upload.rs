@@ -44,32 +44,23 @@ pub async fn handle_upload(
 
     let mut uploaded_files = 0;
 
-    loop {
-        match form.try_next().await {
-            Ok(Some(part)) => {
-                if part.name() != "file" {
-                    continue;
-                }
-
-                let Some(filename) = part.filename().map(str::to_owned) else {
-                    continue;
-                };
-
-                if let Err((status, message)) = save_upload_part(part, &target_dir, &filename).await
-                {
-                    return Ok(upload_response(message, status));
-                }
-
-                uploaded_files += 1;
-            }
-            Ok(None) => break,
-            Err(e) => {
-                return Ok(upload_response(
-                    format!("Failed to process upload: {}", e),
-                    StatusCode::BAD_REQUEST,
-                ));
-            }
+    while let Some(part) = match form.try_next().await {
+        Ok(part) => part,
+        Err(e) => return Ok(upload_response(bad_upload_error(e), StatusCode::BAD_REQUEST)),
+    } {
+        if part.name() != "file" {
+            continue;
         }
+
+        let Some(filename) = part.filename().map(str::to_owned) else {
+            continue;
+        };
+
+        if let Err((status, message)) = save_upload_part(part, &target_dir, &filename).await {
+            return Ok(upload_response(message, status));
+        }
+
+        uploaded_files += 1;
     }
 
     Ok(upload_response(
@@ -88,20 +79,11 @@ async fn save_upload_part(
         .await
         .map_err(save_file_error)?;
 
-    loop {
-        match stream.try_next().await {
-            Ok(Some(mut chunk)) => {
-                write_chunk(&mut file, &mut chunk).await?;
-            }
-            Ok(None) => return Ok(()),
-            Err(e) => {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    format!("Failed to process upload stream: {}", e),
-                ));
-            }
-        }
+    while let Some(mut chunk) = stream.try_next().await.map_err(bad_upload_stream_error)? {
+        write_chunk(&mut file, &mut chunk).await?;
     }
+
+    Ok(())
 }
 
 async fn write_chunk(file: &mut tokio::fs::File, chunk: &mut impl Buf) -> UploadResult<()> {
@@ -122,6 +104,17 @@ fn save_file_error(e: std::io::Error) -> (StatusCode, String) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         format!("Failed to save file: {}", e),
+    )
+}
+
+fn bad_upload_error(e: warp::Error) -> String {
+    format!("Failed to process upload: {}", e)
+}
+
+fn bad_upload_stream_error(e: warp::Error) -> (StatusCode, String) {
+    (
+        StatusCode::BAD_REQUEST,
+        format!("Failed to process upload stream: {}", e),
     )
 }
 
