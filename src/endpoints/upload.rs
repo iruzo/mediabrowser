@@ -129,27 +129,23 @@ async fn open_upload_file(target_dir: &Path, filename: &str) -> std::io::Result<
     match create_upload_file(&original_path).await {
         Ok(file) => Ok(file),
         Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-            let nanos = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos();
-            let suffix = nanos % 1_000_000;
-
-            let timestamped_filename = if let Some(dot_pos) = filename.rfind('.') {
-                format!(
-                    "{}_{}{}",
-                    &filename[..dot_pos],
-                    suffix,
-                    &filename[dot_pos..]
-                )
-            } else {
-                format!("{}_{}", filename, suffix)
-            };
-
-            let timestamped_path = target_dir.join(timestamped_filename);
+            let timestamped_path = target_dir.join(collision_filename(filename));
             create_upload_file(&timestamped_path).await
         }
         Err(e) => Err(e),
+    }
+}
+
+fn collision_filename(filename: &str) -> String {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let suffix = nanos % 1_000_000;
+
+    match filename.rfind('.') {
+        Some(dot_pos) => format!("{}_{}{}", &filename[..dot_pos], suffix, &filename[dot_pos..]),
+        None => format!("{}_{}", filename, suffix),
     }
 }
 
