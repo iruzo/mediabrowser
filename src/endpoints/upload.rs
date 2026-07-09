@@ -55,6 +55,9 @@ pub async fn handle_upload(
         let Some(filename) = part.filename().map(str::to_owned) else {
             continue;
         };
+        if !valid_upload_filename(&filename) {
+            return Ok(upload_response("Invalid filename", StatusCode::BAD_REQUEST));
+        }
 
         if let Err((status, message)) = save_upload_part(part, &target_dir, &filename).await {
             return Ok(upload_response(message, status));
@@ -121,6 +124,19 @@ fn bad_upload_stream_error(e: warp::Error) -> (StatusCode, String) {
 fn upload_response(message: impl Into<String>, status: StatusCode) -> warp::reply::Response {
     let message = message.into();
     warp::reply::with_status(warp::reply::json(&message), status).into_response()
+}
+
+fn valid_upload_filename(filename: &str) -> bool {
+    if filename.is_empty() || filename.contains('/') || filename.contains('\\') {
+        return false;
+    }
+
+    let mut components = Path::new(filename).components();
+
+    matches!(
+        (components.next(), components.next()),
+        (Some(std::path::Component::Normal(_)), None)
+    )
 }
 
 async fn open_upload_file(target_dir: &Path, filename: &str) -> std::io::Result<tokio::fs::File> {
