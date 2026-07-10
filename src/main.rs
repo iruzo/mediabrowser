@@ -8,7 +8,7 @@ use endpoints::download_bulk::DownloadBulkRequest;
 use endpoints::mv::MvItem;
 use endpoints::{
     handle_delete, handle_download, handle_downloads, handle_file_server, handle_list,
-    handle_mkdir, handle_mv, handle_save, handle_search, handle_upload, ui_routes,
+    handle_mkdir, handle_mv, handle_save, handle_search, handle_upload, render_routes, ui_routes,
 };
 use types::{data_dir, FileQuery, ListQuery, SearchQuery};
 
@@ -137,6 +137,7 @@ async fn main() {
         .and_then(handle_file_server);
 
     let routes = ui_routes()
+        .or(render_routes())
         .or(api_download)
         .or(api_downloads)
         .or(api_upload)

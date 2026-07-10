@@ -78,8 +78,10 @@ export PORT=30003
 ## API Endpoints
 
 ### UI Routes
-- `GET /ui` - Web interface
-- `GET /ui/*` - UI assets and client-side routes
+- `GET /ui/*` - Server-rendered web interface (gallery for directories, viewer for files)
+  - Query parameters: `sort=name|date|size|type`, `filter=all|image|video|audio|text`, `q=term` (recursive search), `offset=n` (large text files)
+- `GET /ui/assets/*` - Static UI assets (CSS, JS)
+- `POST /ui/form/save|mkdir|rename|delete|download` - Form endpoints used by the web UI
 
 ### API Routes
 - `GET /api/list?path=folder` - List directory contents as JSON for the web UI
