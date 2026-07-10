@@ -25,39 +25,57 @@ function toggleFileSelection(file, clickedElement) {
 }
 
 function updateSelectionUI() {
-  const hasSelection = selectedFiles.size > 0;
-  const selectModeBtn = document.getElementById("selectModeBtn");
+  const setButtonText = (button, label) => {
+    if (button.closest("#contextSelectionActions")) {
+      button.innerHTML = `&nbsp;&nbsp;${label}`;
+    } else {
+      button.textContent = label;
+    }
+  };
+  const selectModeBtns = [
+    document.getElementById("contextSelectModeBtn"),
+  ].filter(Boolean);
 
-  if (selectModeBtn) {
-    selectModeBtn.textContent = selectionMode
-      ? "done selecting"
-      : "select mode";
+  selectModeBtns.forEach((selectModeBtn) => {
+    setButtonText(
+      selectModeBtn,
+      selectionMode ? "done selecting" : "select mode",
+    );
     if (selectionMode) {
       selectModeBtn.classList.add("active");
     } else {
       selectModeBtn.classList.remove("active");
     }
-  }
+  });
 
-  const selectionActions = document.getElementById("selectionActions");
-  const selectAllBtn = document.getElementById("selectAllBtn");
+  const selectionActions = [
+    document.getElementById("contextSelectionActions"),
+  ].filter(Boolean);
+  const selectAllBtns = [
+    document.getElementById("contextSelectAllBtn"),
+  ].filter(Boolean);
 
-  if (selectionActions) {
+  selectionActions.forEach((actions) => {
     if (selectionMode) {
-      selectionActions.classList.remove("hidden");
+      actions.classList.remove("hidden");
     } else {
-      selectionActions.classList.add("hidden");
+      actions.classList.add("hidden");
     }
-  }
+  });
 
-  if (selectAllBtn && selectionMode) {
+  if (selectAllBtns.length > 0 && selectionMode) {
     const visibleFiles = virtualScrollData.filteredFiles.filter(
       (f) => !f.is_dir,
     );
     const allSelected =
       visibleFiles.length > 0 &&
       visibleFiles.every((f) => selectedFiles.has(f.path));
-    selectAllBtn.textContent = allSelected ? "deselect all" : "select all";
+    selectAllBtns.forEach((selectAllBtn) => {
+      setButtonText(
+        selectAllBtn,
+        allSelected ? "deselect all" : "select all",
+      );
+    });
   }
 
   updateVirtualItemsSelection();

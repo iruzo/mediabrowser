@@ -220,6 +220,6 @@
   font-size: 1.2vh;
 }
 
-body.viewer-open .toolbar-dropdown {
+body.viewer-open .search-container {
   display: none;
 }

@@ -38,7 +38,7 @@ function showCurrentMedia() {
 
   viewer.classList.add("active");
   document.body.classList.add("viewer-open");
-  document.getElementById("toolbarDropdown").classList.remove("open");
+  closeItemContextMenu();
 }
 
 function nextMedia() {

@@ -1,4 +1,6 @@
 function renderGallery(files) {
+  closeItemContextMenu();
+
   if (intersectionObserver) {
     intersectionObserver.disconnect();
   }
@@ -77,6 +79,7 @@ function initializeVirtualScroll(grid) {
 }
 
 function handleVirtualScroll() {
+  closeItemContextMenu();
   virtualScrollData.scrollPosition =
     virtualScrollData.scrollContainer.scrollTop;
   renderVisibleItems();
@@ -179,6 +182,7 @@ function createGridItem(file, index) {
   const label = file.is_dir ? `${file.name}/` : file.name;
 
   item.innerHTML = `<div class="file-name">${escapeHtml(label)}</div>`;
+  item.appendChild(createItemMenuButton());
 
   if (!hasPreview || file.is_dir) {
     item.classList.add("always-show-name");
@@ -199,6 +203,170 @@ function createGridItem(file, index) {
   }
 
   return item;
+}
+
+function createItemMenuButton() {
+  const button = document.createElement("button");
+  button.className = "item-menu-btn";
+  button.type = "button";
+  button.setAttribute("aria-label", "item menu");
+
+  button.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleItemContextMenu(button);
+  });
+
+  return button;
+}
+
+function getItemContextMenu() {
+  return document.getElementById("itemContextMenu");
+}
+
+function toggleItemContextMenu(button) {
+  const menu = getItemContextMenu();
+  if (!menu) {
+    return;
+  }
+
+  const isOpen =
+    !menu.hidden &&
+    menu.dataset.sourcePath === button.parentElement.dataset.filePath;
+
+  if (isOpen) {
+    closeItemContextMenu();
+    return;
+  }
+
+  const rect = button.getBoundingClientRect();
+  menu.dataset.sourcePath = button.parentElement.dataset.filePath;
+  menu.hidden = false;
+  menu.style.left = "0";
+  menu.style.top = "0";
+  syncItemContextMenu(menu);
+
+  const menuRect = menu.getBoundingClientRect();
+  const left = Math.min(
+    rect.right - menuRect.width,
+    window.innerWidth - menuRect.width - 4,
+  );
+  const top = Math.min(
+    rect.bottom + 4,
+    window.innerHeight - menuRect.height - 4,
+  );
+
+  menu.style.left = `${Math.max(4, left)}px`;
+  menu.style.top = `${Math.max(4, top)}px`;
+}
+
+function syncItemContextMenu(menu) {
+  const sortSelect = menu.querySelector("[data-context-sort]");
+  if (sortSelect) {
+    sortSelect.value = currentSort;
+  }
+
+  const filterSelect = menu.querySelector("[data-context-filter]");
+  if (filterSelect) {
+    filterSelect.value = currentFilter;
+  }
+}
+
+function closeItemContextMenuOnOutsideClick(target) {
+  const menu = document.getElementById("itemContextMenu");
+  if (!menu || menu.hidden || menu.contains(target)) {
+    return false;
+  }
+
+  return closeItemContextMenu();
+}
+
+function closeItemContextMenu() {
+  const menu = document.getElementById("itemContextMenu");
+  if (!menu || menu.hidden) {
+    return false;
+  }
+
+  menu.hidden = true;
+  delete menu.dataset.sourcePath;
+  return true;
+}
+
+async function deleteContextItem() {
+  const menu = document.getElementById("itemContextMenu");
+  const path = menu ? menu.dataset.sourcePath : "";
+  if (!path) {
+    return;
+  }
+
+  const file = currentFiles.find((item) => item.path === path);
+  const name = file ? file.name : path;
+  if (!confirm(`Delete ${name}?`)) {
+    return;
+  }
+
+  closeItemContextMenu();
+
+  try {
+    const response = await fetch(
+      `/api/delete?path=${encodeURIComponent(path)}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("failed to delete");
+    }
+
+    navigateToDirectory(currentPath);
+  } catch {
+    alert("Failed to delete");
+  }
+}
+
+async function renameContextItem() {
+  const menu = document.getElementById("itemContextMenu");
+  const path = menu ? menu.dataset.sourcePath : "";
+  if (!path) {
+    return;
+  }
+
+  const file = currentFiles.find((item) => item.path === path);
+  const currentName = file ? file.name : path.split("/").pop();
+  const name = prompt("New name:", currentName);
+  if (name === null) {
+    return;
+  }
+
+  const trimmedName = name.trim();
+  if (!trimmedName) {
+    return;
+  }
+
+  closeItemContextMenu();
+
+  const renamedPath = file
+    ? getRenamedPath(file, trimmedName, 0, false)
+    : path.replace(/[^/]+$/, trimmedName);
+
+  try {
+    const response = await fetch("/api/mv", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify([{ from: path, to: renamedPath }]),
+    });
+
+    if (!response.ok) {
+      throw new Error("failed to rename");
+    }
+
+    navigateToDirectory(currentPath);
+  } catch {
+    alert("Failed to rename");
+  }
 }
 
 function ensureLazyLoadObserver() {
@@ -277,6 +445,7 @@ function loadItemContent(item) {
     if (label) {
       item.appendChild(label);
     }
+    item.appendChild(createItemMenuButton());
   } else if (fileType === "video") {
     item.classList.add("file");
     return;
