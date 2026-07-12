@@ -1,22 +1,5 @@
-use serde::Deserialize;
 use std::path::{Component, Path, PathBuf};
 use std::sync::OnceLock;
-
-#[derive(Debug, Deserialize)]
-pub struct ListQuery {
-    pub path: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SearchQuery {
-    pub path: Option<String>,
-    pub query: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct FileQuery {
-    pub path: String,
-}
 
 static DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
 

@@ -4,16 +4,24 @@ use warp::Filter;
 mod endpoints;
 mod types;
 
-use endpoints::download_bulk::DownloadBulkRequest;
-use endpoints::mv::MvItem;
+use endpoints::download_bulk::DownloadsForm;
+use endpoints::find::FindQuery;
+use endpoints::mkdir::MkdirForm;
+use endpoints::mv::MvForm;
+use endpoints::rm::RmForm;
+use endpoints::write::WriteForm;
 use endpoints::{
-    handle_delete, handle_download, handle_downloads, handle_file_server, handle_list,
-    handle_mkdir, handle_mv, handle_save, handle_search, handle_upload, render_routes, ui_routes,
+    handle_download, handle_downloads, handle_file_server, handle_find, handle_mkdir, handle_mv,
+    handle_rm, handle_upload, handle_write, render_routes, ui_routes,
 };
-use types::{data_dir, FileQuery, ListQuery, SearchQuery};
+use types::data_dir;
 
 const PORT: u16 = 30003;
 const BIND_ADDR: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+const SMALL_FORM_LIMIT: u64 = 64 * 1024;
+const DOWNLOADS_FORM_LIMIT: u64 = 1024 * 1024;
+const WRITE_FORM_LIMIT: u64 = 16 * 1024 * 1024;
+const MAX_UPLOAD_SIZE: u64 = 256 * 1024 * 1024 * 1024;
 
 fn get_bind_addr() -> Ipv4Addr {
     match std::env::var("BIND_ADDR") {
@@ -80,57 +88,62 @@ async fn main() {
 
     let api_downloads = warp::path("api")
         .and(warp::path("downloads"))
+        .and(warp::path::end())
         .and(warp::post())
-        .and(warp::body::content_length_limit(1024 * 1024))
-        .and(warp::body::json::<DownloadBulkRequest>())
+        .and(warp::body::content_length_limit(DOWNLOADS_FORM_LIMIT))
+        .and(warp::body::form::<DownloadsForm>())
         .and_then(handle_downloads);
 
     let api_upload = warp::path("api")
         .and(warp::path("upload"))
+        .and(warp::path::end())
         .and(warp::post())
-        .and(warp::query::<ListQuery>())
-        .and(warp::multipart::form().max_length(1024 * 1024 * 1024 * 256)) // 256GB limit
+        .and(warp::multipart::form().max_length(MAX_UPLOAD_SIZE))
         .and_then(handle_upload);
 
-    let api_list = warp::path("api")
-        .and(warp::path("list"))
+    let api_find = warp::path("api")
+        .and(warp::path("find"))
+        .and(warp::path::end())
         .and(warp::get())
-        .and(warp::query::<ListQuery>())
-        .and_then(handle_list);
+        .and(warp::query::<FindQuery>())
+        .and_then(handle_find);
 
-    let api_search = warp::path("api")
-        .and(warp::path("search"))
-        .and(warp::get())
-        .and(warp::query::<SearchQuery>())
-        .and_then(handle_search);
-
-    let api_delete = warp::path("api")
-        .and(warp::path("delete"))
-        .and(warp::delete())
-        .and(warp::query::<FileQuery>())
-        .and_then(handle_delete);
+    let api_rm = warp::path("api")
+        .and(warp::path("rm"))
+        .and(warp::path::end())
+        .and(warp::post())
+        .and(warp::body::content_length_limit(SMALL_FORM_LIMIT))
+        .and(warp::body::form::<RmForm>())
+        .and_then(handle_rm);
 
     let api_mkdir = warp::path("api")
         .and(warp::path("mkdir"))
+        .and(warp::path::end())
         .and(warp::post())
-        .and(warp::query::<FileQuery>())
+        .and(warp::body::content_length_limit(SMALL_FORM_LIMIT))
+        .and(warp::body::form::<MkdirForm>())
         .and_then(handle_mkdir);
 
-    let api_save = warp::path("api")
-        .and(warp::path("save"))
+    let api_write = warp::path("api")
+        .and(warp::path("write"))
+        .and(warp::path::end())
         .and(warp::post())
-        .and(warp::query::<FileQuery>())
-        .and(warp::body::bytes())
-        .and_then(handle_save);
+        .and(warp::body::content_length_limit(WRITE_FORM_LIMIT))
+        .and(warp::body::form::<WriteForm>())
+        .and_then(handle_write);
 
     let api_mv = warp::path("api")
         .and(warp::path("mv"))
+        .and(warp::path::end())
         .and(warp::post())
-        .and(warp::body::content_length_limit(1024 * 1024))
-        .and(warp::body::json::<Vec<MvItem>>())
+        .and(warp::body::content_length_limit(SMALL_FORM_LIMIT))
+        .and(warp::body::form::<MvForm>())
         .and_then(handle_mv);
 
-    let favicon = warp::path("favicon.ico").and(warp::get()).map(|| "");
+    let favicon = warp::path("favicon.ico")
+        .and(warp::path::end())
+        .and(warp::get())
+        .map(|| "");
 
     let file_server = warp::path::tail()
         .and(warp::header::headers_cloned())
@@ -141,11 +154,10 @@ async fn main() {
         .or(api_download)
         .or(api_downloads)
         .or(api_upload)
-        .or(api_list)
-        .or(api_search)
-        .or(api_delete)
+        .or(api_find)
+        .or(api_rm)
         .or(api_mkdir)
-        .or(api_save)
+        .or(api_write)
         .or(api_mv)
         .or(favicon)
         .or(file_server);

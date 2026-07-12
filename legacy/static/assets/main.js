@@ -41,12 +41,10 @@ async function uploadFiles(files) {
   for (let i = 0; i < files.length; i++) {
     progress.textContent = `uploading ${i + 1}/${files.length}`;
     const body = new FormData();
+    body.append("path", dir);
     body.append("file", files[i]);
     try {
-      const response = await fetch(
-        `/api/upload?path=${encodeURIComponent(dir)}`,
-        { method: "POST", body },
-      );
+      const response = await fetch("/api/upload", { method: "POST", body });
       if (!response.ok) {
         failed.push(`${files[i].name}: ${await response.text()}`);
       }

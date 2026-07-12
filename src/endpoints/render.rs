@@ -1,9 +1,9 @@
-use crate::endpoints::delete::handle_delete;
-use crate::endpoints::download_bulk::{handle_downloads, DownloadBulkRequest};
-use crate::endpoints::mkdir::handle_mkdir;
-use crate::endpoints::mv::{handle_mv, MvItem};
-use crate::endpoints::save::handle_save;
-use crate::types::{api_path, data_path, FileQuery};
+use crate::endpoints::download_bulk::{create_tar_response, DownloadsForm};
+use crate::endpoints::mkdir::create_dirs;
+use crate::endpoints::mv::move_path;
+use crate::endpoints::rm::remove_path;
+use crate::endpoints::write::write_path;
+use crate::types::{api_path, data_path};
 use percent_encoding::{
     percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS, NON_ALPHANUMERIC,
 };
@@ -96,7 +96,7 @@ pub fn render_routes() -> warp::filters::BoxedFilter<(warp::reply::Response,)> {
     let forms = warp::path!("ui" / "form" / String)
         .and(warp::post())
         .and(warp::body::content_length_limit(FORM_MAX_SIZE))
-        .and(warp::body::bytes())
+        .and(warp::body::form::<Vec<(String, String)>>())
         .and_then(handle_form);
 
     let index = warp::path("ui")
@@ -404,9 +404,8 @@ fn file_kind(name: &str) -> &'static str {
 
 async fn handle_form(
     action: String,
-    body: bytes::Bytes,
+    fields: Vec<(String, String)>,
 ) -> Result<warp::reply::Response, Infallible> {
-    let fields = parse_form(&body);
     let paths: Vec<String> = fields
         .iter()
         .filter(|(key, _)| key == "paths")
@@ -414,41 +413,66 @@ async fn handle_form(
         .collect();
 
     match action.as_str() {
-        "download" => return handle_downloads(DownloadBulkRequest { paths }).await,
+        "download" => {
+            let form: DownloadsForm = paths
+                .into_iter()
+                .map(|path| ("path".to_string(), path))
+                .collect();
+
+            return Ok(match create_tar_response(form).await {
+                Ok(response) => response,
+                Err(error) => operation_error(error),
+            });
+        }
         "save" => {
-            if let Some(path) = field(&fields, "path") {
-                let query = FileQuery {
-                    path: path.to_string(),
-                };
-                let body = bytes::Bytes::copy_from_slice(
-                    field(&fields, "content").unwrap_or_default().as_bytes(),
-                );
-                let _ = handle_save(query, body).await;
+            let Some(path) = field(&fields, "path") else {
+                return Ok(bad_request("path is required"));
+            };
+            let content = field(&fields, "content").unwrap_or_default();
+
+            if let Err(error) = write_path(path, content.as_bytes()).await {
+                return Ok(operation_error(error));
             }
         }
         "mkdir" => {
             let dir = field(&fields, "dir").unwrap_or_default();
             let name = field(&fields, "name").unwrap_or_default();
             let name = name.trim();
-            if !name.is_empty() {
-                let rel = if dir.is_empty() {
-                    name.to_string()
-                } else {
-                    format!("{}/{}", dir, name)
-                };
-                let _ = handle_mkdir(FileQuery { path: rel }).await;
+            if name.is_empty() {
+                return Ok(bad_request("folder name is required"));
+            }
+
+            let path = if dir.is_empty() {
+                name.to_string()
+            } else {
+                format!("{}/{}", dir, name)
+            };
+            if let Err(error) = create_dirs(&path).await {
+                return Ok(operation_error(error));
             }
         }
         "rename" => {
             let name = field(&fields, "name").unwrap_or_default();
             let items = rename_items(&paths, name.trim());
-            if !items.is_empty() {
-                let _ = handle_mv(items).await;
+            if items.is_empty() {
+                return Ok(bad_request("path and name are required"));
+            }
+
+            for (from, to) in items {
+                if let Err(error) = move_path(&from, &to).await {
+                    return Ok(operation_error(error));
+                }
             }
         }
         "delete" => {
+            if paths.is_empty() {
+                return Ok(bad_request("at least one path is required"));
+            }
+
             for path in paths {
-                let _ = handle_delete(FileQuery { path }).await;
+                if let Err(error) = remove_path(&path).await {
+                    return Ok(operation_error(error));
+                }
             }
         }
         _ => {
@@ -462,7 +486,7 @@ async fn handle_form(
     Ok(redirect_response(&back_target(&fields)))
 }
 
-fn rename_items(paths: &[String], name: &str) -> Vec<MvItem> {
+fn rename_items(paths: &[String], name: &str) -> Vec<(String, String)> {
     if name.is_empty() {
         return Vec::new();
     }
@@ -499,31 +523,10 @@ fn rename_items(paths: &[String], name: &str) -> Vec<MvItem> {
             format!("{}/{}", dir, new_name)
         };
 
-        items.push(MvItem {
-            from: path.clone(),
-            to: rel,
-        });
+        items.push((path.clone(), rel));
     }
 
     items
-}
-
-fn parse_form(body: &[u8]) -> Vec<(String, String)> {
-    std::str::from_utf8(body)
-        .unwrap_or("")
-        .split('&')
-        .filter_map(|pair| {
-            let (key, value) = pair.split_once('=')?;
-            Some((form_decode(key), form_decode(value)))
-        })
-        .collect()
-}
-
-fn form_decode(value: &str) -> String {
-    let replaced = value.replace('+', " ");
-    percent_decode_str(&replaced)
-        .decode_utf8_lossy()
-        .into_owned()
 }
 
 fn field<'a>(fields: &'a [(String, String)], name: &str) -> Option<&'a str> {
@@ -531,6 +534,14 @@ fn field<'a>(fields: &'a [(String, String)], name: &str) -> Option<&'a str> {
         .iter()
         .find(|(key, _)| key == name)
         .map(|(_, value)| value.as_str())
+}
+
+fn bad_request(message: &str) -> warp::reply::Response {
+    warp::reply::with_status(message.to_string(), StatusCode::BAD_REQUEST).into_response()
+}
+
+fn operation_error(error: (StatusCode, String)) -> warp::reply::Response {
+    warp::reply::with_status(error.1, error.0).into_response()
 }
 
 fn back_target(fields: &[(String, String)]) -> String {

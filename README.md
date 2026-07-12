@@ -84,13 +84,13 @@ export PORT=30003
 - `POST /ui/form/save|mkdir|rename|delete|download` - Form endpoints used by the web UI
 
 ### API Routes
-- `GET /api/list?path=folder` - List directory contents as JSON for the web UI
-- `GET /api/search?path=folder&query=name` - Search files and directories recursively as JSON for the web UI
-- `POST /api/upload?path=folder` - Upload files (multipart form, 256GB limit)
-- `POST /api/downloads` - Download multiple files/directories as TAR using JSON body `{ "paths": ["file1", "dir/file2"] }`
-- `DELETE /api/delete?path=file` - Delete file/directory
-- `POST /api/mkdir?path=newfolder` - Create directory
-- `POST /api/mv` - Move or rename files/directories using JSON body `[{"from":"old","to":"new"}]`
+- `GET /api/find?path=folder&query=name` - Recursively list or search paths as JSON strings; directories end with `/`
+- `POST /api/upload` - Upload files using multipart `path` and `file` fields (256GB limit)
+- `POST /api/downloads` - Stream selected paths as TAR using repeated URL-encoded `path` fields
+- `POST /api/rm` - Remove a file or directory using a URL-encoded `path` field
+- `POST /api/mkdir` - Recursively create a directory using a URL-encoded `path` field
+- `POST /api/write` - Create or replace a UTF-8 text file using URL-encoded `path` and `content` fields
+- `POST /api/mv` - Move one path using URL-encoded `from` and `to` fields
 - `GET /api/download/path/to/file` - Download single file
 
 ### Apache httpd Routes (Root)

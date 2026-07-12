@@ -9,6 +9,7 @@
 !README.md
 !assets/
 !docker-compose.yml
+!legacy/
 !src/
 !static/
 !scripts/
