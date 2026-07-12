@@ -2,8 +2,8 @@ use crate::types::{api_path, data_path, ListQuery};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use std::convert::Infallible;
+use std::path::Path;
 use std::time::UNIX_EPOCH;
-use tokio::fs;
 use warp::http::StatusCode;
 use warp::Reply;
 
@@ -25,9 +25,9 @@ pub async fn handle_list(query: ListQuery) -> Result<warp::reply::Response, Infa
         );
     };
 
-    let mut entries = match fs::read_dir(&dir_path).await {
-        Ok(entries) => entries,
-        Err(_) => {
+    let items = match tokio::task::spawn_blocking(move || read_items(&dir_path)).await {
+        Ok(Ok(items)) => items,
+        _ => {
             return Ok(
                 warp::reply::with_status("Cannot read directory", StatusCode::NOT_FOUND)
                     .into_response(),
@@ -35,10 +35,15 @@ pub async fn handle_list(query: ListQuery) -> Result<warp::reply::Response, Infa
         }
     };
 
+    Ok(warp::reply::json(&items).into_response())
+}
+
+fn read_items(dir_path: &Path) -> std::io::Result<Vec<ListItem>> {
+    let entries = std::fs::read_dir(dir_path)?;
     let mut items = Vec::new();
 
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        let metadata = match entry.metadata().await {
+    for entry in entries.flatten() {
+        let metadata = match entry.metadata() {
             Ok(metadata) => metadata,
             Err(_) => continue,
         };
@@ -67,7 +72,7 @@ pub async fn handle_list(query: ListQuery) -> Result<warp::reply::Response, Infa
         _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
 
-    Ok(warp::reply::json(&items).into_response())
+    Ok(items)
 }
 
 fn modified_millis(metadata: &std::fs::Metadata) -> u64 {

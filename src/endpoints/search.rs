@@ -3,6 +3,7 @@ use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use std::cmp::Ordering;
 use std::convert::Infallible;
+use std::path::Path;
 use std::time::UNIX_EPOCH;
 use walkdir::WalkDir;
 use warp::http::StatusCode;
@@ -41,16 +42,27 @@ pub async fn handle_search(query: SearchQuery) -> Result<warp::reply::Response, 
         return Ok(warp::reply::json(&items).into_response());
     }
 
+    let items = match tokio::task::spawn_blocking(move || search_items(&dir_path, &terms)).await {
+        Ok(Some(items)) => items,
+        _ => {
+            return Ok(
+                warp::reply::with_status("Cannot read directory", StatusCode::NOT_FOUND)
+                    .into_response(),
+            );
+        }
+    };
+
+    Ok(warp::reply::json(&items).into_response())
+}
+
+fn search_items(dir_path: &Path, terms: &[String]) -> Option<Vec<SearchItem>> {
     if !dir_path.is_dir() {
-        return Ok(
-            warp::reply::with_status("Cannot read directory", StatusCode::NOT_FOUND)
-                .into_response(),
-        );
+        return None;
     }
 
     let mut items = Vec::new();
 
-    for entry in WalkDir::new(&dir_path)
+    for entry in WalkDir::new(dir_path)
         .min_depth(1)
         .follow_links(false)
         .into_iter()
@@ -58,7 +70,7 @@ pub async fn handle_search(query: SearchQuery) -> Result<warp::reply::Response, 
     {
         let path = entry.path();
         let relative = path
-            .strip_prefix(&dir_path)
+            .strip_prefix(dir_path)
             .ok()
             .map(|value| value.to_string_lossy().to_lowercase())
             .unwrap_or_default();
@@ -100,5 +112,5 @@ pub async fn handle_search(query: SearchQuery) -> Result<warp::reply::Response, 
         _ => a.path.to_lowercase().cmp(&b.path.to_lowercase()),
     });
 
-    Ok(warp::reply::json(&items).into_response())
+    Some(items)
 }

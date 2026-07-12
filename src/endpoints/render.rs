@@ -1,5 +1,9 @@
+use crate::endpoints::delete::handle_delete;
 use crate::endpoints::download_bulk::{handle_downloads, DownloadBulkRequest};
-use crate::types::{api_path, data_path};
+use crate::endpoints::mkdir::handle_mkdir;
+use crate::endpoints::mv::{handle_mv, MvItem};
+use crate::endpoints::save::handle_save;
+use crate::types::{api_path, data_path, FileQuery};
 use percent_encoding::{
     percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS, NON_ALPHANUMERIC,
 };
@@ -412,9 +416,14 @@ async fn handle_form(
     match action.as_str() {
         "download" => return handle_downloads(DownloadBulkRequest { paths }).await,
         "save" => {
-            if let Some(target) = field(&fields, "path").and_then(data_path) {
-                let content = field(&fields, "content").unwrap_or_default();
-                let _ = fs::write(&target, content).await;
+            if let Some(path) = field(&fields, "path") {
+                let query = FileQuery {
+                    path: path.to_string(),
+                };
+                let body = bytes::Bytes::copy_from_slice(
+                    field(&fields, "content").unwrap_or_default().as_bytes(),
+                );
+                let _ = handle_save(query, body).await;
             }
         }
         "mkdir" => {
@@ -427,25 +436,19 @@ async fn handle_form(
                 } else {
                     format!("{}/{}", dir, name)
                 };
-                if let Some(target) = data_path(&rel) {
-                    let _ = fs::create_dir_all(&target).await;
-                }
+                let _ = handle_mkdir(FileQuery { path: rel }).await;
             }
         }
         "rename" => {
             let name = field(&fields, "name").unwrap_or_default();
-            rename_paths(&paths, name.trim()).await;
+            let items = rename_items(&paths, name.trim());
+            if !items.is_empty() {
+                let _ = handle_mv(items).await;
+            }
         }
         "delete" => {
-            for path in &paths {
-                let Some(target) = data_path(path) else {
-                    continue;
-                };
-                if target.is_dir() {
-                    let _ = fs::remove_dir_all(&target).await;
-                } else {
-                    let _ = fs::remove_file(&target).await;
-                }
+            for path in paths {
+                let _ = handle_delete(FileQuery { path }).await;
             }
         }
         _ => {
@@ -459,12 +462,13 @@ async fn handle_form(
     Ok(redirect_response(&back_target(&fields)))
 }
 
-async fn rename_paths(paths: &[String], name: &str) {
+fn rename_items(paths: &[String], name: &str) -> Vec<MvItem> {
     if name.is_empty() {
-        return;
+        return Vec::new();
     }
 
     let multiple = paths.len() > 1;
+    let mut items = Vec::with_capacity(paths.len());
 
     for (index, path) in paths.iter().enumerate() {
         let Some(source) = data_path(path) else {
@@ -495,11 +499,13 @@ async fn rename_paths(paths: &[String], name: &str) {
             format!("{}/{}", dir, new_name)
         };
 
-        let Some(target) = data_path(&rel) else {
-            continue;
-        };
-        let _ = fs::rename(&source, &target).await;
+        items.push(MvItem {
+            from: path.clone(),
+            to: rel,
+        });
     }
+
+    items
 }
 
 fn parse_form(body: &[u8]) -> Vec<(String, String)> {
