@@ -11,7 +11,7 @@ const MAX_PATH_SIZE: usize = 4096;
 const MAX_QUERY_SIZE: usize = 4096;
 const MAX_SEARCH_RESULTS: usize = 500;
 
-type FindResult<T> = Result<T, (StatusCode, String)>;
+pub(crate) type FindResult<T> = Result<T, (StatusCode, String)>;
 
 #[derive(Deserialize)]
 pub struct FindQuery {
@@ -28,7 +28,7 @@ pub async fn handle_find(query: FindQuery) -> Result<warp::reply::Response, Infa
     Ok(response)
 }
 
-async fn find(path: Option<&str>, query: Option<&str>) -> FindResult<Vec<String>> {
+pub(crate) async fn find(path: Option<&str>, query: Option<&str>) -> FindResult<Vec<String>> {
     let (path, root) = resolve_directory(path).await?;
     let query = query.unwrap_or_default().trim();
 

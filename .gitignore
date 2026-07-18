@@ -8,8 +8,8 @@
 !LICENSE
 !README.md
 !assets/
+!doc/
 !docker-compose.yml
 !legacy/
 !src/
-!static/
 !scripts/

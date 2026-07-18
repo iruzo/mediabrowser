@@ -25,11 +25,3 @@ pub fn data_path(path: &str) -> Option<PathBuf> {
 
     Some(data_dir().join(path))
 }
-
-pub fn api_path(path: &Path) -> String {
-    path.strip_prefix(data_dir())
-        .unwrap_or(path)
-        .to_string_lossy()
-        .trim_start_matches('/')
-        .to_string()
-}

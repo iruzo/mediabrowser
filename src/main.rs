@@ -4,6 +4,7 @@ use warp::Filter;
 mod endpoints;
 mod types;
 
+use endpoints::cp::CpForm;
 use endpoints::download_bulk::DownloadsForm;
 use endpoints::find::FindQuery;
 use endpoints::mkdir::MkdirForm;
@@ -11,8 +12,8 @@ use endpoints::mv::MvForm;
 use endpoints::rm::RmForm;
 use endpoints::write::WriteForm;
 use endpoints::{
-    handle_download, handle_downloads, handle_file_server, handle_find, handle_mkdir, handle_mv,
-    handle_rm, handle_upload, handle_write, render_routes, ui_routes,
+    handle_cp, handle_download, handle_downloads, handle_file_server, handle_find, handle_mkdir,
+    handle_mv, handle_rm, handle_upload, handle_write,
 };
 use types::data_dir;
 
@@ -140,6 +141,14 @@ async fn main() {
         .and(warp::body::form::<MvForm>())
         .and_then(handle_mv);
 
+    let api_cp = warp::path("api")
+        .and(warp::path("cp"))
+        .and(warp::path::end())
+        .and(warp::post())
+        .and(warp::body::content_length_limit(SMALL_FORM_LIMIT))
+        .and(warp::body::form::<CpForm>())
+        .and_then(handle_cp);
+
     let favicon = warp::path("favicon.ico")
         .and(warp::path::end())
         .and(warp::get())
@@ -149,9 +158,7 @@ async fn main() {
         .and(warp::header::headers_cloned())
         .and_then(handle_file_server);
 
-    let routes = ui_routes()
-        .or(render_routes())
-        .or(api_download)
+    let routes = api_download
         .or(api_downloads)
         .or(api_upload)
         .or(api_find)
@@ -159,11 +166,11 @@ async fn main() {
         .or(api_mkdir)
         .or(api_write)
         .or(api_mv)
+        .or(api_cp)
         .or(favicon)
         .or(file_server);
 
     println!("Server starting on http://{}:{}", bind_addr, port);
-    println!("UI available at: http://{}:{}/ui", bind_addr, port);
     println!("Serving files from: {}", data_dir().display());
 
     warp::serve(routes)

@@ -1,5 +1,5 @@
 <h3 align="center">
-    A simple, lightweight web-based file browser
+    A simple, lightweight file server
 </h3>
 
 <div align="center">
@@ -9,12 +9,10 @@
 ## Features
 
 - **Apache-style HTTP file serving** - Pure httpd server at root path, compatible with standard tools
-- **Enhanced UI** - Simple file browser at `/ui`
 - **Upload support** - Upload files up to 256GB
 - **TAR downloads** - Download multiple files and directories as TAR
-- **File management** - Create folders, delete, modify and upload files
-- **File preview** - View images, videos, audio, and text files
-- **Recursive search** - Search files and directories recursively from the current UI path
+- **File management** - Create folders, copy, move, delete, modify and upload files
+- **Recursive search** - Search files and directories recursively from any path
 
 ## Usage
 
@@ -25,12 +23,6 @@ cargo run
 ```
 
 The application runs on **port 30003** with:
-
-- **UI at `/ui`**: `http://localhost:30003/ui`
-  - Examples:
-    - `http://localhost:30003/ui/` - Root directory in UI
-    - `http://localhost:30003/ui/folder/` - Browse folder in UI
-    - `http://localhost:30003/ui/folder/file.mp4` - View/play file in UI
 
 - **Apache like httpd at root**: `http://localhost:30003/`
   - Examples:
@@ -77,11 +69,8 @@ export PORT=30003
 
 ## API Endpoints
 
-### UI Routes
-- `GET /ui/*` - Server-rendered web interface (gallery for directories, viewer for files)
-  - Query parameters: `sort=name|date|size|type`, `filter=all|image|video|audio|text`, `q=term` (recursive search), `offset=n` (large text files)
-- `GET /ui/assets/*` - Static UI assets (CSS, JS)
-- `POST /ui/form/save|mkdir|rename|delete|download` - Form endpoints used by the web UI
+Each endpoint is documented with a curl example in
+[doc/endpoints/](./doc/endpoints/).
 
 ### API Routes
 - `GET /api/find?path=folder&query=name` - Recursively list or search paths as JSON strings; directories end with `/`
@@ -91,6 +80,7 @@ export PORT=30003
 - `POST /api/mkdir` - Recursively create a directory using a URL-encoded `path` field
 - `POST /api/write` - Create or replace a UTF-8 text file using URL-encoded `path` and `content` fields
 - `POST /api/mv` - Move one path using URL-encoded `from` and `to` fields
+- `POST /api/cp` - Copy one file or directory using URL-encoded `from` and `to` fields
 - `GET /api/download/path/to/file` - Download single file
 
 ### Apache httpd Routes (Root)

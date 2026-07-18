@@ -1,23 +1,21 @@
+pub mod cp;
 pub mod download;
 pub mod download_bulk;
 pub mod file_server;
 pub mod find;
 pub mod mkdir;
 pub mod mv;
-pub mod render;
 pub mod rm;
-pub mod ui;
 pub mod upload;
 pub mod write;
 
+pub use cp::handle_cp;
 pub use download::handle_download;
 pub use download_bulk::handle_downloads;
 pub use file_server::handle_file_server;
 pub use find::handle_find;
 pub use mkdir::handle_mkdir;
 pub use mv::handle_mv;
-pub use render::render_routes;
 pub use rm::handle_rm;
-pub use ui::ui_routes;
 pub use upload::handle_upload;
 pub use write::handle_write;
