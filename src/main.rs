@@ -1,7 +1,17 @@
+use bytes::Bytes;
+use http_body_util::BodyExt;
+use hyper::body::Incoming;
+use hyper::http::{Method, Request, StatusCode};
+use hyper::service::service_fn;
+use hyper_util::rt::TokioIo;
+use hyper_util::server::graceful::GracefulShutdown;
+use std::convert::Infallible;
 use std::net::Ipv4Addr;
-use warp::Filter;
+use std::pin::pin;
+use tokio::net::TcpListener;
 
 mod endpoints;
+mod response;
 mod types;
 
 use endpoints::cp::CpForm;
@@ -15,14 +25,14 @@ use endpoints::{
     handle_cp, handle_download, handle_downloads, handle_file_server, handle_find, handle_mkdir,
     handle_mv, handle_rm, handle_upload, handle_write,
 };
+use response::Response;
 use types::data_dir;
 
 const PORT: u16 = 30003;
 const BIND_ADDR: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
-const SMALL_FORM_LIMIT: u64 = 64 * 1024;
-const DOWNLOADS_FORM_LIMIT: u64 = 1024 * 1024;
-const WRITE_FORM_LIMIT: u64 = 16 * 1024 * 1024;
-const MAX_UPLOAD_SIZE: u64 = 256 * 1024 * 1024 * 1024;
+const SMALL_FORM_LIMIT: usize = 64 * 1024;
+const DOWNLOADS_FORM_LIMIT: usize = 1024 * 1024;
+const WRITE_FORM_LIMIT: usize = 16 * 1024 * 1024;
 
 fn get_bind_addr() -> Ipv4Addr {
     match std::env::var("BIND_ADDR") {
@@ -76,105 +86,139 @@ async fn shutdown_signal() {
     println!("Shutdown signal received, stopping server gracefully...");
 }
 
+async fn read_body(mut body: Incoming, limit: usize) -> Result<Bytes, Response> {
+    let mut data = Vec::new();
+
+    while let Some(frame) = body.frame().await {
+        let frame = frame.map_err(|error| {
+            response::text(
+                StatusCode::BAD_REQUEST,
+                format!("Failed to read request body: {error}"),
+            )
+        })?;
+
+        if let Ok(chunk) = frame.into_data() {
+            if data.len() + chunk.len() > limit {
+                return Err(response::text(
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    "request body is too large",
+                ));
+            }
+            data.extend_from_slice(&chunk);
+        }
+    }
+
+    Ok(Bytes::from(data))
+}
+
+async fn read_form<T: serde::de::DeserializeOwned>(
+    body: Incoming,
+    limit: usize,
+) -> Result<T, Response> {
+    let bytes = read_body(body, limit).await?;
+
+    serde_urlencoded::from_bytes(&bytes)
+        .map_err(|error| response::text(StatusCode::BAD_REQUEST, format!("invalid form: {error}")))
+}
+
+async fn route(request: Request<Incoming>) -> Response {
+    let (parts, body) = request.into_parts();
+    let path = parts.uri.path();
+
+    if let Some(tail) = path.strip_prefix("/api/download/") {
+        if parts.method == Method::GET {
+            return handle_download(tail).await;
+        }
+    }
+
+    match (&parts.method, path) {
+        (&Method::GET, "/api/find") => {
+            match serde_urlencoded::from_str::<FindQuery>(parts.uri.query().unwrap_or_default()) {
+                Ok(query) => handle_find(query).await,
+                Err(error) => {
+                    response::text(StatusCode::BAD_REQUEST, format!("invalid query: {error}"))
+                }
+            }
+        }
+        (&Method::POST, "/api/downloads") => {
+            match read_form::<DownloadsForm>(body, DOWNLOADS_FORM_LIMIT).await {
+                Ok(form) => handle_downloads(form).await,
+                Err(response) => response,
+            }
+        }
+        (&Method::POST, "/api/upload") => {
+            let content_type = parts
+                .headers
+                .get("content-type")
+                .and_then(|value| value.to_str().ok())
+                .unwrap_or_default();
+
+            handle_upload(content_type, body).await
+        }
+        (&Method::POST, "/api/rm") => match read_form::<RmForm>(body, SMALL_FORM_LIMIT).await {
+            Ok(form) => handle_rm(form).await,
+            Err(response) => response,
+        },
+        (&Method::POST, "/api/mkdir") => {
+            match read_form::<MkdirForm>(body, SMALL_FORM_LIMIT).await {
+                Ok(form) => handle_mkdir(form).await,
+                Err(response) => response,
+            }
+        }
+        (&Method::POST, "/api/write") => {
+            match read_form::<WriteForm>(body, WRITE_FORM_LIMIT).await {
+                Ok(form) => handle_write(form).await,
+                Err(response) => response,
+            }
+        }
+        (&Method::POST, "/api/mv") => match read_form::<MvForm>(body, SMALL_FORM_LIMIT).await {
+            Ok(form) => handle_mv(form).await,
+            Err(response) => response,
+        },
+        (&Method::POST, "/api/cp") => match read_form::<CpForm>(body, SMALL_FORM_LIMIT).await {
+            Ok(form) => handle_cp(form).await,
+            Err(response) => response,
+        },
+        (&Method::GET, "/favicon.ico") => response::status(StatusCode::OK),
+        _ => handle_file_server(path.trim_start_matches('/'), &parts.headers).await,
+    }
+}
+
+async fn serve(request: Request<Incoming>) -> Result<Response, Infallible> {
+    Ok(route(request).await)
+}
+
 #[tokio::main]
 async fn main() {
     let bind_addr = get_bind_addr();
     let port = get_port();
-
-    let api_download = warp::path("api")
-        .and(warp::path("download"))
-        .and(warp::get())
-        .and(warp::path::tail())
-        .and_then(handle_download);
-
-    let api_downloads = warp::path("api")
-        .and(warp::path("downloads"))
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::body::content_length_limit(DOWNLOADS_FORM_LIMIT))
-        .and(warp::body::form::<DownloadsForm>())
-        .and_then(handle_downloads);
-
-    let api_upload = warp::path("api")
-        .and(warp::path("upload"))
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::multipart::form().max_length(MAX_UPLOAD_SIZE))
-        .and_then(handle_upload);
-
-    let api_find = warp::path("api")
-        .and(warp::path("find"))
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query::<FindQuery>())
-        .and_then(handle_find);
-
-    let api_rm = warp::path("api")
-        .and(warp::path("rm"))
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::body::content_length_limit(SMALL_FORM_LIMIT))
-        .and(warp::body::form::<RmForm>())
-        .and_then(handle_rm);
-
-    let api_mkdir = warp::path("api")
-        .and(warp::path("mkdir"))
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::body::content_length_limit(SMALL_FORM_LIMIT))
-        .and(warp::body::form::<MkdirForm>())
-        .and_then(handle_mkdir);
-
-    let api_write = warp::path("api")
-        .and(warp::path("write"))
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::body::content_length_limit(WRITE_FORM_LIMIT))
-        .and(warp::body::form::<WriteForm>())
-        .and_then(handle_write);
-
-    let api_mv = warp::path("api")
-        .and(warp::path("mv"))
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::body::content_length_limit(SMALL_FORM_LIMIT))
-        .and(warp::body::form::<MvForm>())
-        .and_then(handle_mv);
-
-    let api_cp = warp::path("api")
-        .and(warp::path("cp"))
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::body::content_length_limit(SMALL_FORM_LIMIT))
-        .and(warp::body::form::<CpForm>())
-        .and_then(handle_cp);
-
-    let favicon = warp::path("favicon.ico")
-        .and(warp::path::end())
-        .and(warp::get())
-        .map(|| "");
-
-    let file_server = warp::path::tail()
-        .and(warp::header::headers_cloned())
-        .and_then(handle_file_server);
-
-    let routes = api_download
-        .or(api_downloads)
-        .or(api_upload)
-        .or(api_find)
-        .or(api_rm)
-        .or(api_mkdir)
-        .or(api_write)
-        .or(api_mv)
-        .or(api_cp)
-        .or(favicon)
-        .or(file_server);
+    let listener = TcpListener::bind((bind_addr, port))
+        .await
+        .expect("failed to bind server address");
 
     println!("Server starting on http://{}:{}", bind_addr, port);
     println!("Serving files from: {}", data_dir().display());
 
-    warp::serve(routes)
-        .bind_with_graceful_shutdown((bind_addr.octets(), port), shutdown_signal())
-        .1
-        .await;
+    let graceful = GracefulShutdown::new();
+    let mut shutdown = pin!(shutdown_signal());
+
+    loop {
+        tokio::select! {
+            accepted = listener.accept() => {
+                let Ok((stream, _)) = accepted else {
+                    continue;
+                };
+                let connection = hyper::server::conn::http1::Builder::new()
+                    .serve_connection(TokioIo::new(stream), service_fn(serve));
+                let connection = graceful.watch(connection);
+
+                tokio::spawn(async move {
+                    let _ = connection.await;
+                });
+            }
+            _ = &mut shutdown => break,
+        }
+    }
+
+    graceful.shutdown().await;
 }

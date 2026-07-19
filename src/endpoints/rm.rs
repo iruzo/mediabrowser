@@ -1,11 +1,9 @@
+use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
+use hyper::http::StatusCode;
 use serde::Deserialize;
-use std::convert::Infallible;
 use std::path::PathBuf;
 use tokio::fs;
-use warp::http::StatusCode;
-use warp::hyper::Body;
-use warp::Reply;
 
 const MAX_PATH_SIZE: usize = 4096;
 
@@ -16,16 +14,11 @@ pub struct RmForm {
     path: String,
 }
 
-pub async fn handle_rm(form: RmForm) -> Result<warp::reply::Response, Infallible> {
-    let response = match remove_path(&form.path).await {
-        Ok(()) => warp::http::Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::empty())
-            .unwrap(),
-        Err((status, message)) => warp::reply::with_status(message, status).into_response(),
-    };
-
-    Ok(response)
+pub async fn handle_rm(form: RmForm) -> Response {
+    match remove_path(&form.path).await {
+        Ok(()) => response::status(StatusCode::OK),
+        Err((status, message)) => response::text(status, message),
+    }
 }
 
 pub(crate) async fn remove_path(path: &str) -> RmResult<()> {
@@ -93,7 +86,7 @@ fn remove_error(error: std::io::Error) -> (StatusCode, String) {
 #[cfg(test)]
 mod tests {
     use super::{rm_path, MAX_PATH_SIZE};
-    use warp::http::StatusCode;
+    use hyper::http::StatusCode;
 
     #[test]
     fn validates_rm_paths() {

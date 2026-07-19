@@ -1,12 +1,10 @@
+use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
+use hyper::http::StatusCode;
 use serde::Deserialize;
-use std::convert::Infallible;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
-use warp::http::StatusCode;
-use warp::hyper::Body;
-use warp::Reply;
 
 const MAX_PATH_SIZE: usize = 4096;
 
@@ -18,16 +16,11 @@ pub struct WriteForm {
     content: String,
 }
 
-pub async fn handle_write(form: WriteForm) -> Result<warp::reply::Response, Infallible> {
-    let response = match write_path(&form.path, form.content.as_bytes()).await {
-        Ok(()) => warp::http::Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::empty())
-            .unwrap(),
-        Err((status, message)) => warp::reply::with_status(message, status).into_response(),
-    };
-
-    Ok(response)
+pub async fn handle_write(form: WriteForm) -> Response {
+    match write_path(&form.path, form.content.as_bytes()).await {
+        Ok(()) => response::status(StatusCode::OK),
+        Err((status, message)) => response::text(status, message),
+    }
 }
 
 pub(crate) async fn write_path(path: &str, content: &[u8]) -> WriteResult<()> {
@@ -180,7 +173,7 @@ fn write_error(error: std::io::Error) -> (StatusCode, String) {
 #[cfg(test)]
 mod tests {
     use super::{file_path, MAX_PATH_SIZE};
-    use warp::http::StatusCode;
+    use hyper::http::StatusCode;
 
     #[test]
     fn validates_write_paths() {

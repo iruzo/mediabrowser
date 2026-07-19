@@ -4,10 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio = { version = "1.0", default-features = false, features = ["rt-multi-thread", "macros", "fs", "io-util", "signal", "sync"] }
+tokio = { version = "1.0", default-features = false, features = ["rt-multi-thread", "macros", "fs", "io-util", "net", "signal", "sync"] }
 tokio-util = { version = "0.7", default-features = false, features = ["io"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
-warp = { version = "0.3", default-features = false, features = ["multipart"] }
+serde_urlencoded = "0.7"
+hyper = { version = "1", default-features = false, features = ["http1", "server"] }
+hyper-util = { version = "0.1", default-features = false, features = ["http1", "server", "server-graceful", "tokio"] }
+http-body-util = "0.1"
+multer = { version = "3", default-features = false }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 mime_guess = { version = "2.0", default-features = false }
 percent-encoding = { version = "2.3", default-features = false, features = ["alloc"] }

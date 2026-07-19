@@ -1,11 +1,9 @@
+use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
+use hyper::http::StatusCode;
 use serde::Deserialize;
-use std::convert::Infallible;
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use warp::http::StatusCode;
-use warp::hyper::Body;
-use warp::Reply;
 
 const MAX_PATH_SIZE: usize = 4096;
 
@@ -17,16 +15,11 @@ pub struct MvForm {
     to: String,
 }
 
-pub async fn handle_mv(form: MvForm) -> Result<warp::reply::Response, Infallible> {
-    let response = match move_path(&form.from, &form.to).await {
-        Ok(()) => warp::http::Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::empty())
-            .unwrap(),
-        Err((status, message)) => warp::reply::with_status(message, status).into_response(),
-    };
-
-    Ok(response)
+pub async fn handle_mv(form: MvForm) -> Response {
+    match move_path(&form.from, &form.to).await {
+        Ok(()) => response::status(StatusCode::OK),
+        Err((status, message)) => response::text(status, message),
+    }
 }
 
 pub(crate) async fn move_path(from: &str, to: &str) -> MvResult<()> {
@@ -136,7 +129,7 @@ fn move_error(error: std::io::Error) -> (StatusCode, String) {
 #[cfg(test)]
 mod tests {
     use super::{mv_path, MAX_PATH_SIZE};
-    use warp::http::StatusCode;
+    use hyper::http::StatusCode;
 
     #[test]
     fn validates_mv_paths() {

@@ -1,11 +1,9 @@
+use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
+use hyper::http::StatusCode;
 use serde::Deserialize;
-use std::convert::Infallible;
 use std::path::PathBuf;
 use tokio::fs;
-use warp::http::StatusCode;
-use warp::hyper::Body;
-use warp::Reply;
 
 type MkdirResult<T> = Result<T, (StatusCode, String)>;
 
@@ -14,16 +12,11 @@ pub struct MkdirForm {
     path: String,
 }
 
-pub async fn handle_mkdir(form: MkdirForm) -> Result<warp::reply::Response, Infallible> {
-    let response = match create_dirs(&form.path).await {
-        Ok(()) => warp::http::Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::empty())
-            .unwrap(),
-        Err((status, message)) => warp::reply::with_status(message, status).into_response(),
-    };
-
-    Ok(response)
+pub async fn handle_mkdir(form: MkdirForm) -> Response {
+    match create_dirs(&form.path).await {
+        Ok(()) => response::status(StatusCode::OK),
+        Err((status, message)) => response::text(status, message),
+    }
 }
 
 pub(crate) async fn create_dirs(path: &str) -> MkdirResult<()> {

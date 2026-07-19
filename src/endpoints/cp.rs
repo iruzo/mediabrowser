@@ -1,12 +1,10 @@
+use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
+use hyper::http::StatusCode;
 use serde::Deserialize;
-use std::convert::Infallible;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use walkdir::WalkDir;
-use warp::http::StatusCode;
-use warp::hyper::Body;
-use warp::Reply;
 
 const MAX_PATH_SIZE: usize = 4096;
 
@@ -18,16 +16,11 @@ pub struct CpForm {
     to: String,
 }
 
-pub async fn handle_cp(form: CpForm) -> Result<warp::reply::Response, Infallible> {
-    let response = match copy_path(&form.from, &form.to).await {
-        Ok(()) => warp::http::Response::builder()
-            .status(StatusCode::OK)
-            .body(Body::empty())
-            .unwrap(),
-        Err((status, message)) => warp::reply::with_status(message, status).into_response(),
-    };
-
-    Ok(response)
+pub async fn handle_cp(form: CpForm) -> Response {
+    match copy_path(&form.from, &form.to).await {
+        Ok(()) => response::status(StatusCode::OK),
+        Err((status, message)) => response::text(status, message),
+    }
 }
 
 pub(crate) async fn copy_path(from: &str, to: &str) -> CpResult<()> {
@@ -175,7 +168,7 @@ fn walk_error(error: walkdir::Error) -> (StatusCode, String) {
 #[cfg(test)]
 mod tests {
     use super::{cp_path, MAX_PATH_SIZE};
-    use warp::http::StatusCode;
+    use hyper::http::StatusCode;
 
     #[test]
     fn validates_cp_paths() {

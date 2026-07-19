@@ -1,15 +1,13 @@
+use crate::response::{self, Response};
 use crate::types::data_path;
+use hyper::http::{HeaderMap, StatusCode};
 use mime_guess::from_path;
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
-use std::convert::Infallible;
 use std::fmt::Write as _;
 use std::path::Path;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
-use warp::http::HeaderMap;
-use warp::hyper::Body;
-use warp::{http::StatusCode, Reply};
 
 // Encode only characters that are not allowed in URL paths (similar to Apache)
 const PATH_SEGMENT: &AsciiSet = &CONTROLS
@@ -29,38 +27,28 @@ struct DirectoryItem {
     is_dir: bool,
 }
 
-pub async fn handle_file_server(
-    path: warp::path::Tail,
-    headers: HeaderMap,
-) -> Result<impl warp::Reply, Infallible> {
-    let requested_path = path.as_str();
+pub async fn handle_file_server(requested_path: &str, headers: &HeaderMap) -> Response {
     let decoded_path = percent_decode_str(requested_path).decode_utf8_lossy();
 
     let Some(file_path) = data_path(decoded_path.as_ref()) else {
-        return Ok(
-            warp::reply::with_status("Access denied", StatusCode::FORBIDDEN).into_response(),
-        );
+        return response::text(StatusCode::FORBIDDEN, "Access denied");
     };
 
     let metadata = match fs::metadata(&file_path).await {
         Ok(metadata) => metadata,
         Err(_) => {
-            return Ok(warp::reply::with_status("Not found", StatusCode::NOT_FOUND).into_response());
+            return response::text(StatusCode::NOT_FOUND, "Not found");
         }
     };
 
     if metadata.is_dir() {
         serve_directory(&file_path, requested_path).await
     } else {
-        serve_file(&file_path, &headers, metadata.len()).await
+        serve_file(&file_path, headers, metadata.len()).await
     }
 }
 
-async fn serve_file(
-    file_path: &Path,
-    headers: &HeaderMap,
-    file_size: u64,
-) -> Result<warp::reply::Response, Infallible> {
+async fn serve_file(file_path: &Path, headers: &HeaderMap, file_size: u64) -> Response {
     let mime_type = from_path(file_path).first_or_octet_stream().to_string();
 
     // Check for Range header
@@ -76,22 +64,19 @@ async fn serve_file(
     let file = match fs::File::open(file_path).await {
         Ok(f) => f,
         Err(_) => {
-            return Ok(
-                warp::reply::with_status("File not found", StatusCode::NOT_FOUND).into_response(),
-            );
+            return response::text(StatusCode::NOT_FOUND, "File not found");
         }
     };
 
-    let stream = ReaderStream::new(file);
-    let body = Body::wrap_stream(stream);
+    let body = response::stream(ReaderStream::new(file));
 
-    Ok(warp::http::Response::builder()
+    hyper::http::Response::builder()
         .status(StatusCode::OK)
         .header("content-type", mime_type)
         .header("accept-ranges", "bytes")
         .header("content-length", file_size.to_string())
         .body(body)
-        .unwrap())
+        .expect("valid file response")
 }
 
 fn parse_range(range_str: &str, file_size: u64) -> Option<(u64, u64)> {
@@ -140,55 +125,42 @@ async fn serve_file_range(
     range: (u64, u64),
     file_size: u64,
     mime_type: &str,
-) -> Result<warp::reply::Response, Infallible> {
+) -> Response {
     let (start, end) = range;
     let content_length = end - start + 1;
 
     let mut file = match fs::File::open(file_path).await {
         Ok(f) => f,
         Err(_) => {
-            return Ok(
-                warp::reply::with_status("File not found", StatusCode::NOT_FOUND).into_response(),
-            );
+            return response::text(StatusCode::NOT_FOUND, "File not found");
         }
     };
 
     // Seek to start position
     if file.seek(std::io::SeekFrom::Start(start)).await.is_err() {
-        return Ok(
-            warp::reply::with_status("Seek failed", StatusCode::INTERNAL_SERVER_ERROR)
-                .into_response(),
-        );
+        return response::text(StatusCode::INTERNAL_SERVER_ERROR, "Seek failed");
     }
 
     let limited_reader = file.take(content_length);
-    let stream = ReaderStream::new(limited_reader);
-    let body = Body::wrap_stream(stream);
+    let body = response::stream(ReaderStream::new(limited_reader));
 
     let content_range = format!("bytes {}-{}/{}", start, end, file_size);
 
-    Ok(warp::http::Response::builder()
+    hyper::http::Response::builder()
         .status(StatusCode::PARTIAL_CONTENT)
         .header("content-type", mime_type)
         .header("accept-ranges", "bytes")
         .header("content-range", content_range)
         .header("content-length", content_length.to_string())
         .body(body)
-        .unwrap())
+        .expect("valid range response")
 }
 
-async fn serve_directory(
-    dir_path: &Path,
-    requested_path: &str,
-) -> Result<warp::reply::Response, Infallible> {
+async fn serve_directory(dir_path: &Path, requested_path: &str) -> Response {
     let mut entries = match fs::read_dir(dir_path).await {
         Ok(entries) => entries,
         Err(_) => {
-            return Ok(warp::reply::with_status(
-                "Cannot read directory",
-                StatusCode::INTERNAL_SERVER_ERROR,
-            )
-            .into_response());
+            return response::text(StatusCode::INTERNAL_SERVER_ERROR, "Cannot read directory");
         }
     };
 
@@ -223,12 +195,11 @@ async fn serve_directory(
     };
     let html = generate_directory_listing(&display_path, &items);
 
-    Ok(warp::reply::with_header(
-        warp::reply::html(html),
-        "content-type",
-        "text/html; charset=utf-8",
-    )
-    .into_response())
+    hyper::http::Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", "text/html; charset=utf-8")
+        .body(response::full(html))
+        .expect("valid listing response")
 }
 
 fn generate_directory_listing(path: &str, items: &[DirectoryItem]) -> String {

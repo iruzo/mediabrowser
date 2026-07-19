@@ -1,15 +1,13 @@
+use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use bytes::Bytes;
 use futures_util::stream;
-use std::convert::Infallible;
+use hyper::http::StatusCode;
 use std::io::{BufWriter, Write};
 use std::path::{Component, Path, PathBuf};
 use tar::Builder;
 use tokio::fs;
 use tokio::sync::mpsc;
-use warp::http::StatusCode;
-use warp::hyper::Body;
-use warp::Reply;
 
 const MAX_PATHS: usize = 1024;
 const MAX_PATH_SIZE: usize = 4096;
@@ -24,18 +22,14 @@ struct Source {
     name: PathBuf,
 }
 
-pub async fn handle_downloads(form: DownloadsForm) -> Result<warp::reply::Response, Infallible> {
-    let response = match create_tar_response(form).await {
+pub async fn handle_downloads(form: DownloadsForm) -> Response {
+    match create_tar_response(form).await {
         Ok(response) => response,
-        Err((status, message)) => warp::reply::with_status(message, status).into_response(),
-    };
-
-    Ok(response)
+        Err((status, message)) => response::text(status, message),
+    }
 }
 
-pub(crate) async fn create_tar_response(
-    form: DownloadsForm,
-) -> DownloadsResult<warp::reply::Response> {
+pub(crate) async fn create_tar_response(form: DownloadsForm) -> DownloadsResult<Response> {
     let sources = source_paths(form)?;
     let sources = resolve_sources(sources).await?;
     let (tx, rx) = mpsc::channel::<Result<Bytes, std::io::Error>>(STREAM_CHANNEL_CAPACITY);
@@ -50,9 +44,9 @@ pub(crate) async fn create_tar_response(
     let stream = stream::unfold(rx, |mut rx| async move {
         rx.recv().await.map(|item| (item, rx))
     });
-    let body = Body::wrap_stream(stream);
+    let body = response::stream(stream);
 
-    Ok(warp::http::Response::builder()
+    Ok(hyper::http::Response::builder()
         .status(StatusCode::OK)
         .header("content-type", "application/x-tar")
         .header(
@@ -236,7 +230,7 @@ fn downloads_error(error: std::io::Error) -> (StatusCode, String) {
 #[cfg(test)]
 mod tests {
     use super::{source_path, source_paths, DownloadsForm, MAX_PATH_SIZE};
-    use warp::http::StatusCode;
+    use hyper::http::StatusCode;
 
     #[test]
     fn accepts_repeated_path_fields() {

@@ -1,27 +1,23 @@
+use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
+use hyper::http::StatusCode;
 use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
-use std::convert::Infallible;
 use std::path::PathBuf;
 use tokio::fs;
 use tokio_util::io::ReaderStream;
-use warp::http::StatusCode;
-use warp::hyper::Body;
-use warp::Reply;
 
 const MAX_PATH_SIZE: usize = 4096;
 
 type DownloadResult<T> = Result<T, (StatusCode, String)>;
 
-pub async fn handle_download(path: warp::path::Tail) -> Result<warp::reply::Response, Infallible> {
-    let response = match download(path.as_str()).await {
+pub async fn handle_download(path: &str) -> Response {
+    match download(path).await {
         Ok(response) => response,
-        Err((status, message)) => warp::reply::with_status(message, status).into_response(),
-    };
-
-    Ok(response)
+        Err((status, message)) => response::text(status, message),
+    }
 }
 
-async fn download(path: &str) -> DownloadResult<warp::reply::Response> {
+async fn download(path: &str) -> DownloadResult<Response> {
     let path = download_path(path)?;
     let root = fs::canonicalize(data_dir()).await.map_err(download_error)?;
     let path = fs::canonicalize(path).await.map_err(download_error)?;
@@ -48,10 +44,9 @@ async fn download(path: &str) -> DownloadResult<warp::reply::Response> {
         .and_then(|name| name.to_str())
         .unwrap_or("download");
     let disposition = content_disposition(filename);
-    let stream = ReaderStream::new(file);
-    let body = Body::wrap_stream(stream);
+    let body = response::stream(ReaderStream::new(file));
 
-    Ok(warp::http::Response::builder()
+    Ok(hyper::http::Response::builder()
         .status(StatusCode::OK)
         .header("content-type", "application/octet-stream")
         .header("content-disposition", disposition)
@@ -130,7 +125,7 @@ fn download_error(error: std::io::Error) -> (StatusCode, String) {
 #[cfg(test)]
 mod tests {
     use super::{content_disposition, download_path, valid_percent_encoding, MAX_PATH_SIZE};
-    use warp::http::StatusCode;
+    use hyper::http::StatusCode;
 
     #[test]
     fn validates_download_paths() {

@@ -1,120 +1,106 @@
+use crate::response::{self, Response};
 use crate::types::data_path;
-use bytes::Buf;
-use futures_util::TryStreamExt;
-use std::convert::Infallible;
+use http_body_util::BodyExt;
+use hyper::http::StatusCode;
+use multer::{Constraints, Field, Multipart, SizeLimit};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::Semaphore;
-use warp::http::StatusCode;
-use warp::hyper::Body;
-use warp::Reply;
 
 const MAX_UPLOADS: usize = 3;
 const MAX_PATH_SIZE: usize = 4096;
+const MAX_UPLOAD_SIZE: u64 = 256 * 1024 * 1024 * 1024;
 
 static UPLOAD_SEMAPHORE: Semaphore = Semaphore::const_new(MAX_UPLOADS);
 
 type UploadResult<T> = Result<T, (StatusCode, String)>;
 
-pub async fn handle_upload(
-    mut form: warp::multipart::FormData,
-) -> Result<warp::reply::Response, Infallible> {
+pub async fn handle_upload(content_type: &str, body: hyper::body::Incoming) -> Response {
     let _permit = UPLOAD_SEMAPHORE.acquire().await.unwrap();
+
+    let Ok(boundary) = multer::parse_boundary(content_type) else {
+        return response::text(StatusCode::BAD_REQUEST, "Invalid multipart request");
+    };
+    let constraints = Constraints::new().size_limit(SizeLimit::new().whole_stream(MAX_UPLOAD_SIZE));
+    let mut form = Multipart::with_constraints(body.into_data_stream(), boundary, constraints);
 
     let mut target_dir: Option<PathBuf> = None;
     let mut uploaded_files = 0;
 
-    while let Some(part) = match form.try_next().await {
+    while let Some(part) = match form.next_field().await {
         Ok(part) => part,
         Err(e) => {
-            return Ok(upload_response(
-                bad_upload_error(e),
+            return response::text(
                 StatusCode::BAD_REQUEST,
-            ))
+                format!("Failed to process upload: {e}"),
+            )
         }
     } {
-        if part.name() == "path" {
+        if part.name() == Some("path") {
             let path = match read_path_part(part).await {
                 Ok(path) => path,
-                Err((status, message)) => return Ok(upload_response(message, status)),
+                Err((status, message)) => return response::text(status, message),
             };
             let Some(path) = data_path(path.trim()) else {
-                return Ok(upload_response(
-                    "Invalid upload path",
-                    StatusCode::BAD_REQUEST,
-                ));
+                return response::text(StatusCode::BAD_REQUEST, "Invalid upload path");
             };
             if let Err(error) = fs::create_dir_all(&path).await {
-                return Ok(upload_response(
-                    format!("Failed to create upload directory: {error}"),
+                return response::text(
                     StatusCode::INTERNAL_SERVER_ERROR,
-                ));
+                    format!("Failed to create upload directory: {error}"),
+                );
             }
             target_dir = Some(path);
             continue;
         }
 
-        if part.name() != "file" {
+        if part.name() != Some("file") {
             continue;
         }
 
         let Some(target_dir) = target_dir.as_deref() else {
-            return Ok(upload_response(
-                "Upload path must precede file fields",
+            return response::text(
                 StatusCode::BAD_REQUEST,
-            ));
+                "Upload path must precede file fields",
+            );
         };
-        let Some(filename) = part.filename().map(str::to_owned) else {
+        let Some(filename) = part.file_name().map(str::to_owned) else {
             continue;
         };
         if !valid_upload_filename(&filename) {
-            return Ok(upload_response("Invalid filename", StatusCode::BAD_REQUEST));
+            return response::text(StatusCode::BAD_REQUEST, "Invalid filename");
         }
 
         if let Err((status, message)) = save_upload_part(part, target_dir, &filename).await {
-            return Ok(upload_response(message, status));
+            return response::text(status, message);
         }
 
         uploaded_files += 1;
     }
 
     if target_dir.is_none() {
-        return Ok(upload_response(
-            "Upload path is required",
-            StatusCode::BAD_REQUEST,
-        ));
+        return response::text(StatusCode::BAD_REQUEST, "Upload path is required");
     }
     if uploaded_files == 0 {
-        return Ok(upload_response(
-            "At least one file is required",
-            StatusCode::BAD_REQUEST,
-        ));
+        return response::text(StatusCode::BAD_REQUEST, "At least one file is required");
     }
 
-    Ok(warp::http::Response::builder()
-        .status(StatusCode::OK)
-        .body(Body::empty())
-        .unwrap())
+    response::status(StatusCode::OK)
 }
 
-async fn read_path_part(part: warp::multipart::Part) -> UploadResult<String> {
-    let mut stream = part.stream();
+async fn read_path_part(mut part: Field<'_>) -> UploadResult<String> {
     let mut value = Vec::new();
 
-    while let Some(mut chunk) = stream.try_next().await.map_err(bad_upload_stream_error)? {
-        if value.len() + chunk.remaining() > MAX_PATH_SIZE {
+    while let Some(chunk) = part.chunk().await.map_err(bad_upload_stream_error)? {
+        if value.len() + chunk.len() > MAX_PATH_SIZE {
             return Err((
                 StatusCode::BAD_REQUEST,
                 "Upload path is too long".to_string(),
             ));
         }
 
-        while chunk.has_remaining() {
-            let bytes = chunk.chunk();
-            value.extend_from_slice(bytes);
-            chunk.advance(bytes.len());
-        }
+        value.extend_from_slice(&chunk);
     }
 
     String::from_utf8(value).map_err(|_| {
@@ -126,18 +112,17 @@ async fn read_path_part(part: warp::multipart::Part) -> UploadResult<String> {
 }
 
 async fn save_upload_part(
-    part: warp::multipart::Part,
+    mut part: Field<'_>,
     target_dir: &Path,
     filename: &str,
 ) -> UploadResult<()> {
-    let mut stream = part.stream();
     let (mut file, path) = open_upload_file(target_dir, filename)
         .await
         .map_err(save_file_error)?;
 
     let result = async {
-        while let Some(mut chunk) = stream.try_next().await.map_err(bad_upload_stream_error)? {
-            write_chunk(&mut file, &mut chunk).await?;
+        while let Some(chunk) = part.chunk().await.map_err(bad_upload_stream_error)? {
+            file.write_all(&chunk).await.map_err(save_file_error)?;
         }
 
         Ok(())
@@ -152,20 +137,6 @@ async fn save_upload_part(
     result
 }
 
-async fn write_chunk(file: &mut tokio::fs::File, chunk: &mut impl Buf) -> UploadResult<()> {
-    while chunk.has_remaining() {
-        let bytes = chunk.chunk();
-        if bytes.is_empty() {
-            break;
-        }
-
-        file.write_all(bytes).await.map_err(save_file_error)?;
-        chunk.advance(bytes.len());
-    }
-
-    Ok(())
-}
-
 fn save_file_error(e: std::io::Error) -> (StatusCode, String) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
@@ -173,19 +144,11 @@ fn save_file_error(e: std::io::Error) -> (StatusCode, String) {
     )
 }
 
-fn bad_upload_error(e: warp::Error) -> String {
-    format!("Failed to process upload: {e}")
-}
-
-fn bad_upload_stream_error(e: warp::Error) -> (StatusCode, String) {
+fn bad_upload_stream_error(e: multer::Error) -> (StatusCode, String) {
     (
         StatusCode::BAD_REQUEST,
         format!("Failed to process upload stream: {e}"),
     )
-}
-
-fn upload_response(message: impl Into<String>, status: StatusCode) -> warp::reply::Response {
-    warp::reply::with_status(message.into(), status).into_response()
 }
 
 fn valid_upload_filename(filename: &str) -> bool {
