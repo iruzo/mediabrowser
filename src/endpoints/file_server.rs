@@ -1,7 +1,6 @@
 use crate::response::{self, Response};
 use crate::types::data_path;
 use hyper::http::{HeaderMap, StatusCode};
-use mime_guess::from_path;
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, CONTROLS};
 use std::fmt::Write as _;
 use std::path::Path;
@@ -49,13 +48,13 @@ pub async fn handle_file_server(requested_path: &str, headers: &HeaderMap) -> Re
 }
 
 async fn serve_file(file_path: &Path, headers: &HeaderMap, file_size: u64) -> Response {
-    let mime_type = from_path(file_path).first_or_octet_stream().to_string();
+    let mime_type = content_type(file_path);
 
     // Check for Range header
     if let Some(range_header) = headers.get("range") {
         if let Ok(range_str) = range_header.to_str() {
             if let Some(range) = parse_range(range_str, file_size) {
-                return serve_file_range(file_path, range, file_size, &mime_type).await;
+                return serve_file_range(file_path, range, file_size, mime_type).await;
             }
         }
     }
@@ -77,6 +76,43 @@ async fn serve_file(file_path: &Path, headers: &HeaderMap, file_size: u64) -> Re
         .header("content-length", file_size.to_string())
         .body(body)
         .expect("valid file response")
+}
+
+fn content_type(path: &Path) -> &'static str {
+    let Some(extension) = path.extension().and_then(|extension| extension.to_str()) else {
+        return "application/octet-stream";
+    };
+
+    match extension.to_ascii_lowercase().as_str() {
+        "mp4" | "m4v" => "video/mp4",
+        "mkv" => "video/x-matroska",
+        "webm" => "video/webm",
+        "avi" => "video/x-msvideo",
+        "mov" => "video/quicktime",
+        "mpg" | "mpeg" => "video/mpeg",
+        "ts" => "video/mp2t",
+        "mp3" => "audio/mpeg",
+        "flac" => "audio/flac",
+        "ogg" => "audio/ogg",
+        "opus" => "audio/opus",
+        "wav" => "audio/wav",
+        "m4a" => "audio/mp4",
+        "aac" => "audio/aac",
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        "bmp" => "image/bmp",
+        "avif" => "image/avif",
+        "vtt" => "text/vtt",
+        "srt" | "txt" | "md" | "log" => "text/plain",
+        "html" | "htm" => "text/html",
+        "json" => "application/json",
+        "pdf" => "application/pdf",
+        "zip" => "application/zip",
+        _ => "application/octet-stream",
+    }
 }
 
 fn parse_range(range_str: &str, file_size: u64) -> Option<(u64, u64)> {
@@ -242,4 +278,27 @@ fn generate_directory_listing(path: &str, items: &[DirectoryItem]) -> String {
         display_path, display_path, list_items
     );
     html
+}
+
+#[cfg(test)]
+mod tests {
+    use super::content_type;
+    use std::path::Path;
+
+    #[test]
+    fn maps_extensions_to_content_types() {
+        assert_eq!(content_type(Path::new("movie.mp4")), "video/mp4");
+        assert_eq!(content_type(Path::new("MOVIE.MKV")), "video/x-matroska");
+        assert_eq!(content_type(Path::new("song.flac")), "audio/flac");
+        assert_eq!(content_type(Path::new("photo.jpeg")), "image/jpeg");
+        assert_eq!(content_type(Path::new("notes.txt")), "text/plain");
+        assert_eq!(
+            content_type(Path::new("unknown.xyz")),
+            "application/octet-stream"
+        );
+        assert_eq!(
+            content_type(Path::new("no-extension")),
+            "application/octet-stream"
+        );
+    }
 }
