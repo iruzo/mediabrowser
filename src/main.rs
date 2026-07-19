@@ -6,8 +6,10 @@ use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use hyper_util::server::graceful::GracefulShutdown;
 use std::convert::Infallible;
+use std::future::{poll_fn, Future};
 use std::net::Ipv4Addr;
 use std::pin::pin;
+use std::task::Poll;
 use tokio::net::TcpListener;
 
 mod endpoints;
@@ -60,10 +62,14 @@ async fn shutdown_signal() {
     let mut sigterm = signal(SignalKind::terminate()).expect("failed to install SIGTERM handler");
     let mut sigint = signal(SignalKind::interrupt()).expect("failed to install SIGINT handler");
 
-    tokio::select! {
-        _ = sigterm.recv() => {},
-        _ = sigint.recv() => {},
-    }
+    poll_fn(|cx| {
+        if sigterm.poll_recv(cx).is_ready() || sigint.poll_recv(cx).is_ready() {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
+    })
+    .await;
 
     println!("Shutdown signal received, stopping server gracefully...");
 }
@@ -189,8 +195,15 @@ async fn serve(request: Request<Incoming>) -> Result<Response, Infallible> {
     })
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("failed to build runtime")
+        .block_on(run());
+}
+
+async fn run() {
     let bind_addr = get_bind_addr();
     let port = get_port();
     let listener = TcpListener::bind((bind_addr, port))
@@ -204,21 +217,28 @@ async fn main() {
     let mut shutdown = pin!(shutdown_signal());
 
     loop {
-        tokio::select! {
-            accepted = listener.accept() => {
-                let Ok((stream, _)) = accepted else {
-                    continue;
-                };
-                let connection = hyper::server::conn::http1::Builder::new()
-                    .serve_connection(TokioIo::new(stream), service_fn(serve));
-                let connection = graceful.watch(connection);
-
-                tokio::spawn(async move {
-                    let _ = connection.await;
-                });
+        // Resolve to None when the shutdown signal wins over an incoming connection
+        let accepted = poll_fn(|cx| {
+            if shutdown.as_mut().poll(cx).is_ready() {
+                return Poll::Ready(None);
             }
-            _ = &mut shutdown => break,
-        }
+            listener.poll_accept(cx).map(Some)
+        })
+        .await;
+
+        let Some(accepted) = accepted else {
+            break;
+        };
+        let Ok((stream, _)) = accepted else {
+            continue;
+        };
+        let connection = hyper::server::conn::http1::Builder::new()
+            .serve_connection(TokioIo::new(stream), service_fn(serve));
+        let connection = graceful.watch(connection);
+
+        tokio::spawn(async move {
+            let _ = connection.await;
+        });
     }
 
     graceful.shutdown().await;
