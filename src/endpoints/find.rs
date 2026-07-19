@@ -1,7 +1,6 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
-use serde::Deserialize;
 use std::fmt::Write;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
@@ -13,14 +12,8 @@ const MAX_SEARCH_RESULTS: usize = 500;
 
 type FindResult<T> = Result<T, (StatusCode, String)>;
 
-#[derive(Deserialize)]
-pub struct FindQuery {
-    path: Option<String>,
-    query: Option<String>,
-}
-
-pub async fn handle_find(query: FindQuery) -> Response {
-    match find(query.path.as_deref(), query.query.as_deref()).await {
+pub async fn handle_find(path: Option<&str>, query: Option<&str>) -> Response {
+    match find(path, query).await {
         Ok(paths) => response::json(json_paths(&paths)),
         Err((status, message)) => response::text(status, message),
     }

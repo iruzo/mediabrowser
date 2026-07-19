@@ -1,19 +1,13 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
-use serde::Deserialize;
 use std::path::PathBuf;
 use tokio::fs;
 
 type MkdirResult<T> = Result<T, (StatusCode, String)>;
 
-#[derive(Deserialize)]
-pub struct MkdirForm {
-    path: String,
-}
-
-pub async fn handle_mkdir(form: MkdirForm) -> Response {
-    match create_dirs(&form.path).await {
+pub async fn handle_mkdir(path: &str) -> Response {
+    match create_dirs(path).await {
         Ok(()) => response::status(StatusCode::OK),
         Err((status, message)) => response::text(status, message),
     }

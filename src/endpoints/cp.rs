@@ -1,7 +1,6 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
-use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use walkdir::WalkDir;
@@ -10,14 +9,8 @@ const MAX_PATH_SIZE: usize = 4096;
 
 pub(crate) type CpResult<T> = Result<T, (StatusCode, String)>;
 
-#[derive(Deserialize)]
-pub struct CpForm {
-    from: String,
-    to: String,
-}
-
-pub async fn handle_cp(form: CpForm) -> Response {
-    match copy_path(&form.from, &form.to).await {
+pub async fn handle_cp(from: &str, to: &str) -> Response {
+    match copy_path(from, to).await {
         Ok(()) => response::status(StatusCode::OK),
         Err((status, message)) => response::text(status, message),
     }

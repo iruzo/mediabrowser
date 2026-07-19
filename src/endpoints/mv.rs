@@ -1,7 +1,6 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
-use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 
@@ -9,14 +8,8 @@ const MAX_PATH_SIZE: usize = 4096;
 
 pub(crate) type MvResult<T> = Result<T, (StatusCode, String)>;
 
-#[derive(Deserialize)]
-pub struct MvForm {
-    from: String,
-    to: String,
-}
-
-pub async fn handle_mv(form: MvForm) -> Response {
-    match move_path(&form.from, &form.to).await {
+pub async fn handle_mv(from: &str, to: &str) -> Response {
+    match move_path(from, to).await {
         Ok(()) => response::status(StatusCode::OK),
         Err((status, message)) => response::text(status, message),
     }

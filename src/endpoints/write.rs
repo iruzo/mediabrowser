@@ -1,7 +1,6 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
-use serde::Deserialize;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
@@ -10,14 +9,8 @@ const MAX_PATH_SIZE: usize = 4096;
 
 pub(crate) type WriteResult<T> = Result<T, (StatusCode, String)>;
 
-#[derive(Deserialize)]
-pub struct WriteForm {
-    path: String,
-    content: String,
-}
-
-pub async fn handle_write(form: WriteForm) -> Response {
-    match write_path(&form.path, form.content.as_bytes()).await {
+pub async fn handle_write(path: &str, content: &str) -> Response {
+    match write_path(path, content.as_bytes()).await {
         Ok(()) => response::status(StatusCode::OK),
         Err((status, message)) => response::text(status, message),
     }

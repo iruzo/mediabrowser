@@ -14,13 +14,6 @@ mod endpoints;
 mod response;
 mod types;
 
-use endpoints::cp::CpForm;
-use endpoints::download_bulk::DownloadsForm;
-use endpoints::find::FindQuery;
-use endpoints::mkdir::MkdirForm;
-use endpoints::mv::MvForm;
-use endpoints::rm::RmForm;
-use endpoints::write::WriteForm;
 use endpoints::{
     handle_cp, handle_download, handle_downloads, handle_file_server, handle_find, handle_mkdir,
     handle_mv, handle_rm, handle_upload, handle_write,
@@ -111,40 +104,50 @@ async fn read_body(mut body: Incoming, limit: usize) -> Result<Bytes, Response> 
     Ok(Bytes::from(data))
 }
 
-async fn read_form<T: serde::de::DeserializeOwned>(
-    body: Incoming,
-    limit: usize,
-) -> Result<T, Response> {
-    let bytes = read_body(body, limit).await?;
+type Form = Vec<(String, String)>;
 
-    serde_urlencoded::from_bytes(&bytes)
-        .map_err(|error| response::text(StatusCode::BAD_REQUEST, format!("invalid form: {error}")))
+fn parse_form(bytes: &[u8]) -> Form {
+    form_urlencoded::parse(bytes).into_owned().collect()
 }
 
-async fn route(request: Request<Incoming>) -> Response {
+fn field<'a>(form: &'a Form, name: &str) -> Option<&'a str> {
+    form.iter()
+        .find(|(key, _)| key == name)
+        .map(|(_, value)| value.as_str())
+}
+
+fn require<'a>(form: &'a Form, name: &str) -> Result<&'a str, Response> {
+    field(form, name).ok_or_else(|| {
+        response::text(
+            StatusCode::BAD_REQUEST,
+            format!("invalid form: missing field `{name}`"),
+        )
+    })
+}
+
+async fn read_form(body: Incoming, limit: usize) -> Result<Form, Response> {
+    let bytes = read_body(body, limit).await?;
+    Ok(parse_form(&bytes))
+}
+
+async fn route(request: Request<Incoming>) -> Result<Response, Response> {
     let (parts, body) = request.into_parts();
     let path = parts.uri.path();
 
     if let Some(tail) = path.strip_prefix("/api/download/") {
         if parts.method == Method::GET {
-            return handle_download(tail).await;
+            return Ok(handle_download(tail).await);
         }
     }
 
     match (&parts.method, path) {
         (&Method::GET, "/api/find") => {
-            match serde_urlencoded::from_str::<FindQuery>(parts.uri.query().unwrap_or_default()) {
-                Ok(query) => handle_find(query).await,
-                Err(error) => {
-                    response::text(StatusCode::BAD_REQUEST, format!("invalid query: {error}"))
-                }
-            }
+            let form = parse_form(parts.uri.query().unwrap_or_default().as_bytes());
+            Ok(handle_find(field(&form, "path"), field(&form, "query")).await)
         }
         (&Method::POST, "/api/downloads") => {
-            match read_form::<DownloadsForm>(body, DOWNLOADS_FORM_LIMIT).await {
-                Ok(form) => handle_downloads(form).await,
-                Err(response) => response,
-            }
+            let form = read_form(body, DOWNLOADS_FORM_LIMIT).await?;
+            Ok(handle_downloads(form).await)
         }
         (&Method::POST, "/api/upload") => {
             let content_type = parts
@@ -153,39 +156,37 @@ async fn route(request: Request<Incoming>) -> Response {
                 .and_then(|value| value.to_str().ok())
                 .unwrap_or_default();
 
-            handle_upload(content_type, body).await
+            Ok(handle_upload(content_type, body).await)
         }
-        (&Method::POST, "/api/rm") => match read_form::<RmForm>(body, SMALL_FORM_LIMIT).await {
-            Ok(form) => handle_rm(form).await,
-            Err(response) => response,
-        },
+        (&Method::POST, "/api/rm") => {
+            let form = read_form(body, SMALL_FORM_LIMIT).await?;
+            Ok(handle_rm(require(&form, "path")?).await)
+        }
         (&Method::POST, "/api/mkdir") => {
-            match read_form::<MkdirForm>(body, SMALL_FORM_LIMIT).await {
-                Ok(form) => handle_mkdir(form).await,
-                Err(response) => response,
-            }
+            let form = read_form(body, SMALL_FORM_LIMIT).await?;
+            Ok(handle_mkdir(require(&form, "path")?).await)
         }
         (&Method::POST, "/api/write") => {
-            match read_form::<WriteForm>(body, WRITE_FORM_LIMIT).await {
-                Ok(form) => handle_write(form).await,
-                Err(response) => response,
-            }
+            let form = read_form(body, WRITE_FORM_LIMIT).await?;
+            Ok(handle_write(require(&form, "path")?, require(&form, "content")?).await)
         }
-        (&Method::POST, "/api/mv") => match read_form::<MvForm>(body, SMALL_FORM_LIMIT).await {
-            Ok(form) => handle_mv(form).await,
-            Err(response) => response,
-        },
-        (&Method::POST, "/api/cp") => match read_form::<CpForm>(body, SMALL_FORM_LIMIT).await {
-            Ok(form) => handle_cp(form).await,
-            Err(response) => response,
-        },
-        (&Method::GET, "/favicon.ico") => response::status(StatusCode::OK),
-        _ => handle_file_server(path.trim_start_matches('/'), &parts.headers).await,
+        (&Method::POST, "/api/mv") => {
+            let form = read_form(body, SMALL_FORM_LIMIT).await?;
+            Ok(handle_mv(require(&form, "from")?, require(&form, "to")?).await)
+        }
+        (&Method::POST, "/api/cp") => {
+            let form = read_form(body, SMALL_FORM_LIMIT).await?;
+            Ok(handle_cp(require(&form, "from")?, require(&form, "to")?).await)
+        }
+        (&Method::GET, "/favicon.ico") => Ok(response::status(StatusCode::OK)),
+        _ => Ok(handle_file_server(path.trim_start_matches('/'), &parts.headers).await),
     }
 }
 
 async fn serve(request: Request<Incoming>) -> Result<Response, Infallible> {
-    Ok(route(request).await)
+    Ok(match route(request).await {
+        Ok(response) | Err(response) => response,
+    })
 }
 
 #[tokio::main]

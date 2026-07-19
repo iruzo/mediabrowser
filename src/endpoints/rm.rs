@@ -1,7 +1,6 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
-use serde::Deserialize;
 use std::path::PathBuf;
 use tokio::fs;
 
@@ -9,13 +8,8 @@ const MAX_PATH_SIZE: usize = 4096;
 
 pub(crate) type RmResult<T> = Result<T, (StatusCode, String)>;
 
-#[derive(Deserialize)]
-pub struct RmForm {
-    path: String,
-}
-
-pub async fn handle_rm(form: RmForm) -> Response {
-    match remove_path(&form.path).await {
+pub async fn handle_rm(path: &str) -> Response {
+    match remove_path(path).await {
         Ok(()) => response::status(StatusCode::OK),
         Err((status, message)) => response::text(status, message),
     }

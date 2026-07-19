@@ -6,8 +6,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.0", default-features = false, features = ["rt-multi-thread", "macros", "fs", "io-util", "net", "signal", "sync"] }
 tokio-util = { version = "0.7", default-features = false, features = ["io"] }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-serde_urlencoded = "0.7"
+form_urlencoded = { version = "1.2", default-features = false, features = ["alloc"] }
 hyper = { version = "1", default-features = false, features = ["http1", "server"] }
 hyper-util = { version = "0.1", default-features = false, features = ["http1", "server", "server-graceful", "tokio"] }
 http-body-util = "0.1"
