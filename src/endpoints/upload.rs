@@ -1,8 +1,7 @@
+use crate::multipart::{parse_boundary, Multipart};
 use crate::response::{self, Response};
 use crate::types::data_path;
-use http_body_util::BodyExt;
 use hyper::http::StatusCode;
-use multer::{Constraints, Field, Multipart, SizeLimit};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
@@ -19,26 +18,20 @@ type UploadResult<T> = Result<T, (StatusCode, String)>;
 pub async fn handle_upload(content_type: &str, body: hyper::body::Incoming) -> Response {
     let _permit = UPLOAD_SEMAPHORE.acquire().await.unwrap();
 
-    let Ok(boundary) = multer::parse_boundary(content_type) else {
+    let Some(boundary) = parse_boundary(content_type) else {
         return response::text(StatusCode::BAD_REQUEST, "Invalid multipart request");
     };
-    let constraints = Constraints::new().size_limit(SizeLimit::new().whole_stream(MAX_UPLOAD_SIZE));
-    let mut form = Multipart::with_constraints(body.into_data_stream(), boundary, constraints);
+    let mut form = Multipart::new(body, &boundary, MAX_UPLOAD_SIZE);
 
     let mut target_dir: Option<PathBuf> = None;
     let mut uploaded_files = 0;
 
-    while let Some(part) = match form.next_field().await {
+    while let Some(part) = match form.next_part().await {
         Ok(part) => part,
-        Err(e) => {
-            return response::text(
-                StatusCode::BAD_REQUEST,
-                format!("Failed to process upload: {e}"),
-            )
-        }
+        Err((status, message)) => return response::text(status, message),
     } {
-        if part.name() == Some("path") {
-            let path = match read_path_part(part).await {
+        if part.name.as_deref() == Some("path") {
+            let path = match read_path_part(&mut form).await {
                 Ok(path) => path,
                 Err((status, message)) => return response::text(status, message),
             };
@@ -55,7 +48,7 @@ pub async fn handle_upload(content_type: &str, body: hyper::body::Incoming) -> R
             continue;
         }
 
-        if part.name() != Some("file") {
+        if part.name.as_deref() != Some("file") {
             continue;
         }
 
@@ -65,14 +58,14 @@ pub async fn handle_upload(content_type: &str, body: hyper::body::Incoming) -> R
                 "Upload path must precede file fields",
             );
         };
-        let Some(filename) = part.file_name().map(str::to_owned) else {
+        let Some(filename) = part.filename else {
             continue;
         };
         if !valid_upload_filename(&filename) {
             return response::text(StatusCode::BAD_REQUEST, "Invalid filename");
         }
 
-        if let Err((status, message)) = save_upload_part(part, target_dir, &filename).await {
+        if let Err((status, message)) = save_upload_part(&mut form, target_dir, &filename).await {
             return response::text(status, message);
         }
 
@@ -89,10 +82,10 @@ pub async fn handle_upload(content_type: &str, body: hyper::body::Incoming) -> R
     response::status(StatusCode::OK)
 }
 
-async fn read_path_part(mut part: Field<'_>) -> UploadResult<String> {
+async fn read_path_part(form: &mut Multipart) -> UploadResult<String> {
     let mut value = Vec::new();
 
-    while let Some(chunk) = part.chunk().await.map_err(bad_upload_stream_error)? {
+    while let Some(chunk) = form.chunk().await? {
         if value.len() + chunk.len() > MAX_PATH_SIZE {
             return Err((
                 StatusCode::BAD_REQUEST,
@@ -112,7 +105,7 @@ async fn read_path_part(mut part: Field<'_>) -> UploadResult<String> {
 }
 
 async fn save_upload_part(
-    mut part: Field<'_>,
+    form: &mut Multipart,
     target_dir: &Path,
     filename: &str,
 ) -> UploadResult<()> {
@@ -121,7 +114,7 @@ async fn save_upload_part(
         .map_err(save_file_error)?;
 
     let result = async {
-        while let Some(chunk) = part.chunk().await.map_err(bad_upload_stream_error)? {
+        while let Some(chunk) = form.chunk().await? {
             file.write_all(&chunk).await.map_err(save_file_error)?;
         }
 
@@ -141,13 +134,6 @@ fn save_file_error(e: std::io::Error) -> (StatusCode, String) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         format!("Failed to save file: {e}"),
-    )
-}
-
-fn bad_upload_stream_error(e: multer::Error) -> (StatusCode, String) {
-    (
-        StatusCode::BAD_REQUEST,
-        format!("Failed to process upload stream: {e}"),
     )
 }
 
