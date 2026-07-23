@@ -1,24 +1,12 @@
+use super::httpd::{content_type, PATH_SEGMENT};
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
-use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
-use std::path::PathBuf;
+use percent_encoding::utf8_percent_encode;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 
 const MAX_PATH_SIZE: usize = 4096;
-
-// Encode only characters that are not allowed in URL paths, leaving '/' as a
-// literal separator between segments (same set as httpd.rs).
-const PATH_SEGMENT: &AsciiSet = &CONTROLS
-    .add(b' ')
-    .add(b'"')
-    .add(b'<')
-    .add(b'>')
-    .add(b'`')
-    .add(b'#')
-    .add(b'?')
-    .add(b'{')
-    .add(b'}');
 
 type GridResult<T> = Result<T, (StatusCode, String)>;
 
@@ -106,12 +94,8 @@ fn render_grid(path: &str, items: &[(String, bool)]) -> String {
 
         boxes.push_str(r#"<a class="box" href=""#);
         boxes.push_str(&href);
-        if *is_dir {
-            boxes.push_str(r#"" target="_top">"#);
-        } else {
-            boxes.push_str(r#"">"#);
-        }
-        if !is_dir && is_image(name) {
+        boxes.push_str(r#"" target="_top">"#);
+        if !is_dir && content_type(Path::new(name)).starts_with("image/") {
             boxes.push_str(r#"<img src=""#);
             boxes.push_str(&href);
             boxes.push_str(r#"" loading="lazy" alt=""#);
@@ -145,17 +129,6 @@ body {{ font-family: sans-serif; margin: 0; background: #111; color: #eee; }}
     )
 }
 
-fn is_image(name: &str) -> bool {
-    let Some(extension) = name.rsplit('.').next() else {
-        return false;
-    };
-
-    matches!(
-        extension.to_ascii_lowercase().as_str(),
-        "jpg" | "jpeg" | "png" | "gif" | "webp" | "svg" | "bmp" | "avif"
-    )
-}
-
 fn escape_html(text: &str, out: &mut String) {
     for c in text.chars() {
         match c {
@@ -181,7 +154,7 @@ fn grid_error(error: std::io::Error) -> (StatusCode, String) {
 
 #[cfg(test)]
 mod tests {
-    use super::{escape_html, is_image, render_grid, sort_items};
+    use super::{escape_html, render_grid, sort_items};
 
     #[test]
     fn sorts_dirs_before_files_regardless_of_name() {
@@ -209,7 +182,7 @@ mod tests {
         let items = vec![("a b.txt".to_string(), false), ("sub".to_string(), true)];
         let html = render_grid("root", &items);
 
-        assert!(html.contains(r#"href="/root/a%20b.txt""#));
+        assert!(html.contains(r#"href="/root/a%20b.txt" target="_top""#));
         assert!(html.contains(r#"href="/ui/root/sub" target="_top""#));
     }
 
@@ -224,23 +197,13 @@ mod tests {
         let html = render_grid("", &items);
 
         assert!(html.contains(
-            r#"href="/photo.JPG"><img src="/photo.JPG" loading="lazy" alt="photo.JPG"></a>"#
+            r#"href="/photo.JPG" target="_top"><img src="/photo.JPG" loading="lazy" alt="photo.JPG"></a>"#
         ));
         assert!(html.contains(
-            r#"href="/anim.gif"><img src="/anim.gif" loading="lazy" alt="anim.gif"></a>"#
+            r#"href="/anim.gif" target="_top"><img src="/anim.gif" loading="lazy" alt="anim.gif"></a>"#
         ));
         assert!(!html.contains(r#"<img src="/notes.txt""#));
         assert!(!html.contains(r#"<img src="/ui/sub""#));
-    }
-
-    #[test]
-    fn detects_image_extensions_case_insensitively() {
-        for name in ["a.jpg", "a.JPEG", "a.png", "a.gif", "a.webp", "a.AVIF"] {
-            assert!(is_image(name), "{name} should be detected as an image");
-        }
-        for name in ["a.txt", "a.mp4", "sub", ".gitignore"] {
-            assert!(!is_image(name), "{name} should not be detected as an image");
-        }
     }
 
     #[test]

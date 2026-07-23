@@ -9,7 +9,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
 // Encode only characters that are not allowed in URL paths (similar to Apache)
-const PATH_SEGMENT: &AsciiSet = &CONTROLS
+pub(crate) const PATH_SEGMENT: &AsciiSet = &CONTROLS
     .add(b' ')
     .add(b'"')
     .add(b'<')
@@ -78,7 +78,7 @@ async fn serve_file(file_path: &Path, headers: &HeaderMap, file_size: u64) -> Re
         .expect("valid file response")
 }
 
-fn content_type(path: &Path) -> &'static str {
+pub(crate) fn content_type(path: &Path) -> &'static str {
     let Some(extension) = path.extension().and_then(|extension| extension.to_str()) else {
         return "application/octet-stream";
     };
