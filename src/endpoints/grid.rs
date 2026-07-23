@@ -8,7 +8,7 @@ use tokio::fs;
 const MAX_PATH_SIZE: usize = 4096;
 
 // Encode only characters that are not allowed in URL paths, leaving '/' as a
-// literal separator between segments (same set as file_server.rs).
+// literal separator between segments (same set as httpd.rs).
 const PATH_SEGMENT: &AsciiSet = &CONTROLS
     .add(b' ')
     .add(b'"')
