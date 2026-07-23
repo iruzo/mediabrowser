@@ -38,6 +38,14 @@ pub fn text(status: StatusCode, message: impl Into<String>) -> Response {
         .expect("valid text response")
 }
 
+pub fn html(body: impl Into<String>) -> Response {
+    hyper::http::Response::builder()
+        .status(StatusCode::OK)
+        .header("content-type", "text/html; charset=utf-8")
+        .body(full(body.into()))
+        .expect("valid HTML response")
+}
+
 pub fn json(body: String) -> Response {
     hyper::http::Response::builder()
         .status(StatusCode::OK)

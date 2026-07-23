@@ -18,8 +18,8 @@ mod response;
 mod types;
 
 use endpoints::{
-    handle_cp, handle_download, handle_downloads, handle_file_server, handle_find, handle_mkdir,
-    handle_mv, handle_rm, handle_upload, handle_write,
+    handle_cp, handle_download, handle_downloads, handle_file_server, handle_find, handle_grid,
+    handle_mkdir, handle_mv, handle_rm, handle_ui, handle_upload, handle_write,
 };
 use response::Response;
 use types::data_dir;
@@ -146,8 +146,18 @@ async fn route(request: Request<Incoming>) -> Result<Response, Response> {
             return Ok(handle_download(tail).await);
         }
     }
+    if let Some(tail) = path.strip_prefix("/ui/") {
+        if parts.method == Method::GET {
+            return Ok(handle_ui(tail).await);
+        }
+    }
 
     match (&parts.method, path) {
+        (&Method::GET, "/ui") => Ok(handle_ui("").await),
+        (&Method::GET, "/grid") => {
+            let form = parse_form(parts.uri.query().unwrap_or_default().as_bytes());
+            Ok(handle_grid(field(&form, "path")).await)
+        }
         (&Method::GET, "/api/find") => {
             let form = parse_form(parts.uri.query().unwrap_or_default().as_bytes());
             Ok(handle_find(field(&form, "path"), field(&form, "query")).await)
