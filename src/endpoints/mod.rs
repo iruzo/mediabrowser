@@ -1,31 +1,14 @@
-pub mod cp;
-pub mod download;
-pub mod download_bulk;
-pub mod find;
+pub mod api;
 #[cfg(grid)]
 pub mod grid;
 #[cfg(httpd)]
 pub mod httpd;
-pub mod mkdir;
-pub mod mv;
-pub mod rm;
 #[cfg(ui)]
 pub mod ui;
-pub mod upload;
-pub mod write;
 
-pub use cp::handle_cp;
-pub use download::handle_download;
-pub use download_bulk::handle_downloads;
-pub use find::handle_find;
 #[cfg(grid)]
 pub use grid::handle_grid;
 #[cfg(httpd)]
 pub use httpd::handle_file_server;
-pub use mkdir::handle_mkdir;
-pub use mv::handle_mv;
-pub use rm::handle_rm;
 #[cfg(ui)]
 pub use ui::handle_ui;
-pub use upload::handle_upload;
-pub use write::handle_write;

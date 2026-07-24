@@ -38,7 +38,7 @@ services:
     ports:
       - "30003:30003"
     environment:
-      - HTTPD=1
+      - UI=1
       - RUST_LOG=debug
       - BIND_ADDR=0.0.0.0
     profiles:

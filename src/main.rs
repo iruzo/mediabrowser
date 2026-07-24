@@ -17,10 +17,6 @@ mod multipart;
 mod response;
 mod types;
 
-use endpoints::{
-    handle_cp, handle_download, handle_downloads, handle_find, handle_mkdir, handle_mv, handle_rm,
-    handle_upload, handle_write,
-};
 #[cfg(grid)]
 use endpoints::handle_grid;
 #[cfg(httpd)]
@@ -32,9 +28,6 @@ use types::data_dir;
 
 const PORT: u16 = 30003;
 const BIND_ADDR: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
-const SMALL_FORM_LIMIT: usize = 64 * 1024;
-const DOWNLOADS_FORM_LIMIT: usize = 1024 * 1024;
-const WRITE_FORM_LIMIT: usize = 16 * 1024 * 1024;
 
 fn get_bind_addr() -> Ipv4Addr {
     match std::env::var("BIND_ADDR") {
@@ -145,13 +138,13 @@ async fn read_form(body: Incoming, limit: usize) -> Result<Form, Response> {
 
 async fn route(request: Request<Incoming>) -> Result<Response, Response> {
     let (parts, body) = request.into_parts();
+
+    if let Some(result) = endpoints::api::route(&parts, body).await {
+        return result;
+    }
+
     let path = parts.uri.path();
 
-    if let Some(tail) = path.strip_prefix("/api/download/") {
-        if parts.method == Method::GET {
-            return Ok(handle_download(tail).await);
-        }
-    }
     #[cfg(ui)]
     if let Some(tail) = path.strip_prefix("/ui/") {
         if parts.method == Method::GET {
@@ -166,43 +159,6 @@ async fn route(request: Request<Incoming>) -> Result<Response, Response> {
         (&Method::GET, "/grid") => {
             let form = parse_form(parts.uri.query().unwrap_or_default().as_bytes());
             Ok(handle_grid(field(&form, "path")).await)
-        }
-        (&Method::GET, "/api/find") => {
-            let form = parse_form(parts.uri.query().unwrap_or_default().as_bytes());
-            Ok(handle_find(field(&form, "path"), field(&form, "query")).await)
-        }
-        (&Method::POST, "/api/downloads") => {
-            let form = read_form(body, DOWNLOADS_FORM_LIMIT).await?;
-            Ok(handle_downloads(form).await)
-        }
-        (&Method::POST, "/api/upload") => {
-            let content_type = parts
-                .headers
-                .get("content-type")
-                .and_then(|value| value.to_str().ok())
-                .unwrap_or_default();
-
-            Ok(handle_upload(content_type, body).await)
-        }
-        (&Method::POST, "/api/rm") => {
-            let form = read_form(body, SMALL_FORM_LIMIT).await?;
-            Ok(handle_rm(require(&form, "path")?).await)
-        }
-        (&Method::POST, "/api/mkdir") => {
-            let form = read_form(body, SMALL_FORM_LIMIT).await?;
-            Ok(handle_mkdir(require(&form, "path")?).await)
-        }
-        (&Method::POST, "/api/write") => {
-            let form = read_form(body, WRITE_FORM_LIMIT).await?;
-            Ok(handle_write(require(&form, "path")?, require(&form, "content")?).await)
-        }
-        (&Method::POST, "/api/mv") => {
-            let form = read_form(body, SMALL_FORM_LIMIT).await?;
-            Ok(handle_mv(require(&form, "from")?, require(&form, "to")?).await)
-        }
-        (&Method::POST, "/api/cp") => {
-            let form = read_form(body, SMALL_FORM_LIMIT).await?;
-            Ok(handle_cp(require(&form, "from")?, require(&form, "to")?).await)
         }
         (&Method::GET, "/favicon.ico") => Ok(response::status(StatusCode::OK)),
         #[cfg(httpd)]
