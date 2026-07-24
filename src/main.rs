@@ -18,9 +18,15 @@ mod response;
 mod types;
 
 use endpoints::{
-    handle_cp, handle_download, handle_downloads, handle_file_server, handle_find, handle_grid,
-    handle_mkdir, handle_mv, handle_rm, handle_ui, handle_upload, handle_write,
+    handle_cp, handle_download, handle_downloads, handle_find, handle_mkdir, handle_mv, handle_rm,
+    handle_upload, handle_write,
 };
+#[cfg(grid)]
+use endpoints::handle_grid;
+#[cfg(httpd)]
+use endpoints::handle_file_server;
+#[cfg(ui)]
+use endpoints::handle_ui;
 use response::Response;
 use types::data_dir;
 
@@ -146,6 +152,7 @@ async fn route(request: Request<Incoming>) -> Result<Response, Response> {
             return Ok(handle_download(tail).await);
         }
     }
+    #[cfg(ui)]
     if let Some(tail) = path.strip_prefix("/ui/") {
         if parts.method == Method::GET {
             return Ok(handle_ui(tail).await);
@@ -153,7 +160,9 @@ async fn route(request: Request<Incoming>) -> Result<Response, Response> {
     }
 
     match (&parts.method, path) {
+        #[cfg(ui)]
         (&Method::GET, "/ui") => Ok(handle_ui("").await),
+        #[cfg(grid)]
         (&Method::GET, "/grid") => {
             let form = parse_form(parts.uri.query().unwrap_or_default().as_bytes());
             Ok(handle_grid(field(&form, "path")).await)
@@ -196,7 +205,10 @@ async fn route(request: Request<Incoming>) -> Result<Response, Response> {
             Ok(handle_cp(require(&form, "from")?, require(&form, "to")?).await)
         }
         (&Method::GET, "/favicon.ico") => Ok(response::status(StatusCode::OK)),
+        #[cfg(httpd)]
         _ => Ok(handle_file_server(path.trim_start_matches('/'), &parts.headers).await),
+        #[cfg(not(httpd))]
+        _ => Ok(response::status(StatusCode::NOT_FOUND)),
     }
 }
 

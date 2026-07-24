@@ -5,9 +5,11 @@
 !Cargo.lock
 !Cargo.toml
 !Dockerfile
+!build.rs
 !LICENSE
 !README.md
 !assets/
+!containers/
 !doc/
 !docker-compose.yml
 !legacy/

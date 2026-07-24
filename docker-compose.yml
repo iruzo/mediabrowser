@@ -31,12 +31,14 @@ services:
     volumes:
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
+      - ./build.rs:/app/build.rs
       - ./src:/app/src
       # - ./static:/app/static
       - ./data:/data
     ports:
       - "30003:30003"
     environment:
+      - HTTPD=1
       - RUST_LOG=debug
       - BIND_ADDR=0.0.0.0
     profiles:

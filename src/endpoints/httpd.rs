@@ -8,7 +8,7 @@ use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
-// Encode only characters that are not allowed in URL paths (similar to Apache)
+// Encode only characters that are not allowed in URL paths (matching Apache)
 pub(crate) const PATH_SEGMENT: &AsciiSet = &CONTROLS
     .add(b' ')
     .add(b'"')
@@ -119,7 +119,7 @@ fn parse_range(range_str: &str, file_size: u64) -> Option<(u64, u64)> {
     // Range header format: "bytes=start-end" or "bytes=start-" or "bytes=-suffix"
     let range_str = range_str.strip_prefix("bytes=")?;
 
-    // We only support single ranges, not multiple ranges
+    // support single ranges, not multiple ranges
     if range_str.contains(',') {
         return None;
     }

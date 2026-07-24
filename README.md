@@ -50,6 +50,26 @@ docker image inspect mediabrowser >/dev/null 2>&1 || docker build -t mediabrowse
 sudo docker image inspect mediabrowser >/dev/null 2>&1 || sudo docker build -t mediabrowser https://github.com/iruzo/mediabrowser.git && sudo docker run -p 30003:30003 -e BIND_ADDR=0.0.0.0 -v $(pwd)/data:/data mediabrowser
 ```
 
+### Build Variants
+
+Which endpoints get compiled into the binary is controlled at build
+time by environment variables read in `build.rs`:
+
+- `HTTPD=1` - adds the Apache-style httpd root endpoint
+- `GRID=1` - adds httpd plus the `/grid` endpoint
+- `UI=1` - adds httpd, grid and the `/ui` endpoint
+
+A Dockerfile is provided per variant in [containers/](./containers/):
+
+- `containers/server.Dockerfile` - API only, no root serving
+- `containers/httpd.Dockerfile` - `HTTPD=1`
+- `containers/grid.Dockerfile` - `GRID=1`
+- `Dockerfile` (root) - `UI=1`, full build
+
+```bash
+docker build -t mediabrowser-httpd -f containers/httpd.Dockerfile .
+```
+
 ### Environment Variables
 
 ```bash

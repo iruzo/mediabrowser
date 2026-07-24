@@ -38,6 +38,7 @@ pub fn text(status: StatusCode, message: impl Into<String>) -> Response {
         .expect("valid text response")
 }
 
+#[cfg(grid)]
 pub fn html(body: impl Into<String>) -> Response {
     hyper::http::Response::builder()
         .status(StatusCode::OK)
