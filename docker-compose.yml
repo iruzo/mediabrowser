@@ -28,17 +28,19 @@ services:
         cargo install cargo-watch
         cargo watch -x run
     working_dir: /app
+    # build:
+    #   dockerfile: ./Dockerfile
+    #   context: .
+    #   # args:
+    #   #   FEATURES: httpd
     volumes:
       - ./Cargo.toml:/app/Cargo.toml
       - ./Cargo.lock:/app/Cargo.lock
-      - ./build.rs:/app/build.rs
       - ./src:/app/src
-      # - ./static:/app/static
       - ./data:/data
     ports:
       - "30003:30003"
     environment:
-      - UI=1
       - RUST_LOG=debug
       - BIND_ADDR=0.0.0.0
     profiles:

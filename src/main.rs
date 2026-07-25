@@ -17,11 +17,8 @@ mod multipart;
 mod response;
 mod types;
 
-#[cfg(grid)]
 use endpoints::handle_grid;
-#[cfg(httpd)]
 use endpoints::handle_file_server;
-#[cfg(ui)]
 use endpoints::handle_ui;
 use response::Response;
 use types::data_dir;
@@ -145,7 +142,6 @@ async fn route(request: Request<Incoming>) -> Result<Response, Response> {
 
     let path = parts.uri.path();
 
-    #[cfg(ui)]
     if let Some(tail) = path.strip_prefix("/ui/") {
         if parts.method == Method::GET {
             return Ok(handle_ui(tail).await);
@@ -153,17 +149,13 @@ async fn route(request: Request<Incoming>) -> Result<Response, Response> {
     }
 
     match (&parts.method, path) {
-        #[cfg(ui)]
         (&Method::GET, "/ui") => Ok(handle_ui("").await),
-        #[cfg(grid)]
         (&Method::GET, "/grid") => {
             let form = parse_form(parts.uri.query().unwrap_or_default().as_bytes());
             Ok(handle_grid(field(&form, "path")).await)
         }
         (&Method::GET, "/favicon.ico") => Ok(response::status(StatusCode::OK)),
-        #[cfg(httpd)]
         _ => Ok(handle_file_server(path.trim_start_matches('/'), &parts.headers).await),
-        #[cfg(not(httpd))]
         _ => Ok(response::status(StatusCode::NOT_FOUND)),
     }
 }

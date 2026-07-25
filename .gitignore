@@ -5,7 +5,6 @@
 !Cargo.lock
 !Cargo.toml
 !Dockerfile
-!build.rs
 !LICENSE
 !README.md
 !assets/

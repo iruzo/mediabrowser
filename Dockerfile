@@ -14,8 +14,10 @@ WORKDIR /app
 COPY . .
 # COPY --from=minifier /static/ /app/static/
 
-ENV UI=1
+# ARG FEATURES
+
 ENV RUSTFLAGS="-C target-feature=+crt-static"
+# RUN cargo build --release --target x86_64-unknown-linux-musl ${FEATURES:+--features "$FEATURES"}
 RUN cargo build --release --target x86_64-unknown-linux-musl
 RUN strip /app/target/x86_64-unknown-linux-musl/release/mediabrowser || true
 
