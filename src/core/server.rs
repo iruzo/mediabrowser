@@ -102,7 +102,27 @@ async fn read_body(mut body: Incoming, limit: usize) -> Result<Bytes, Response> 
 pub(crate) type Form = Vec<(String, String)>;
 
 pub(crate) fn parse_form(bytes: &[u8]) -> Form {
-    form_urlencoded::parse(bytes).into_owned().collect()
+    bytes
+        .split(|&b| b == b'&')
+        .filter(|pair| !pair.is_empty())
+        .map(|pair| {
+            let (key, value) = match pair.iter().position(|&b| b == b'=') {
+                Some(i) => (&pair[..i], &pair[i + 1..]),
+                None => (pair, &pair[pair.len()..]),
+            };
+            (decode_form_part(key), decode_form_part(value))
+        })
+        .collect()
+}
+
+fn decode_form_part(bytes: &[u8]) -> String {
+    let plus_decoded: Vec<u8> = bytes
+        .iter()
+        .map(|&b| if b == b'+' { b' ' } else { b })
+        .collect();
+    percent_encoding::percent_decode(&plus_decoded)
+        .decode_utf8_lossy()
+        .into_owned()
 }
 
 pub(crate) fn field<'a>(form: &'a Form, name: &str) -> Option<&'a str> {
