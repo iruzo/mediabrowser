@@ -13,6 +13,7 @@ use std::task::Poll;
 use tokio::net::TcpListener;
 
 mod endpoints;
+mod mime;
 mod multipart;
 mod response;
 mod types;

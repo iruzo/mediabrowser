@@ -1,4 +1,4 @@
-use super::mime::{content_type, PATH_SEGMENT};
+use crate::mime::{content_type, PATH_SEGMENT};
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
