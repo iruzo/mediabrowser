@@ -156,7 +156,6 @@ async fn route(request: Request<Incoming>) -> Result<Response, Response> {
         }
         (&Method::GET, "/favicon.ico") => Ok(response::status(StatusCode::OK)),
         _ => Ok(handle_file_server(path.trim_start_matches('/'), &parts.headers).await),
-        _ => Ok(response::status(StatusCode::NOT_FOUND)),
     }
 }
 
