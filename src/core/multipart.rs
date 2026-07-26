@@ -1,5 +1,6 @@
 /// Streaming parser for multipart/form-data request bodies (RFC 7578).
 
+use bytes::{Buf, Bytes, BytesMut};
 use http_body::Body as HttpBody;
 use hyper::body::Incoming;
 use hyper::http::StatusCode;
@@ -18,7 +19,7 @@ pub struct PartHeader {
 
 pub struct Multipart {
     body: Incoming,
-    buffer: Vec<u8>,
+    buffer: BytesMut,
     delimiter: Vec<u8>,
     budget: u64,
     body_done: bool,
@@ -61,7 +62,7 @@ impl Multipart {
     pub fn new(body: Incoming, boundary: &str, limit: u64) -> Self {
         Multipart {
             body,
-            buffer: b"\r\n".to_vec(),
+            buffer: BytesMut::from(&b"\r\n"[..]),
             delimiter: format!("\r\n--{boundary}").into_bytes(),
             budget: limit,
             body_done: false,
@@ -85,15 +86,15 @@ impl Multipart {
         Ok(Some(header))
     }
 
-    pub async fn chunk(&mut self) -> MultipartResult<Option<Vec<u8>>> {
+    pub async fn chunk(&mut self) -> MultipartResult<Option<Bytes>> {
         if !self.in_part {
             return Ok(None);
         }
 
         loop {
             if let Some(position) = find(&self.buffer, &self.delimiter) {
-                let data = self.buffer[..position].to_vec();
-                self.buffer.drain(..position + self.delimiter.len());
+                let data = self.buffer.split_to(position).freeze();
+                self.buffer.advance(self.delimiter.len());
                 self.in_part = false;
                 self.read_delimiter_suffix().await?;
                 return Ok(if data.is_empty() { None } else { Some(data) });
@@ -101,7 +102,7 @@ impl Multipart {
 
             let safe = self.buffer.len().saturating_sub(self.delimiter.len() - 1);
             if safe > 0 {
-                let data = self.buffer.drain(..safe).collect();
+                let data = self.buffer.split_to(safe).freeze();
                 return Ok(Some(data));
             }
             if !self.fill().await? {
@@ -126,7 +127,7 @@ impl Multipart {
 
         loop {
             if let Some(position) = find(&self.buffer, b"\r\n") {
-                self.buffer.drain(..position + 2);
+                self.buffer.advance(position + 2);
                 return Ok(());
             }
             if self.buffer.len() > MAX_HEADER_SIZE || !self.fill().await? {
@@ -138,12 +139,12 @@ impl Multipart {
     async fn read_headers(&mut self) -> MultipartResult<PartHeader> {
         loop {
             if self.buffer.starts_with(b"\r\n") {
-                self.buffer.drain(..2);
+                self.buffer.advance(2);
                 return Ok(PartHeader::default());
             }
             if let Some(position) = find(&self.buffer, b"\r\n\r\n") {
                 let header = parse_part_header(&self.buffer[..position]);
-                self.buffer.drain(..position + 4);
+                self.buffer.advance(position + 4);
                 return header;
             }
             if self.buffer.len() > MAX_HEADER_SIZE || !self.fill().await? {
