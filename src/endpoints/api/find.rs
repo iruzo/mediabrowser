@@ -1,10 +1,10 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
+use crate::walk;
 use hyper::http::StatusCode;
 use std::fmt::Write;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
-use walkdir::WalkDir;
 
 const MAX_PATH_SIZE: usize = 4096;
 const MAX_QUERY_SIZE: usize = 4096;
@@ -81,14 +81,12 @@ fn directory_path(path: Option<&str>) -> FindResult<PathBuf> {
 fn list_paths(path: &Path, root: &Path) -> FindResult<Vec<String>> {
     let mut paths = Vec::new();
 
-    for entry in WalkDir::new(path).min_depth(1).follow_links(false) {
-        let entry = entry.map_err(walk_error)?;
-        let file_type = entry.file_type();
-        if !file_type.is_file() && !file_type.is_dir() {
+    for entry in walk(path).map_err(walk_error)? {
+        if !entry.file_type.is_file() && !entry.file_type.is_dir() {
             continue;
         }
 
-        if let Some(path) = relative_path(root, entry.path(), file_type.is_dir()) {
+        if let Some(path) = relative_path(root, &entry.path, entry.file_type.is_dir()) {
             paths.push(path);
         }
     }
@@ -163,7 +161,7 @@ fn json_paths(paths: &[String]) -> String {
     json
 }
 
-fn walk_error(error: walkdir::Error) -> (StatusCode, String) {
+fn walk_error(error: std::io::Error) -> (StatusCode, String) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         format!("Failed to search directory: {error}"),

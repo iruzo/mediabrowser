@@ -1,9 +1,9 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
+use crate::walk;
 use hyper::http::StatusCode;
 use std::path::{Path, PathBuf};
 use tokio::fs;
-use walkdir::WalkDir;
 
 const MAX_PATH_SIZE: usize = 4096;
 
@@ -74,18 +74,18 @@ pub(crate) async fn copy_path(from: &str, to: &str) -> CpResult<()> {
 }
 
 fn copy_directory(from: &Path, to: &Path) -> CpResult<()> {
-    for entry in WalkDir::new(from).follow_links(false) {
-        let entry = entry.map_err(walk_error)?;
-        let target = match entry.path().strip_prefix(from) {
+    std::fs::create_dir_all(to).map_err(copy_error)?;
+
+    for entry in walk(from).map_err(walk_error)? {
+        let target = match entry.path.strip_prefix(from) {
             Ok(relative) => to.join(relative),
             Err(_) => continue,
         };
-        let file_type = entry.file_type();
 
-        if file_type.is_dir() {
+        if entry.file_type.is_dir() {
             std::fs::create_dir_all(&target).map_err(copy_error)?;
-        } else if file_type.is_file() {
-            std::fs::copy(entry.path(), &target)
+        } else if entry.file_type.is_file() {
+            std::fs::copy(&entry.path, &target)
                 .map(|_| ())
                 .map_err(copy_error)?;
         }
@@ -151,7 +151,7 @@ fn copy_error(error: std::io::Error) -> (StatusCode, String) {
     }
 }
 
-fn walk_error(error: walkdir::Error) -> (StatusCode, String) {
+fn walk_error(error: std::io::Error) -> (StatusCode, String) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         format!("Failed to copy path: {error}"),
