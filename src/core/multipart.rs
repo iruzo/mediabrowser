@@ -1,8 +1,10 @@
 /// Streaming parser for multipart/form-data request bodies (RFC 7578).
 
-use http_body_util::BodyExt;
+use http_body::Body as HttpBody;
 use hyper::body::Incoming;
 use hyper::http::StatusCode;
+use std::future::poll_fn;
+use std::pin::Pin;
 
 const MAX_HEADER_SIZE: usize = 8 * 1024;
 
@@ -155,7 +157,7 @@ impl Multipart {
             return Ok(false);
         }
 
-        match self.body.frame().await {
+        match poll_fn(|cx| Pin::new(&mut self.body).poll_frame(cx)).await {
             None => {
                 self.body_done = true;
                 Ok(false)

@@ -1,26 +1,68 @@
 use bytes::Bytes;
-use futures_util::{Stream, TryStreamExt};
-use http_body_util::combinators::BoxBody;
-use http_body_util::{BodyExt, Empty, Full, StreamBody};
-use hyper::body::Frame;
+use futures_util::Stream;
+use http_body::{Body as HttpBody, Frame, SizeHint};
 use hyper::http::StatusCode;
+use std::io;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
-pub type Body = BoxBody<Bytes, std::io::Error>;
+pub enum Body {
+    Empty,
+    Full(Option<Bytes>),
+    Stream(Pin<Box<dyn Stream<Item = Result<Bytes, io::Error>> + Send + Sync>>),
+}
+
+impl HttpBody for Body {
+    type Data = Bytes;
+    type Error = io::Error;
+
+    fn poll_frame(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, io::Error>>> {
+        match self.get_mut() {
+            Body::Empty => Poll::Ready(None),
+            Body::Full(data) => Poll::Ready(data.take().map(|data| Ok(Frame::data(data)))),
+            Body::Stream(stream) => stream
+                .as_mut()
+                .poll_next(cx)
+                .map(|item| item.map(|result| result.map(Frame::data))),
+        }
+    }
+
+    fn is_end_stream(&self) -> bool {
+        matches!(self, Body::Empty | Body::Full(None))
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        match self {
+            Body::Empty | Body::Full(None) => SizeHint::with_exact(0),
+            Body::Full(Some(data)) => SizeHint::with_exact(data.len() as u64),
+            Body::Stream(_) => SizeHint::default(),
+        }
+    }
+}
+
 pub type Response = hyper::http::Response<Body>;
 
 pub fn empty() -> Body {
-    Empty::new().map_err(unreachable_error).boxed()
+    Body::Empty
 }
 
 pub fn full(data: impl Into<Bytes>) -> Body {
-    Full::new(data.into()).map_err(unreachable_error).boxed()
+    let data = data.into();
+    if data.is_empty() {
+        Body::Full(None)
+    } else {
+        Body::Full(Some(data))
+    }
 }
 
 pub fn stream<S>(stream: S) -> Body
 where
-    S: Stream<Item = Result<Bytes, std::io::Error>> + Send + Sync + 'static,
+    S: Stream<Item = Result<Bytes, io::Error>> + Send + Sync + 'static,
 {
-    StreamBody::new(stream.map_ok(Frame::data)).boxed()
+    Body::Stream(Box::pin(stream))
 }
 
 pub fn status(status: StatusCode) -> Response {
@@ -52,8 +94,4 @@ pub fn json(body: String) -> Response {
         .header("content-type", "application/json")
         .body(full(body))
         .expect("valid JSON response")
-}
-
-fn unreachable_error(error: std::convert::Infallible) -> std::io::Error {
-    match error {}
 }

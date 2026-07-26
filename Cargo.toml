@@ -8,7 +8,7 @@ tokio = { version = "1.0", default-features = false, features = ["rt-multi-threa
 tokio-util = { version = "0.7", default-features = false, features = ["io"] }
 hyper = { version = "1", default-features = false, features = ["http1", "server"] }
 hyper-util = { version = "0.1", default-features = false, features = ["http1", "server", "server-graceful", "tokio"] }
-http-body-util = "0.1"
+http-body = "1"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 percent-encoding = { version = "2.3", default-features = false, features = ["alloc"] }
 bytes = { version = "1.0", default-features = false }

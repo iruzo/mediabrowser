@@ -2,7 +2,7 @@ use crate::endpoints::{self, handle_file_server, handle_grid, handle_ui};
 use crate::response::{self, Response};
 use crate::types::data_dir;
 use bytes::Bytes;
-use http_body_util::BodyExt;
+use http_body::Body as HttpBody;
 use hyper::body::Incoming;
 use hyper::http::{Method, Request, StatusCode};
 use hyper::service::service_fn;
@@ -11,7 +11,7 @@ use hyper_util::server::graceful::GracefulShutdown;
 use std::convert::Infallible;
 use std::future::{poll_fn, Future};
 use std::net::Ipv4Addr;
-use std::pin::pin;
+use std::pin::{pin, Pin};
 use std::task::Poll;
 use tokio::net::TcpListener;
 
@@ -77,7 +77,7 @@ async fn shutdown_signal() {
 async fn read_body(mut body: Incoming, limit: usize) -> Result<Bytes, Response> {
     let mut data = Vec::new();
 
-    while let Some(frame) = body.frame().await {
+    while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
         let frame = frame.map_err(|error| {
             response::text(
                 StatusCode::BAD_REQUEST,
