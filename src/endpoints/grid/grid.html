@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        background: #111;
+        color: #eee;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      }
+      .box {
+        position: relative;
+        height: 200px;
+        background: #222;
+        overflow: hidden;
+      }
+      .open {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        word-break: break-all;
+        text-decoration: none;
+        color: inherit;
+      }
+      .open img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .menu {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        background: rgba(0, 0, 0, 0.85);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease 2s, visibility 0s ease 2.3s;
+      }
+      .box:active .menu {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.15s ease 0.5s, visibility 0s ease 0.5s;
+      }
+      .menu button {
+        width: 70%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grid">{{BOXES}}</div>
+  </body>
+</html>

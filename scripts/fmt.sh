@@ -1,2 +1,2 @@
 cargo fmt
-deno run -A npm:prettier@latest --write "static/**/*.{html,css,js}"
+deno run -A npm:prettier@latest --write "src/**/*.{html,css,js}"

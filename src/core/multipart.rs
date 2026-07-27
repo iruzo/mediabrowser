@@ -1,5 +1,4 @@
 /// Streaming parser for multipart/form-data request bodies (RFC 7578).
-
 use bytes::{Buf, Bytes, BytesMut};
 use http_body::Body as HttpBody;
 use hyper::body::Incoming;
@@ -30,7 +29,11 @@ pub struct Multipart {
 pub fn parse_boundary(content_type: &str) -> Option<String> {
     let mut sections = content_type.split(';');
 
-    if !sections.next()?.trim().eq_ignore_ascii_case("multipart/form-data") {
+    if !sections
+        .next()?
+        .trim()
+        .eq_ignore_ascii_case("multipart/form-data")
+    {
         return None;
     }
 
@@ -47,8 +50,19 @@ pub fn parse_boundary(content_type: &str) -> Option<String> {
                 byte.is_ascii_alphanumeric()
                     || matches!(
                         byte,
-                        b'\'' | b'(' | b')' | b'+' | b'_' | b','
-                            | b'-' | b'.' | b'/' | b':' | b'=' | b'?' | b' '
+                        b'\''
+                            | b'('
+                            | b')'
+                            | b'+'
+                            | b'_'
+                            | b','
+                            | b'-'
+                            | b'.'
+                            | b'/'
+                            | b':'
+                            | b'='
+                            | b'?'
+                            | b' '
                     )
             });
 
