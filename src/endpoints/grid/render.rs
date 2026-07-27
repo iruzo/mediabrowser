@@ -1,74 +1,8 @@
 use crate::mime::{content_type, PATH_SEGMENT};
-use crate::response::{self, Response};
-use crate::types::{data_dir, data_path};
-use hyper::http::StatusCode;
 use percent_encoding::utf8_percent_encode;
-use std::path::{Path, PathBuf};
-use tokio::fs;
+use std::path::Path;
 
-const MAX_PATH_SIZE: usize = 4096;
-
-type GridResult<T> = Result<T, (StatusCode, String)>;
-
-pub async fn handle_grid(path: Option<&str>) -> Response {
-    let path = path.unwrap_or_default();
-
-    match grid(path).await {
-        Ok(html) => response::html(html),
-        Err((status, message)) => response::text(status, message),
-    }
-}
-
-async fn grid(path: &str) -> GridResult<String> {
-    let dir = resolve_directory(path).await?;
-
-    let mut entries = fs::read_dir(&dir).await.map_err(grid_error)?;
-    let mut items = Vec::new();
-
-    while let Some(entry) = entries.next_entry().await.map_err(grid_error)? {
-        let Ok(file_type) = entry.file_type().await else {
-            continue;
-        };
-        let Ok(name) = entry.file_name().into_string() else {
-            continue;
-        };
-
-        if file_type.is_dir() || file_type.is_file() {
-            items.push((name, file_type.is_dir()));
-        }
-    }
-
-    sort_items(&mut items);
-
-    Ok(render_grid(path, &items))
-}
-
-async fn resolve_directory(path: &str) -> GridResult<PathBuf> {
-    if path.len() > MAX_PATH_SIZE || path.chars().any(|c| c.is_control() || c == '\\') {
-        return Err((StatusCode::BAD_REQUEST, "invalid path".to_string()));
-    }
-
-    let dir = data_path(path).ok_or((StatusCode::BAD_REQUEST, "invalid path".to_string()))?;
-    let root = fs::canonicalize(data_dir()).await.map_err(grid_error)?;
-    let dir = fs::canonicalize(dir).await.map_err(grid_error)?;
-
-    if !dir.starts_with(&root) {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "path escapes data directory".to_string(),
-        ));
-    }
-    if !fs::metadata(&dir).await.map_err(grid_error)?.is_dir() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "path is not a directory".to_string(),
-        ));
-    }
-
-    Ok(dir)
-}
-
-fn sort_items(items: &mut [(String, bool)]) {
+pub(super) fn sort_items(items: &mut [(String, bool)]) {
     items.sort_by(|(a_name, a_is_dir), (b_name, b_is_dir)| {
         b_is_dir
             .cmp(a_is_dir)
@@ -76,7 +10,7 @@ fn sort_items(items: &mut [(String, bool)]) {
     });
 }
 
-fn render_grid(path: &str, items: &[(String, bool)]) -> String {
+pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
     let mut boxes = String::with_capacity(items.len() * 96);
 
     for (name, is_dir) in items {
@@ -138,17 +72,6 @@ fn escape_html(text: &str, out: &mut String) {
             '"' => out.push_str("&quot;"),
             _ => out.push(c),
         }
-    }
-}
-
-fn grid_error(error: std::io::Error) -> (StatusCode, String) {
-    if error.kind() == std::io::ErrorKind::NotFound {
-        (StatusCode::NOT_FOUND, "directory not found".to_string())
-    } else {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to list directory: {error}"),
-        )
     }
 }
 
