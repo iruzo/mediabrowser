@@ -1,6 +1,6 @@
 use crate::response::{self, Response};
 use hyper::http::StatusCode;
-use percent_encoding::{percent_decode_str, utf8_percent_encode, NON_ALPHANUMERIC};
+use percent_encoding::percent_decode_str;
 
 const MAX_PATH_SIZE: usize = 4096;
 
@@ -13,60 +13,32 @@ pub async fn handle_ui(path: &str) -> Response {
         return response::text(StatusCode::BAD_REQUEST, "invalid path");
     }
 
-    response::html(render_ui(&path))
-}
-
-fn render_ui(path: &str) -> String {
-    let encoded = utf8_percent_encode(path, NON_ALPHANUMERIC).to_string();
-    let mut title = String::from("/");
-    escape_html(path, &mut title);
-
-    format!(
-        r#"<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>{title}</title>
-<style>
-html, body {{ margin: 0; height: 100%; }}
-iframe {{ border: 0; width: 100%; height: 100%; display: block; }}
-</style>
-</head>
-<body>
-<iframe src="/grid?path={encoded}"></iframe>
-</body>
-</html>"#
-    )
-}
-
-fn escape_html(text: &str, out: &mut String) {
-    for c in text.chars() {
-        match c {
-            '&' => out.push_str("&amp;"),
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '"' => out.push_str("&quot;"),
-            _ => out.push(c),
-        }
-    }
+    super::grid::handle_grid(Some(&path)).await
 }
 
 #[cfg(test)]
 mod tests {
-    use super::render_ui;
+    use super::handle_ui;
+    use hyper::http::StatusCode;
 
-    #[test]
-    fn embeds_grid_iframe_with_encoded_path() {
-        let html = render_ui("folder/sub dir");
-
-        assert!(html.contains(r#"<iframe src="/grid?path=folder%2Fsub%20dir"></iframe>"#));
-        assert!(html.contains("<title>/folder/sub dir</title>"));
+    fn run<F: std::future::Future>(future: F) -> F::Output {
+        tokio::runtime::Builder::new_current_thread()
+            .build()
+            .expect("failed to build runtime")
+            .block_on(future)
     }
 
     #[test]
-    fn escapes_html_in_title() {
-        let html = render_ui("<a>&\"</a>");
+    fn rejects_control_characters_in_path() {
+        let response = run(handle_ui("foo%00bar"));
 
-        assert!(html.contains("<title>/&lt;a&gt;&amp;&quot;&lt;/a&gt;</title>"));
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn rejects_paths_over_the_size_limit() {
+        let response = run(handle_ui(&"a".repeat(5000)));
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 }

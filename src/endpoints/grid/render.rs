@@ -48,7 +48,12 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
         boxes.push_str("</div>\n");
     }
 
-    TEMPLATE.replace("{{BOXES}}", &boxes)
+    let mut title = String::from("/");
+    escape_html(path, &mut title);
+
+    TEMPLATE
+        .replace("{{TITLE}}", &title)
+        .replace("{{BOXES}}", &boxes)
 }
 
 fn escape_html(text: &str, out: &mut String) {
