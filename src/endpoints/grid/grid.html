@@ -80,9 +80,57 @@
       .menu button:nth-child(even) {
         background: #333;
       }
+      .toolbar {
+        position: fixed;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .toolbar summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 6px 12px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #eee;
+        border-radius: 4px;
+      }
+      .toolbar summary::-webkit-details-marker {
+        display: none;
+      }
+      .toolbar[open] {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .toolbar[open] summary {
+        order: 1;
+      }
+      .toolbar .actions {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 4px;
+      }
+      .toolbar button {
+        border: 0;
+        color: #eee;
+        background: #000;
+        padding: 6px 12px;
+        border-radius: 4px;
+      }
+      .toolbar button:nth-child(even) {
+        background: #333;
+      }
     </style>
   </head>
   <body>
     <div class="grid">{{BOXES}}</div>
+    <details class="toolbar">
+      <summary>...</summary>
+      <div class="actions">
+        <button type="button">search</button>
+        <button type="button">mkdir</button>
+        <button type="button">upload</button>
+      </div>
+    </details>
   </body>
 </html>
