@@ -39,24 +39,46 @@
       }
       .menu {
         position: absolute;
+        top: 4px;
+        right: 4px;
+      }
+      .menu summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 2px 6px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #eee;
+        border-radius: 4px;
+      }
+      .menu summary::-webkit-details-marker {
+        display: none;
+      }
+      /* Buttons live in .actions rather than in the details itself, because
+         engines lay out a details-as-flex-container inconsistently */
+      .menu[open] {
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+      }
+      .menu[open] summary {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        z-index: 1;
+      }
+      .menu .actions {
+        position: absolute;
         inset: 0;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        background: rgba(0, 0, 0, 0.85);
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.3s ease 2s, visibility 0s ease 2.3s;
-      }
-      .box:active .menu {
-        opacity: 1;
-        visibility: visible;
-        transition: opacity 0.15s ease 0.5s, visibility 0s ease 0.5s;
       }
       .menu button {
-        width: 70%;
+        flex: 1;
+        border: 0;
+        color: #eee;
+        background: #000;
+      }
+      .menu button:nth-child(even) {
+        background: #333;
       }
     </style>
   </head>

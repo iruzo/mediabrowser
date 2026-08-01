@@ -43,7 +43,7 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
         }
         boxes.push_str("</a>");
         boxes.push_str(
-            r#"<div class="menu"><button type="button">cp</button><button type="button">rm</button></div>"#,
+            r#"<details class="menu"><summary>...</summary><div class="actions"><button type="button">mkdir</button><button type="button">upload</button><button type="button">download</button><button type="button">cp</button><button type="button">rm</button></div></details>"#,
         );
         boxes.push_str("</div>\n");
     }
@@ -123,13 +123,14 @@ mod tests {
     }
 
     #[test]
-    fn renders_cp_and_rm_buttons_alongside_the_open_link() {
+    fn renders_menu_buttons_alongside_the_open_link() {
         let items = vec![("file.txt".to_string(), false)];
         let html = render_grid("", &items);
 
-        assert!(html.contains(r#"<div class="box"><a class="open" href="/file.txt" target="_top">file.txt</a><div class="menu">"#));
-        assert!(html.contains(r#"<button type="button">cp</button>"#));
-        assert!(html.contains(r#"<button type="button">rm</button>"#));
+        assert!(html.contains(r#"<div class="box"><a class="open" href="/file.txt" target="_top">file.txt</a><details class="menu">"#));
+        for action in ["mkdir", "upload", "download", "cp", "rm"] {
+            assert!(html.contains(&format!(r#"<button type="button">{action}</button>"#)));
+        }
     }
 
     #[test]
