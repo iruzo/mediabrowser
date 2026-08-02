@@ -86,7 +86,8 @@ button.toggle,
   background: #000;
 }
 .actions .download,
-.actions .cp {
+.actions .cp,
+.actions .mv {
   background: #333;
 }
 .actions label {

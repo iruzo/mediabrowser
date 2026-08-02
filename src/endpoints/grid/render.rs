@@ -65,6 +65,7 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
             r#"<button class="download" type="submit" formaction="/api/download">download</button>"#,
         );
         boxes.push_str(r#"<button class="cp" type="button">cp</button>"#);
+        boxes.push_str(r#"<button class="mv" type="button">mv</button>"#);
         boxes.push_str(r#"<input type="checkbox" class="arm" id=""#);
         boxes.push_str(&toggle);
         boxes.push_str(r#""><label class="rm" for=""#);
@@ -158,7 +159,9 @@ mod tests {
         let html = render_grid("", &items);
 
         assert!(html.contains(r#"<div class="box"><a class="open" href="/file.txt" target="_top">file.txt</a><form class="menu" method="post">"#));
-        assert!(html.contains(r#"<button class="cp" type="button">cp</button>"#));
+        assert!(html.contains(
+            r#"<button class="cp" type="button">cp</button><button class="mv" type="button">mv</button>"#
+        ));
     }
 
     #[test]
