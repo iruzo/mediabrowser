@@ -3,6 +3,7 @@ FROM docker.io/library/alpine AS minifier
 RUN apk add --no-cache minify
 
 COPY src/endpoints/grid/grid.html /static/
+COPY src/endpoints/grid/grid.css /static/
 RUN find /static -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) \
     -exec minify -o {} {} \;
 
@@ -13,7 +14,9 @@ RUN apk add --no-cache musl-dev binutils
 WORKDIR /app
 COPY . .
 RUN rm ./src/endpoints/grid/grid.html
+RUN rm ./src/endpoints/grid/grid.css
 COPY --from=minifier /static/grid.html ./src/endpoints/grid/grid.html
+COPY --from=minifier /static/grid.css ./src/endpoints/grid/grid.css
 
 # ARG FEATURES
 
