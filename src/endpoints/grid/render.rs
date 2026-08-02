@@ -43,8 +43,12 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
             escape_html(name, &mut boxes);
         }
         boxes.push_str("</a>");
+        boxes.push_str(r#"<details class="menu"><summary>...</summary><div class="actions">"#);
+        boxes.push_str(r#"<form method="post" action="/api/download"><input type="hidden" name="path" value=""#);
+        escape_html(&child, &mut boxes);
+        boxes.push_str(r#""><button type="submit">download</button></form>"#);
         boxes.push_str(
-            r#"<details class="menu"><summary>...</summary><div class="actions"><button type="button">download</button><button type="button">cp</button><button type="button">rm</button></div></details>"#,
+            r#"<button type="button">cp</button><button type="button">rm</button></div></details>"#,
         );
         boxes.push_str("</div>\n");
     }
@@ -130,9 +134,23 @@ mod tests {
         let html = render_grid("", &items);
 
         assert!(html.contains(r#"<div class="box"><a class="open" href="/file.txt" target="_top">file.txt</a><details class="menu">"#));
-        for action in ["download", "cp", "rm"] {
+        for action in ["cp", "rm"] {
             assert!(html.contains(&format!(r#"<button type="button">{action}</button>"#)));
         }
+    }
+
+    #[test]
+    fn posts_the_item_path_to_the_download_endpoint() {
+        let items = vec![
+            ("a \"b\".txt".to_string(), false),
+            ("sub".to_string(), true),
+        ];
+        let html = render_grid("root", &items);
+
+        assert!(html.contains(
+            r#"<form method="post" action="/api/download"><input type="hidden" name="path" value="root/sub"><button type="submit">download</button></form>"#
+        ));
+        assert!(html.contains(r#"value="root/a &quot;b&quot;.txt""#));
     }
 
     #[test]

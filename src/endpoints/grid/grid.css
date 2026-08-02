@@ -65,6 +65,10 @@ body {
   display: flex;
   flex-direction: column;
 }
+/* The download form wraps its button, so it must not become the flex item */
+.menu form {
+  display: contents;
+}
 .menu button {
   flex: 1;
   border: 0;
