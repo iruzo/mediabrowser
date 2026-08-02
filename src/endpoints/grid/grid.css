@@ -36,47 +36,82 @@ body {
   top: 4px;
   right: 4px;
 }
-.menu summary {
-  list-style: none;
-  cursor: pointer;
-  padding: 2px 6px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #eee;
-  border-radius: 4px;
-}
-.menu summary::-webkit-details-marker {
-  display: none;
-}
-/* Buttons live in .actions rather than in the details itself, because
-   engines lay out a details-as-flex-container inconsistently */
-.menu[open] {
+/* The open state is a checkbox so that the closing button, a form reset,
+   clears it along with the rm state it would otherwise leave armed */
+.menu:has(.show:checked) {
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
 }
-.menu[open] summary {
+.menu input {
+  display: none;
+}
+/* Buttons do not inherit the page font, so a slot would resize when its
+   label is swapped for a button */
+.toggle {
+  display: block;
+  cursor: pointer;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 4px;
+  font: inherit;
+  background: rgba(0, 0, 0, 0.6);
+  color: #eee;
+}
+button.toggle,
+.menu:has(.show:checked) label.toggle {
+  display: none;
+}
+.menu:has(.show:checked) button.toggle {
+  display: block;
   position: absolute;
   top: 4px;
   right: 4px;
   z-index: 1;
 }
-.menu .actions {
+.actions {
+  display: none;
+}
+.menu:has(.show:checked) .actions {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
 }
-/* The download form wraps its button, so it must not become the flex item */
-.menu form {
-  display: contents;
-}
-.menu button {
+.actions button,
+.actions label {
   flex: 1;
-  border: 0;
+  border: 1px solid #555;
+  font: inherit;
   color: #eee;
   background: #000;
 }
-.menu button:nth-child(even) {
+.actions .download,
+.actions .cp {
   background: #333;
+}
+.actions label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+/* rm takes two clicks: checking the box swaps its label for the submit button */
+.actions .confirm,
+.actions .dismiss {
+  display: none;
+}
+.arm:checked ~ .rm {
+  display: none;
+}
+.arm:checked ~ .confirm {
+  display: block;
+}
+.arm:checked ~ .dismiss {
+  display: flex;
+}
+/* The response is thrown away, so dismiss is what drops the deleted tile */
+.box:has(.hide:checked) {
+  display: none;
 }
 .toolbar {
   position: fixed;
