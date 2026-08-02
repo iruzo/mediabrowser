@@ -95,13 +95,12 @@ Each endpoint is documented with a curl example in
 ### API Routes
 - `GET /api/find?path=folder&query=name` - Recursively list or search paths as JSON strings; directories end with `/`
 - `POST /api/upload` - Upload files using multipart `path` and `file` fields (256GB limit)
-- `POST /api/downloads` - Stream selected paths as TAR using repeated URL-encoded `path` fields
+- `POST /api/download` - Download selected paths using repeated URL-encoded `path` fields; a single file is sent as-is, anything else as TAR
 - `POST /api/rm` - Remove a file or directory using a URL-encoded `path` field
 - `POST /api/mkdir` - Recursively create a directory using a URL-encoded `path` field
 - `POST /api/write` - Create or replace a UTF-8 text file using URL-encoded `path` and `content` fields
 - `POST /api/mv` - Move one path using URL-encoded `from` and `to` fields
 - `POST /api/cp` - Copy one file or directory using URL-encoded `from` and `to` fields
-- `GET /api/download/path/to/file` - Download single file
 
 ### Apache httpd Routes (Root)
 - `GET /` - Apache-style directory listing (root)
