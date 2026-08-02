@@ -41,6 +41,10 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
             boxes.push_str(r#"">"#);
         } else {
             escape_html(name, &mut boxes);
+            // Only the label carries the slash; hrefs and form paths stay bare
+            if *is_dir {
+                boxes.push('/');
+            }
         }
         boxes.push_str("</a>");
         // One form per item: each action picks its own endpoint, and the
@@ -129,8 +133,10 @@ mod tests {
         let items = vec![("a b.txt".to_string(), false), ("sub".to_string(), true)];
         let html = render_grid("root", &items);
 
-        assert!(html.contains(r#"href="/root/a%20b.txt" target="_top""#));
-        assert!(html.contains(r#"href="/ui/root/sub" target="_top""#));
+        assert!(html.contains(r#"href="/root/a%20b.txt" target="_top">a b.txt</a>"#));
+        assert!(html.contains(r#"href="/ui/root/sub" target="_top">sub/</a>"#));
+        // The slash is decoration, so it must not reach the path fields
+        assert!(html.contains(r#"<input type="hidden" name="path" value="root/sub">"#));
     }
 
     #[test]
