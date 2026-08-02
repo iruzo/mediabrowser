@@ -11,6 +11,7 @@ pub(super) fn sort_items(items: &mut [(String, bool)]) {
 }
 
 const TEMPLATE: &str = include_str!("grid.html");
+const CSS: &str = include_str!("grid.css");
 
 pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
     let mut boxes = String::with_capacity(items.len() * 96);
@@ -53,6 +54,7 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
 
     TEMPLATE
         .replace("{{TITLE}}", &title)
+        .replace("{{CSS}}", CSS)
         .replace("{{BOXES}}", &boxes)
 }
 
