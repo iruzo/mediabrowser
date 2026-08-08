@@ -52,8 +52,6 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
         let menu = format!("menu-{index}");
         // rm takes two clicks: the checkbox hides its label and reveals the submit button
         let toggle = format!("rm-{index}");
-        // Dismissing is a third click because no response comes back to act on
-        let dismiss = format!("dismiss-{index}");
         boxes.push_str(
             r#"<form class="menu" method="post"><input type="hidden" name="path" value=""#,
         );
@@ -74,11 +72,7 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
         boxes.push_str(&toggle);
         boxes.push_str(r#""><label class="rm" for=""#);
         boxes.push_str(&toggle);
-        boxes.push_str(r#"">rm</label><button class="confirm" type="submit" formaction="/api/rm" formtarget="rm">confirm</button><input type="checkbox" class="hide" id=""#);
-        boxes.push_str(&dismiss);
-        boxes.push_str(r#""><label class="dismiss" for=""#);
-        boxes.push_str(&dismiss);
-        boxes.push_str(r#"">hide item</label></div></form>"#);
+        boxes.push_str(r#"">rm</label><button class="confirm" type="submit" formaction="/api/rm" formtarget="rm">confirm</button></div></form>"#);
         boxes.push_str("</div>\n");
     }
 
@@ -176,11 +170,10 @@ mod tests {
         let html = render_grid("root", &items);
 
         assert!(html.contains(
-            r#"<input type="checkbox" class="arm" id="rm-0"><label class="rm" for="rm-0">rm</label><button class="confirm" type="submit" formaction="/api/rm" formtarget="rm">confirm</button><input type="checkbox" class="hide" id="dismiss-0"><label class="dismiss" for="dismiss-0">hide item</label>"#
+            r#"<input type="checkbox" class="arm" id="rm-0"><label class="rm" for="rm-0">rm</label><button class="confirm" type="submit" formaction="/api/rm" formtarget="rm">confirm</button>"#
         ));
         // Each box needs its own ids, otherwise one label acts on every item
         assert!(html.contains(r#"<input type="checkbox" class="arm" id="rm-1">"#));
-        assert!(html.contains(r#"<input type="checkbox" class="hide" id="dismiss-1">"#));
         // The response goes to the iframe in the template, not to the page
         assert!(html.contains(r#"<iframe name="rm" hidden></iframe>"#));
     }

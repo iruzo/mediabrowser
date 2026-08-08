@@ -97,8 +97,7 @@ button.toggle,
   cursor: pointer;
 }
 /* rm takes two clicks: checking the box swaps its label for the submit button */
-.actions .confirm,
-.actions .dismiss {
+.actions .confirm {
   display: none;
 }
 .arm:checked ~ .rm {
@@ -106,13 +105,6 @@ button.toggle,
 }
 .arm:checked ~ .confirm {
   display: block;
-}
-.arm:checked ~ .dismiss {
-  display: flex;
-}
-/* The response is thrown away, so dismiss is what drops the deleted tile */
-.box:has(.hide:checked) {
-  display: none;
 }
 .toolbar {
   position: fixed;
