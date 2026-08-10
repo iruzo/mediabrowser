@@ -1,4 +1,4 @@
-use crate::endpoints::{self, handle_file_server, handle_grid, handle_ui};
+use crate::endpoints::{self, handle_file_server, handle_grid, handle_ui, handle_ui_paths};
 use crate::response::{self, Response};
 use crate::types::data_dir;
 use bytes::Bytes;
@@ -17,6 +17,7 @@ use tokio::net::TcpListener;
 
 const PORT: u16 = 30003;
 const BIND_ADDR: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+const UI_FORM_LIMIT: usize = 16 * 1024 * 1024;
 
 fn get_bind_addr() -> Ipv4Addr {
     match std::env::var("BIND_ADDR") {
@@ -147,12 +148,20 @@ pub(crate) async fn read_form(body: Incoming, limit: usize) -> Result<Form, Resp
 
 async fn route(request: Request<Incoming>) -> Result<Response, Response> {
     let (parts, body) = request.into_parts();
+    let path = parts.uri.path();
+
+    if parts.method == Method::POST && path == "/ui" {
+        let form = read_form(body, UI_FORM_LIMIT).await?;
+        let paths = form
+            .into_iter()
+            .filter_map(|(name, path)| (name == "path").then_some(path))
+            .collect();
+        return Ok(handle_ui_paths(paths).await);
+    }
 
     if let Some(result) = endpoints::api::route(&parts, body).await {
         return result;
     }
-
-    let path = parts.uri.path();
 
     if let Some(tail) = path.strip_prefix("/ui/") {
         if parts.method == Method::GET {

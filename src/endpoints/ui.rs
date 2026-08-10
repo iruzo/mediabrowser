@@ -16,6 +16,10 @@ pub async fn handle_ui(path: &str) -> Response {
     super::grid::handle_grid(Some(&path)).await
 }
 
+pub async fn handle_ui_paths(paths: Vec<String>) -> Response {
+    super::grid::handle_grid_paths(paths).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::handle_ui;

@@ -8,12 +8,15 @@
   <body>
     <div class="grid">{{BOXES}}</div>
     <div class="toolbar">
-      <button class="show-mkdir">mkdir</button>
-      <button class="show-upload">upload</button>
-      <form class="mkdir" method="post" action="/api/mkdir" hidden>
+      <form class="search" method="get" action="/api/find">
+        <input name="query" placeholder="search" />
+        <button>search</button>
+      </form>
+      <form class="mkdir" method="post" action="/api/mkdir">
         <input name="path" placeholder="folder path" required />
         <button>create</button>
       </form>
+      <button class="show-upload">upload</button>
       <form class="upload" method="post" action="/api/upload" enctype="multipart/form-data" hidden>
         <input type="hidden" name="path" value="{{PATH}}" />
         <input type="file" name="file" multiple />

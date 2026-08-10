@@ -180,12 +180,12 @@ mod tests {
     fn renders_mkdir_as_an_html_form() {
         let html = render_grid("root", &[]);
 
-        assert!(html.contains(r#"<button class="show-mkdir">mkdir</button>"#));
         assert!(html.contains(
-            r#"<form class="mkdir" method="post" action="/api/mkdir" hidden>"#
+            r#"<form class="mkdir" method="post" action="/api/mkdir">"#
         ));
         assert!(html.contains(r#"<input name="path" placeholder="folder path" required"#));
         assert!(html.contains("await post(mkdir.action"));
+        assert!(!html.contains(r#"class="show-mkdir""#));
     }
 
     #[test]
@@ -202,6 +202,23 @@ mod tests {
     }
 
     #[test]
+    fn renders_recursive_search_with_item_actions() {
+        let html = render_grid("root", &[]);
+
+        assert!(html.contains(
+            r#"<form class="search" method="get" action="/api/find">"#
+        ));
+        assert!(html.contains(r#"<input name="query" placeholder="search" />"#));
+        assert!(!html.contains(r#"class="show-search""#));
+        assert!(html.contains("if (!search.elements.query.value.trim())"));
+        assert!(html.contains("location.reload()"));
+        assert!(html.contains(r#"fetch(`${search.action}?${query}`)"#));
+        assert!(html.contains(r#"body.append("path", path)"#));
+        assert!(html.contains(r#"fetch("/ui", { method: "POST", body })"#));
+        assert!(html.contains(r#"page.querySelector(".grid").children"#));
+    }
+
+    #[test]
     fn renders_cp_and_mv_as_javascript_actions() {
         let html = render_grid("root", &[("a\".txt".to_string(), false)]);
 
@@ -210,8 +227,8 @@ mod tests {
         assert!(html.contains(r#"class="to mv-to" value="root/a&quot;.txt" hidden"#));
         assert!(html.contains(r#"<button class="mv" type="button">mv</button>"#));
         assert!(html.contains(r#"await post(`/api/${action}`, { from:"#));
-        assert!(html.contains(r#"pathAction("cp")"#));
-        assert!(html.contains(r#"pathAction("mv")"#));
+        assert!(html.contains(r#"bindPath(box.querySelector("button.cp"), "cp")"#));
+        assert!(html.contains(r#"bindPath(box.querySelector("button.mv"), "mv")"#));
         assert!(html.contains(r#"menu.querySelectorAll("input.to")"#));
         assert!(html.contains("location.reload()"));
     }

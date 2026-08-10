@@ -7,7 +7,7 @@ async function post(action, data) {
   if (!response.ok) throw new Error(await response.text());
 }
 
-document.querySelectorAll("button.rm").forEach((button) => {
+function bindRm(button) {
   button.addEventListener("click", async () => {
     button.disabled = true;
 
@@ -19,48 +19,43 @@ document.querySelectorAll("button.rm").forEach((button) => {
       button.disabled = false;
     }
   });
-});
+}
 
-function pathAction(action) {
-  document.querySelectorAll(`button.${action}`).forEach((button) => {
-    const form = button.form;
-    const input = form.querySelector(`input.${action}-to`);
+function bindPath(button, action) {
+  const form = button.form;
+  const input = form.querySelector(`input.${action}-to`);
 
-    button.addEventListener("click", async () => {
-      if (input.hidden) {
-        input.hidden = false;
-        input.select();
-        return;
-      }
+  button.addEventListener("click", async () => {
+    if (input.hidden) {
+      input.hidden = false;
+      input.select();
+      return;
+    }
 
-      const to = input.value.trim();
+    const to = input.value.trim();
 
-      if (!to) return;
+    if (!to) return;
 
-      button.disabled = true;
+    button.disabled = true;
 
-      try {
-        await post(`/api/${action}`, { from: form.elements.path.value, to });
-        location.reload();
-      } catch (error) {
-        alert(error.message || `Failed to ${action} item`);
-        button.disabled = false;
-      }
-    });
+    try {
+      await post(`/api/${action}`, { from: form.elements.path.value, to });
+      location.reload();
+    } catch (error) {
+      alert(error.message || `Failed to ${action} item`);
+      button.disabled = false;
+    }
+  });
 
-    input.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter") return;
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
 
-      event.preventDefault();
-      button.click();
-    });
+    event.preventDefault();
+    button.click();
   });
 }
 
-pathAction("cp");
-pathAction("mv");
-
-document.querySelectorAll("details.menu").forEach((menu) => {
+function bindMenu(menu) {
   menu.addEventListener("toggle", () => {
     if (menu.open) return;
 
@@ -68,15 +63,55 @@ document.querySelectorAll("details.menu").forEach((menu) => {
       input.hidden = true;
     });
   });
+}
+
+function bindBox(box) {
+  bindRm(box.querySelector("button.rm"));
+  bindPath(box.querySelector("button.cp"), "cp");
+  bindPath(box.querySelector("button.mv"), "mv");
+  bindMenu(box.querySelector("details.menu"));
+}
+
+document.querySelectorAll(".box").forEach(bindBox);
+
+const grid = document.querySelector(".grid");
+const search = document.querySelector("form.search");
+
+search.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!search.elements.query.value.trim()) {
+    location.reload();
+    return;
+  }
+
+  const button = event.submitter;
+  button.disabled = true;
+
+  try {
+    const query = new URLSearchParams(new FormData(search));
+    let response = await fetch(`${search.action}?${query}`);
+
+    if (!response.ok) throw new Error(await response.text());
+
+    const paths = await response.json();
+    const body = new URLSearchParams();
+    paths.forEach((path) => body.append("path", path));
+    response = await fetch("/ui", { method: "POST", body });
+
+    if (!response.ok) throw new Error(await response.text());
+
+    const page = new DOMParser().parseFromString(await response.text(), "text/html");
+    grid.replaceChildren(...page.querySelector(".grid").children);
+    grid.querySelectorAll(".box").forEach(bindBox);
+  } catch (error) {
+    alert(error.message || "Failed to search files");
+  } finally {
+    button.disabled = false;
+  }
 });
 
 const mkdir = document.querySelector("form.mkdir");
-const showMkdir = document.querySelector("button.show-mkdir");
-
-showMkdir.addEventListener("click", () => {
-  mkdir.hidden = false;
-  mkdir.elements.path.focus();
-});
 
 mkdir.addEventListener("submit", async (event) => {
   event.preventDefault();
