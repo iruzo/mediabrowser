@@ -77,8 +77,7 @@ button.toggle,
   display: flex;
   flex-direction: column;
 }
-.actions button,
-.actions label {
+.actions button {
   flex: 1;
   border: 1px solid #555;
   font: inherit;
@@ -89,22 +88,6 @@ button.toggle,
 .actions .cp,
 .actions .mv {
   background: #333;
-}
-.actions label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-/* rm takes two clicks: checking the box swaps its label for the submit button */
-.actions .confirm {
-  display: none;
-}
-.arm:checked ~ .rm {
-  display: none;
-}
-.arm:checked ~ .confirm {
-  display: block;
 }
 .toolbar {
   position: fixed;

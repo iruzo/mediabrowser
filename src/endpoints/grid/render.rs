@@ -12,6 +12,7 @@ pub(super) fn sort_items(items: &mut [(String, bool)]) {
 
 const TEMPLATE: &str = include_str!("grid.html");
 const CSS: &str = include_str!("grid.css");
+const SCRIPT: &str = include_str!("grid.js");
 
 pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
     let mut boxes = String::with_capacity(items.len() * 96);
@@ -47,11 +48,8 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
             }
         }
         boxes.push_str("</a>");
-        // One form per item: each action picks its own endpoint, and the
-        // closing button resets every control the menu left checked
+        // One form per item keeps downloads usable without JavaScript.
         let menu = format!("menu-{index}");
-        // rm takes two clicks: the checkbox hides its label and reveals the submit button
-        let toggle = format!("rm-{index}");
         boxes.push_str(
             r#"<form class="menu" method="post"><input type="hidden" name="path" value=""#,
         );
@@ -68,11 +66,7 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
         );
         boxes.push_str(r#"<button class="cp" type="button">cp</button>"#);
         boxes.push_str(r#"<button class="mv" type="button">mv</button>"#);
-        boxes.push_str(r#"<input type="checkbox" class="arm" id=""#);
-        boxes.push_str(&toggle);
-        boxes.push_str(r#""><label class="rm" for=""#);
-        boxes.push_str(&toggle);
-        boxes.push_str(r#"">rm</label><button class="confirm" type="submit" formaction="/api/rm" formtarget="rm">confirm</button></div></form>"#);
+        boxes.push_str(r#"<button class="rm" type="button">rm</button></div></form>"#);
         boxes.push_str("</div>\n");
     }
 
@@ -82,6 +76,7 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
     TEMPLATE
         .replace("{{TITLE}}", &title)
         .replace("{{CSS}}", CSS)
+        .replace("{{SCRIPT}}", SCRIPT)
         .replace("{{BOXES}}", &boxes)
 }
 
@@ -165,21 +160,22 @@ mod tests {
     }
 
     #[test]
-    fn arms_rm_with_a_checkbox_before_posting_to_the_endpoint() {
+    fn renders_rm_as_a_javascript_action() {
         let items = vec![("a.txt".to_string(), false), ("b.txt".to_string(), false)];
         let html = render_grid("root", &items);
 
-        assert!(html.contains(
-            r#"<input type="checkbox" class="arm" id="rm-0"><label class="rm" for="rm-0">rm</label><button class="confirm" type="submit" formaction="/api/rm" formtarget="rm">confirm</button>"#
-        ));
-        // Each box needs its own ids, otherwise one label acts on every item
-        assert!(html.contains(r#"<input type="checkbox" class="arm" id="rm-1">"#));
-        // The response goes to the iframe in the template, not to the page
-        assert!(html.contains(r#"<iframe name="rm" hidden></iframe>"#));
+        assert_eq!(
+            html.matches(r#"<button class="rm" type="button">rm</button>"#)
+                .count(),
+            2
+        );
+        assert!(html.contains("fetch(\"/api/rm\""));
+        assert!(!html.contains(r#"class="arm""#));
+        assert!(!html.contains(r#"<iframe name="rm""#));
     }
 
     #[test]
-    fn closes_the_menu_with_a_reset_so_rm_does_not_stay_armed() {
+    fn closes_the_menu_with_a_reset() {
         let items = vec![("a.txt".to_string(), false), ("b.txt".to_string(), false)];
         let html = render_grid("root", &items);
 
