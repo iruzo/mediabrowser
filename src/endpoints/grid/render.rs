@@ -17,7 +17,7 @@ const SCRIPT: &str = include_str!("grid.js");
 pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
     let mut boxes = String::with_capacity(items.len() * 96);
 
-    for (index, (name, is_dir)) in items.iter().enumerate() {
+    for (name, is_dir) in items {
         let child = if path.is_empty() {
             name.clone()
         } else {
@@ -48,25 +48,13 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
             }
         }
         boxes.push_str("</a>");
-        // One form per item keeps downloads usable without JavaScript.
-        let menu = format!("menu-{index}");
-        boxes.push_str(
-            r#"<form class="menu" method="post"><input type="hidden" name="path" value=""#,
-        );
+        boxes.push_str(r#"<details class="menu"><summary>...</summary><form class="actions" method="post" action="/api/rm"><input type="hidden" name="path" value=""#);
         escape_html(&child, &mut boxes);
-        boxes.push_str(r#""><input type="checkbox" class="show" id=""#);
-        boxes.push_str(&menu);
-        boxes.push_str(r#""><label class="toggle" for=""#);
-        boxes.push_str(&menu);
+        boxes.push_str(r#"">"#);
         boxes.push_str(
-            r#"">...</label><button class="toggle" type="reset">...</button><div class="actions">"#,
+            r#"<button class="download" formaction="/api/download">download</button>"#,
         );
-        boxes.push_str(
-            r#"<button class="download" type="submit" formaction="/api/download">download</button>"#,
-        );
-        boxes.push_str(r#"<button class="cp" type="button">cp</button>"#);
-        boxes.push_str(r#"<button class="mv" type="button">mv</button>"#);
-        boxes.push_str(r#"<button class="rm" type="button">rm</button></div></form>"#);
+        boxes.push_str(r#"<button class="rm" type="button">rm</button></form></details>"#);
         boxes.push_str("</div>\n");
     }
 
@@ -149,14 +137,15 @@ mod tests {
     }
 
     #[test]
-    fn renders_menu_buttons_alongside_the_open_link() {
+    fn renders_item_actions_in_a_details_menu() {
         let items = vec![("file.txt".to_string(), false)];
         let html = render_grid("", &items);
 
-        assert!(html.contains(r#"<div class="box"><a class="open" href="/file.txt" target="_top">file.txt</a><form class="menu" method="post">"#));
         assert!(html.contains(
-            r#"<button class="cp" type="button">cp</button><button class="mv" type="button">mv</button>"#
+            r#"<div class="box"><a class="open" href="/file.txt" target="_top">file.txt</a><details class="menu"><summary>...</summary><form class="actions" method="post" action="/api/rm">"#
         ));
+        assert!(!html.contains(r#"class="cp""#));
+        assert!(!html.contains(r#"class="mv""#));
     }
 
     #[test]
@@ -169,7 +158,7 @@ mod tests {
                 .count(),
             2
         );
-        assert!(html.contains("fetch(\"/api/rm\""));
+        assert!(html.contains("await post(button.form)"));
         assert!(!html.contains(r#"class="arm""#));
         assert!(!html.contains(r#"<iframe name="rm""#));
     }
@@ -178,25 +167,23 @@ mod tests {
     fn renders_mkdir_as_an_html_form() {
         let html = render_grid("root", &[]);
 
-        assert!(html.contains(
-            r#"<button class="show-mkdir" type="button">mkdir</button>"#
-        ));
+        assert!(html.contains(r#"<button class="show-mkdir">mkdir</button>"#));
         assert!(html.contains(
             r#"<form class="mkdir" method="post" action="/api/mkdir" hidden>"#
         ));
         assert!(html.contains(r#"<input name="path" placeholder="folder path" required"#));
-        assert!(html.contains("fetch(\"/api/mkdir\""));
+        assert!(html.contains("await post(mkdir)"));
     }
 
     #[test]
-    fn closes_the_menu_with_a_reset() {
+    fn renders_native_details_menus_without_generated_ids() {
         let items = vec![("a.txt".to_string(), false), ("b.txt".to_string(), false)];
         let html = render_grid("root", &items);
 
-        assert!(html.contains(
-            r#"<input type="checkbox" class="show" id="menu-0"><label class="toggle" for="menu-0">...</label><button class="toggle" type="reset">...</button>"#
-        ));
-        assert!(html.contains(r#"<input type="checkbox" class="show" id="menu-1">"#));
+        assert_eq!(html.matches(r#"<details class="menu">"#).count(), 2);
+        assert_eq!(html.matches("<summary>...</summary>").count(), 2);
+        assert!(!html.contains(r#"class="show""#));
+        assert!(!html.contains(r#"class="toggle""#));
     }
 
     #[test]
@@ -208,10 +195,10 @@ mod tests {
         let html = render_grid("root", &items);
 
         assert!(html.contains(
-            r#"<form class="menu" method="post"><input type="hidden" name="path" value="root/sub"><input type="checkbox" class="show" id="menu-1">"#
+            r#"<form class="actions" method="post" action="/api/rm"><input type="hidden" name="path" value="root/sub">"#
         ));
         assert!(html.contains(
-            r#"<button class="download" type="submit" formaction="/api/download">download</button>"#
+            r#"<button class="download" formaction="/api/download">download</button>"#
         ));
         assert!(html.contains(r#"value="root/a &quot;b&quot;.txt""#));
     }

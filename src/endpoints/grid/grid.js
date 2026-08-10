@@ -1,18 +1,19 @@
+async function post(form) {
+  const response = await fetch(form.action, {
+    method: form.method,
+    body: new URLSearchParams(new FormData(form)),
+  });
+
+  if (!response.ok) throw new Error(await response.text());
+}
+
 document.querySelectorAll("button.rm").forEach((button) => {
   button.addEventListener("click", async () => {
-    const form = button.form;
-
     button.disabled = true;
 
     try {
-      const response = await fetch("/api/rm", {
-        method: "POST",
-        body: new URLSearchParams(new FormData(form)),
-      });
-
-      if (!response.ok) throw new Error(await response.text());
-
-      form.closest(".box").remove();
+      await post(button.form);
+      button.closest(".box").remove();
     } catch (error) {
       alert(error.message || "Failed to remove item");
       button.disabled = false;
@@ -31,18 +32,12 @@ showMkdir.addEventListener("click", () => {
 mkdir.addEventListener("submit", async (event) => {
   event.preventDefault();
 
-  const button = mkdir.querySelector("button");
+  const button = event.submitter;
 
   button.disabled = true;
 
   try {
-    const response = await fetch("/api/mkdir", {
-      method: "POST",
-      body: new URLSearchParams(new FormData(mkdir)),
-    });
-
-    if (!response.ok) throw new Error(await response.text());
-
+    await post(mkdir);
     location.reload();
   } catch (error) {
     alert(error.message || "Failed to create folder");

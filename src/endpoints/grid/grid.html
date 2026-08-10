@@ -7,18 +7,13 @@
   </head>
   <body>
     <div class="grid">{{BOXES}}</div>
-    <details class="toolbar">
-      <summary>...</summary>
-      <div class="actions">
-        <button type="button">search</button>
-        <button class="show-mkdir" type="button">mkdir</button>
-        <button type="button">upload</button>
-      </div>
+    <div class="toolbar">
+      <button class="show-mkdir">mkdir</button>
       <form class="mkdir" method="post" action="/api/mkdir" hidden>
         <input name="path" placeholder="folder path" required />
-        <button type="submit">mkdir</button>
+        <button>create</button>
       </form>
-    </details>
+    </div>
     <script>{{SCRIPT}}</script>
   </body>
 </html>
