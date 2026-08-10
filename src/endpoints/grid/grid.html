@@ -11,9 +11,13 @@
       <summary>...</summary>
       <div class="actions">
         <button type="button">search</button>
-        <button type="button">mkdir</button>
+        <button class="show-mkdir" type="button">mkdir</button>
         <button type="button">upload</button>
       </div>
+      <form class="mkdir" method="post" action="/api/mkdir" hidden>
+        <input name="path" placeholder="folder path" required />
+        <button type="submit">mkdir</button>
+      </form>
     </details>
     <script>{{SCRIPT}}</script>
   </body>

@@ -175,6 +175,20 @@ mod tests {
     }
 
     #[test]
+    fn renders_mkdir_as_an_html_form() {
+        let html = render_grid("root", &[]);
+
+        assert!(html.contains(
+            r#"<button class="show-mkdir" type="button">mkdir</button>"#
+        ));
+        assert!(html.contains(
+            r#"<form class="mkdir" method="post" action="/api/mkdir" hidden>"#
+        ));
+        assert!(html.contains(r#"<input name="path" placeholder="folder path" required"#));
+        assert!(html.contains("fetch(\"/api/mkdir\""));
+    }
+
+    #[test]
     fn closes_the_menu_with_a_reset() {
         let items = vec![("a.txt".to_string(), false), ("b.txt".to_string(), false)];
         let html = render_grid("root", &items);

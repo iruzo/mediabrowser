@@ -119,6 +119,20 @@ button.toggle,
   gap: 4px;
   margin-bottom: 4px;
 }
+.mkdir {
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.mkdir[hidden] {
+  display: none;
+}
+.mkdir input {
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid #555;
+  color: #eee;
+  background: #111;
+}
 .toolbar button {
   border: 0;
   color: #eee;
