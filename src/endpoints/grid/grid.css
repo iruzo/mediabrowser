@@ -69,6 +69,7 @@ body {
   border: 1px solid #555;
 }
 .download,
+.cp,
 .mv {
   background: #333;
 }

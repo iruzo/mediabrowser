@@ -54,7 +54,10 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
         boxes.push_str(
             r#"<button class="download" formaction="/api/download">download</button>"#,
         );
-        boxes.push_str(r#"<input class="to" name="to" value=""#);
+        boxes.push_str(r#"<input class="to cp-to" value=""#);
+        escape_html(&child, &mut boxes);
+        boxes.push_str(r#"" hidden><button class="cp" type="button">cp</button>"#);
+        boxes.push_str(r#"<input class="to mv-to" value=""#);
         escape_html(&child, &mut boxes);
         boxes.push_str(r#"" hidden><button class="mv" type="button">mv</button>"#);
         boxes.push_str(r#"<button class="rm" type="button">rm</button></form></details>"#);
@@ -147,9 +150,11 @@ mod tests {
         assert!(html.contains(
             r#"<div class="box"><a class="open" href="/file.txt" target="_top">file.txt</a><details class="menu"><summary>...</summary><form class="actions" method="post" action="/api/rm">"#
         ));
-        assert!(!html.contains(r#"class="cp""#));
         assert!(html.contains(
-            r#"<input class="to" name="to" value="file.txt" hidden><button class="mv" type="button">mv</button>"#
+            r#"<input class="to cp-to" value="file.txt" hidden><button class="cp" type="button">cp</button>"#
+        ));
+        assert!(html.contains(
+            r#"<input class="to mv-to" value="file.txt" hidden><button class="mv" type="button">mv</button>"#
         ));
     }
 
@@ -181,12 +186,16 @@ mod tests {
     }
 
     #[test]
-    fn renders_mv_as_a_javascript_action() {
+    fn renders_cp_and_mv_as_javascript_actions() {
         let html = render_grid("root", &[("a\".txt".to_string(), false)]);
 
-        assert!(html.contains(r#"name="to" value="root/a&quot;.txt" hidden"#));
+        assert!(html.contains(r#"class="to cp-to" value="root/a&quot;.txt" hidden"#));
+        assert!(html.contains(r#"<button class="cp" type="button">cp</button>"#));
+        assert!(html.contains(r#"class="to mv-to" value="root/a&quot;.txt" hidden"#));
         assert!(html.contains(r#"<button class="mv" type="button">mv</button>"#));
-        assert!(html.contains(r#"await post("/api/mv", { from:"#));
+        assert!(html.contains(r#"await post(`/api/${action}`, { from:"#));
+        assert!(html.contains(r#"pathAction("cp")"#));
+        assert!(html.contains(r#"pathAction("mv")"#));
         assert!(html.contains("location.reload()"));
     }
 
