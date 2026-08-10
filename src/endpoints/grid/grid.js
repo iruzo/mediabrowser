@@ -60,6 +60,16 @@ function pathAction(action) {
 pathAction("cp");
 pathAction("mv");
 
+document.querySelectorAll("details.menu").forEach((menu) => {
+  menu.addEventListener("toggle", () => {
+    if (menu.open) return;
+
+    menu.querySelectorAll("input.to").forEach((input) => {
+      input.hidden = true;
+    });
+  });
+});
+
 const mkdir = document.querySelector("form.mkdir");
 const showMkdir = document.querySelector("button.show-mkdir");
 
@@ -81,5 +91,37 @@ mkdir.addEventListener("submit", async (event) => {
   } catch (error) {
     alert(error.message || "Failed to create folder");
     button.disabled = false;
+  }
+});
+
+const upload = document.querySelector("form.upload");
+const showUpload = document.querySelector("button.show-upload");
+const files = upload.elements.file;
+
+showUpload.addEventListener("click", () => {
+  files.click();
+});
+
+files.addEventListener("change", () => {
+  if (files.files.length) upload.requestSubmit();
+});
+
+upload.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  showUpload.disabled = true;
+
+  try {
+    const response = await fetch(upload.action, {
+      method: upload.method,
+      body: new FormData(upload),
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+
+    location.reload();
+  } catch (error) {
+    alert(error.message || "Failed to upload files");
+    showUpload.disabled = false;
+    files.value = "";
   }
 });

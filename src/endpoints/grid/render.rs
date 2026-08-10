@@ -66,9 +66,12 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
 
     let mut title = String::from("/");
     escape_html(path, &mut title);
+    let mut escaped_path = String::new();
+    escape_html(path, &mut escaped_path);
 
     TEMPLATE
         .replace("{{TITLE}}", &title)
+        .replace("{{PATH}}", &escaped_path)
         .replace("{{CSS}}", CSS)
         .replace("{{SCRIPT}}", SCRIPT)
         .replace("{{BOXES}}", &boxes)
@@ -186,6 +189,19 @@ mod tests {
     }
 
     #[test]
+    fn renders_upload_for_the_current_path() {
+        let html = render_grid("root/a & b", &[]);
+
+        assert!(html.contains(r#"<button class="show-upload">upload</button>"#));
+        assert!(html.contains(
+            r#"<form class="upload" method="post" action="/api/upload" enctype="multipart/form-data" hidden>"#
+        ));
+        assert!(html.contains(r#"name="path" value="root/a &amp; b""#));
+        assert!(html.contains(r#"<input type="file" name="file" multiple"#));
+        assert!(html.contains("body: new FormData(upload)"));
+    }
+
+    #[test]
     fn renders_cp_and_mv_as_javascript_actions() {
         let html = render_grid("root", &[("a\".txt".to_string(), false)]);
 
@@ -196,6 +212,7 @@ mod tests {
         assert!(html.contains(r#"await post(`/api/${action}`, { from:"#));
         assert!(html.contains(r#"pathAction("cp")"#));
         assert!(html.contains(r#"pathAction("mv")"#));
+        assert!(html.contains(r#"menu.querySelectorAll("input.to")"#));
         assert!(html.contains("location.reload()"));
     }
 
