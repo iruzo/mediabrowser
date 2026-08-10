@@ -1,7 +1,7 @@
-async function post(form) {
-  const response = await fetch(form.action, {
-    method: form.method,
-    body: new URLSearchParams(new FormData(form)),
+async function post(action, data) {
+  const response = await fetch(action, {
+    method: "POST",
+    body: new URLSearchParams(data),
   });
 
   if (!response.ok) throw new Error(await response.text());
@@ -12,12 +12,46 @@ document.querySelectorAll("button.rm").forEach((button) => {
     button.disabled = true;
 
     try {
-      await post(button.form);
+      await post(button.form.action, new FormData(button.form));
       button.closest(".box").remove();
     } catch (error) {
       alert(error.message || "Failed to remove item");
       button.disabled = false;
     }
+  });
+});
+
+document.querySelectorAll("button.mv").forEach((button) => {
+  const form = button.form;
+  const input = form.elements.to;
+
+  button.addEventListener("click", async () => {
+    if (input.hidden) {
+      input.hidden = false;
+      input.select();
+      return;
+    }
+
+    const to = input.value.trim();
+
+    if (!to) return;
+
+    button.disabled = true;
+
+    try {
+      await post("/api/mv", { from: form.elements.path.value, to });
+      location.reload();
+    } catch (error) {
+      alert(error.message || "Failed to move item");
+      button.disabled = false;
+    }
+  });
+
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+    button.click();
   });
 });
 
@@ -37,7 +71,7 @@ mkdir.addEventListener("submit", async (event) => {
   button.disabled = true;
 
   try {
-    await post(mkdir);
+    await post(mkdir.action, new FormData(mkdir));
     location.reload();
   } catch (error) {
     alert(error.message || "Failed to create folder");

@@ -68,8 +68,16 @@ body {
   flex: 1;
   border: 1px solid #555;
 }
-.download {
+.download,
+.mv {
   background: #333;
+}
+.to {
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid #555;
+  color: #eee;
+  background: #111;
 }
 button {
   font: inherit;

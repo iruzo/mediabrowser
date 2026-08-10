@@ -54,6 +54,9 @@ pub(super) fn render_grid(path: &str, items: &[(String, bool)]) -> String {
         boxes.push_str(
             r#"<button class="download" formaction="/api/download">download</button>"#,
         );
+        boxes.push_str(r#"<input class="to" name="to" value=""#);
+        escape_html(&child, &mut boxes);
+        boxes.push_str(r#"" hidden><button class="mv" type="button">mv</button>"#);
         boxes.push_str(r#"<button class="rm" type="button">rm</button></form></details>"#);
         boxes.push_str("</div>\n");
     }
@@ -145,7 +148,9 @@ mod tests {
             r#"<div class="box"><a class="open" href="/file.txt" target="_top">file.txt</a><details class="menu"><summary>...</summary><form class="actions" method="post" action="/api/rm">"#
         ));
         assert!(!html.contains(r#"class="cp""#));
-        assert!(!html.contains(r#"class="mv""#));
+        assert!(html.contains(
+            r#"<input class="to" name="to" value="file.txt" hidden><button class="mv" type="button">mv</button>"#
+        ));
     }
 
     #[test]
@@ -158,7 +163,7 @@ mod tests {
                 .count(),
             2
         );
-        assert!(html.contains("await post(button.form)"));
+        assert!(html.contains("await post(button.form.action"));
         assert!(!html.contains(r#"class="arm""#));
         assert!(!html.contains(r#"<iframe name="rm""#));
     }
@@ -172,7 +177,17 @@ mod tests {
             r#"<form class="mkdir" method="post" action="/api/mkdir" hidden>"#
         ));
         assert!(html.contains(r#"<input name="path" placeholder="folder path" required"#));
-        assert!(html.contains("await post(mkdir)"));
+        assert!(html.contains("await post(mkdir.action"));
+    }
+
+    #[test]
+    fn renders_mv_as_a_javascript_action() {
+        let html = render_grid("root", &[("a\".txt".to_string(), false)]);
+
+        assert!(html.contains(r#"name="to" value="root/a&quot;.txt" hidden"#));
+        assert!(html.contains(r#"<button class="mv" type="button">mv</button>"#));
+        assert!(html.contains(r#"await post("/api/mv", { from:"#));
+        assert!(html.contains("location.reload()"));
     }
 
     #[test]
