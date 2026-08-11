@@ -2,26 +2,37 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>{{TITLE}}</title>
     <style>{{CSS}}</style>
   </head>
   <body>
-    <div class="grid">{{BOXES}}</div>
-    <div class="toolbar">
+    <main class="grid">{{BOXES}}</main>
+    <div class="bar">
       <form class="search" method="get" action="/api/find">
         <input name="query" placeholder="search" />
-        <button>search</button>
       </form>
+      <button type="button" class="menu-toggle" popovertarget="menu">menu</button>
+    </div>
+    <div id="menu" class="general-menu" popover>
+      <button class="show-upload">upload</button>
+      <input id="name" placeholder="name" />
+      <button type="button" id="mkdir">mkdir</button>
+      <div class="menu-row"><span>size</span><button type="button" id="cellminus">-</button><button type="button" id="cellplus">+</button></div>
+      <div class="menu-row"><span>sort</span><a class="on" href="?sort=name">name</a><a href="?sort=date">date</a><a href="?sort=size">size</a><a href="?sort=type">type</a></div>
+      <div class="menu-row"><span>filter</span><a class="on" href="?filter=all">all</a><a href="?filter=image">image</a><a href="?filter=video">video</a><a href="?filter=audio">audio</a><a href="?filter=text">text</a></div>
+    </div>
+    <div hidden>
       <form class="mkdir" method="post" action="/api/mkdir">
         <input name="path" placeholder="folder path" required />
         <button>create</button>
       </form>
-      <button class="show-upload">upload</button>
-      <form class="upload" method="post" action="/api/upload" enctype="multipart/form-data" hidden>
-        <input type="hidden" name="path" value="{{PATH}}" />
-        <input type="file" name="file" multiple />
-      </form>
     </div>
+    <form class="upload" method="post" action="/api/upload" enctype="multipart/form-data" hidden>
+      <input type="hidden" name="path" value="{{PATH}}" />
+      <input type="file" name="file" multiple id="file" />
+    </form>
+    <output id="progress" hidden></output>
     <script>{{SCRIPT}}</script>
   </body>
 </html>
