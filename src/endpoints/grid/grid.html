@@ -14,10 +14,19 @@
       </form>
       <button type="button" class="menu-toggle" popovertarget="menu">menu</button>
     </div>
-    <div id="menu" class="general-menu" popover>
+    <div id="selection-menu" hidden>
+      <button type="button" id="selected-download">download</button>
+      <input id="selected-cp-to" placeholder="destination path" hidden />
+      <button type="button" id="selected-cp">cp</button>
+      <input id="selected-mv-to" placeholder="destination path" hidden />
+      <button type="button" id="selected-mv">mv</button>
+      <button type="button" id="selected-rm">rm</button>
+    </div>
+    <div id="menu" class="general-menu" popover="manual">
       <button class="show-upload">upload</button>
       <input id="name" placeholder="name" />
       <button type="button" id="mkdir">mkdir</button>
+      <button type="button" id="select">select</button>
       <div class="menu-row"><span>size</span><button type="button" id="cellminus">-</button><button type="button" id="cellplus">+</button></div>
       <div class="menu-row"><span>sort</span><a class="on" href="?sort=name">name</a><a href="?sort=date">date</a><a href="?sort=size">size</a><a href="?sort=type">type</a></div>
       <div class="menu-row"><span>filter</span><a class="on" href="?filter=all">all</a><a href="?filter=image">image</a><a href="?filter=video">video</a><a href="?filter=audio">audio</a><a href="?filter=text">text</a></div>

@@ -8,6 +8,7 @@
   --border-color: #333;
   --border-secondary: #555;
   --selection-color: #0066cc;
+  --selection-overlay: rgba(0, 100, 200, 0.3);
   --cell: 200px;
   --bar: 36px;
 }
@@ -23,6 +24,7 @@
     --border-color: #ccc;
     --border-secondary: #999;
     --selection-color: #0066cc;
+    --selection-overlay: rgba(0, 100, 200, 0.2);
   }
 }
 
@@ -100,6 +102,89 @@ body {
 
 .item.image .name {
   display: none;
+}
+
+.item.selected {
+  outline: 2px solid var(--selection-color);
+  outline-offset: -2px;
+}
+
+.item.selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--selection-overlay);
+  pointer-events: none;
+}
+
+.grid.selecting .item a {
+  cursor: pointer;
+}
+
+.grid.selecting .item .menu {
+  display: none;
+}
+
+#select.on {
+  background: var(--selection-color);
+  color: #fff;
+}
+
+#selection-menu {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 4px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  overflow-x: auto;
+  transform: translateX(-50%);
+  background: none;
+  border: 0;
+}
+
+#selection-menu[hidden] {
+  display: none;
+}
+
+#selection-menu button,
+#selection-menu input {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+#selection-menu button {
+  cursor: pointer;
+}
+
+#selection-menu button:hover {
+  background: var(--bg-quaternary);
+}
+
+#selection-menu input {
+  width: 180px;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
+}
+
+@media (max-width: 600px) {
+  #selection-menu {
+    width: calc(100% - 24px);
+    justify-content: flex-start;
+  }
+
+  #selection-menu input {
+    flex: 1;
+    min-width: 120px;
+  }
 }
 
 .item .menu {

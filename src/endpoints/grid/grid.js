@@ -18,9 +18,11 @@ const root = document.documentElement;
 const grid = document.querySelector(".grid");
 const galleryBar = document.querySelector(".bar");
 const galleryMenu = document.getElementById("menu");
+const selectionMenu = document.getElementById("selection-menu");
 const title = document.title;
 let viewer = null;
 let cell = parseInt(localStorage.getItem("cell"), 10) || 0;
+let selecting = false;
 const view = { sort: "name", filter: "all" };
 
 if (cell) root.style.setProperty("--cell", `${cell}px`);
@@ -71,12 +73,17 @@ function makeItem(box) {
   if (image) link.append(image);
   link.append(name);
 
-  if (!directory && type !== "text") {
-    link.addEventListener("click", (event) => {
+  link.addEventListener("click", (event) => {
+    if (selecting) {
+      event.preventDefault();
+      item.classList.toggle("selected");
+    } else if (!directory && type !== "text") {
       event.preventDefault();
       openViewer(path);
-    });
-  } else if (!directory) {
+    }
+  });
+
+  if (!directory && type === "text") {
     link.href = `/${encodedPath(path)}`;
   }
 
@@ -102,6 +109,119 @@ function resizeCell(delta) {
 
 on("cellminus", () => resizeCell(-40));
 on("cellplus", () => resizeCell(40));
+
+function selectedItems() {
+  const items = [...grid.querySelectorAll(".item.selected")];
+  return items.filter((item) => !items.some((parent) => parent !== item
+    && parent.classList.contains("dir")
+    && item.dataset.path.startsWith(`${parent.dataset.path}/`)));
+}
+
+function closeSelectionPaths() {
+  selectionMenu.querySelectorAll("input").forEach((input) => {
+    input.hidden = true;
+  });
+}
+
+on("select", () => {
+  const button = document.getElementById("select");
+  selecting = !selecting;
+  grid.classList.toggle("selecting", selecting);
+  selectionMenu.hidden = !selecting;
+  button.classList.toggle("on", selecting);
+  button.textContent = selecting ? "done" : "select";
+  if (!selecting) {
+    closeSelectionPaths();
+    grid.querySelectorAll(".item.selected").forEach((item) => item.classList.remove("selected"));
+  }
+});
+
+on("selected-download", () => {
+  const items = selectedItems();
+  if (!items.length) return;
+
+  const form = document.createElement("form");
+  form.method = "post";
+  form.action = "/api/download";
+  form.hidden = true;
+  items.forEach((item) => {
+    const input = document.createElement("input");
+    input.name = "path";
+    input.value = item.dataset.path;
+    form.append(input);
+  });
+  document.body.append(form);
+  form.requestSubmit();
+  setTimeout(() => form.remove(), 0);
+});
+
+function destinationPath(dir, path) {
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  return `${dir.replace(/\/+$/, "")}/${name}`;
+}
+
+function bindSelectedPath(action) {
+  const button = document.getElementById(`selected-${action}`);
+  const input = document.getElementById(`selected-${action}-to`);
+
+  async function run() {
+    const items = selectedItems();
+    if (!items.length) return;
+
+    if (input.hidden) {
+      const dir = document.querySelector("form.upload [name=path]").value;
+      input.value = dir || "/";
+      input.hidden = false;
+      input.select();
+      return;
+    }
+
+    const dir = input.value.trim();
+    if (!dir) return;
+    button.disabled = true;
+    const failed = [];
+
+    for (const item of items) {
+      try {
+        await post(`/api/${action}`, {
+          from: item.dataset.path,
+          to: destinationPath(dir, item.dataset.path),
+        });
+      } catch (error) {
+        failed.push(`${item.dataset.path}: ${error.message || `Failed to ${action} item`}`);
+      }
+    }
+
+    if (failed.length) alert(failed.join("\n"));
+    location.reload();
+  }
+
+  button.addEventListener("click", run);
+  input.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    run();
+  });
+}
+
+bindSelectedPath("cp");
+bindSelectedPath("mv");
+
+on("selected-rm", async () => {
+  const items = selectedItems();
+  const failed = [];
+
+  for (const item of items) {
+    try {
+      await post("/api/rm", { path: item.dataset.path });
+      item.remove();
+    } catch (error) {
+      failed.push(`${item.dataset.path}: ${error.message || "Failed to remove item"}`);
+    }
+  }
+
+  if (failed.length) alert(failed.join("\n"));
+});
 
 const nameInput = document.getElementById("name");
 const mkdir = document.querySelector("form.mkdir");
