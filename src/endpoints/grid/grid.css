@@ -5,7 +5,6 @@
   --bg-quinary: #444;
   --text-primary: #fff;
   --text-secondary: #aaa;
-  --border-color: #333;
   --border-secondary: #555;
   --selection-color: #0066cc;
   --selection-overlay: rgba(0, 100, 200, 0.3);
@@ -21,7 +20,6 @@
     --bg-quinary: #c0c0c0;
     --text-primary: #000;
     --text-secondary: #333;
-    --border-color: #ccc;
     --border-secondary: #999;
     --selection-color: #0066cc;
     --selection-overlay: rgba(0, 100, 200, 0.2);
@@ -303,7 +301,8 @@ body {
   margin-left: auto;
 }
 
-body > .grid + .bar {
+body > .grid + .bar,
+.viewer-bar {
   right: auto;
   bottom: 12px;
   left: 50%;
@@ -327,27 +326,7 @@ body > .grid + .bar .search input {
   background: var(--bg-primary);
 }
 
-body > .grid + .bar .menu-toggle {
-  margin: 0;
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 4px;
-  background: var(--bg-primary);
-}
-
-.viewer-bar {
-  right: auto;
-  bottom: 12px;
-  left: 50%;
-  width: calc(100% - 24px);
-  min-height: 0;
-  transform: translateX(-50%);
-  justify-content: center;
-  gap: 4px;
-  background: none;
-  border: 0;
-}
-
+body > .grid + .bar .menu-toggle,
 .viewer-bar a,
 .viewer-bar .menu-toggle {
   margin: 0;
@@ -506,51 +485,6 @@ body > .grid + .bar .menu-toggle {
   max-height: none;
 }
 
-.editor {
-  width: 100%;
-  height: 100%;
-}
-
-.editor textarea {
-  width: 100%;
-  height: 100%;
-  background: var(--bg-tertiary);
-  color: inherit;
-  font: inherit;
-  padding: 1vh;
-  border: 0;
-  resize: none;
-  outline: none;
-}
-
-.chunk {
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  background: var(--bg-tertiary);
-}
-
-.chunk pre {
-  padding: 1vh;
-  font: inherit;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.chunknav {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  gap: 12px;
-  padding: 6px 10px;
-  background: var(--bg-primary);
-  border-top: 1px solid var(--border-secondary);
-}
-
-.chunknav a {
-  color: inherit;
-}
-
 /* upload progress */
 
 #progress {
@@ -561,12 +495,4 @@ body > .grid + .bar .menu-toggle {
   background: var(--bg-quaternary);
   border: 1px solid var(--border-secondary);
   padding: 6px 10px;
-}
-
-.message {
-  padding: 2vh;
-}
-
-.message a {
-  color: inherit;
 }

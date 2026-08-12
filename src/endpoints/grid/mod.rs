@@ -4,7 +4,7 @@ mod resolve;
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
-use render::{render_grid, sort_items};
+use render::{render_grid, sort_items, GridItem, Sort};
 use resolve::resolve_directory;
 use tokio::fs;
 
@@ -44,11 +44,17 @@ async fn grid(path: &str) -> GridResult<String> {
         };
 
         if file_type.is_dir() || file_type.is_file() {
-            items.push((name, file_type.is_dir()));
+            let metadata = entry.metadata().await.ok();
+            items.push(GridItem::new(
+                name,
+                file_type.is_dir(),
+                metadata.as_ref().map_or(0, |metadata| metadata.len()),
+                metadata.and_then(|metadata| metadata.modified().ok()),
+            ));
         }
     }
 
-    sort_items(&mut items);
+    sort_items(&mut items, Sort::parse("name"));
 
     Ok(render_grid(path, &items))
 }
@@ -71,8 +77,8 @@ async fn grid_paths(paths: Vec<String>) -> GridResult<String> {
             return Err((StatusCode::BAD_REQUEST, "invalid path".to_string()));
         }
 
-        let file = data_path(path)
-            .ok_or_else(|| (StatusCode::BAD_REQUEST, "invalid path".to_string()))?;
+        let file =
+            data_path(path).ok_or_else(|| (StatusCode::BAD_REQUEST, "invalid path".to_string()))?;
         let file = fs::canonicalize(file).await.map_err(grid_error)?;
 
         if !file.starts_with(&root) {
@@ -84,7 +90,13 @@ async fn grid_paths(paths: Vec<String>) -> GridResult<String> {
 
         let metadata = fs::metadata(file).await.map_err(grid_error)?;
         if metadata.is_dir() || metadata.is_file() {
-            items.push((path.to_string(), metadata.is_dir()));
+            let modified = metadata.modified().ok();
+            items.push(GridItem::new(
+                path.to_string(),
+                metadata.is_dir(),
+                metadata.len(),
+                modified,
+            ));
         }
     }
 
