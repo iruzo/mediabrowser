@@ -395,7 +395,7 @@ function openViewer(path, push = true) {
   else media.controls = true;
   main.append(media);
 
-  bar.className = "bar";
+  bar.className = "bar viewer-bar";
   bar.innerHTML = `<a id="prev" href="${viewerUrl(prev)}">prev</a><a id="close" href="${location.pathname}">close</a><a id="next" href="${viewerUrl(next)}">next</a><button type="button" class="menu-toggle" popovertarget="menu">menu</button>`;
 
   menu.id = "menu";
