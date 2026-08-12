@@ -192,6 +192,10 @@ body {
   z-index: 2;
 }
 
+.item:has(.menu[open]) {
+  z-index: 1;
+}
+
 .item .menu[open] {
   inset: 0;
   background: rgba(0, 0, 0, 0.85);
