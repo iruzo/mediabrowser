@@ -60,6 +60,55 @@
       <input type="file" name="file" multiple id="file" />
     </form>
     <output id="progress" hidden></output>
+    <template id="viewer-template">
+      <main class="viewer">
+        <img data-type="image" hidden />
+        <video data-type="video" controls hidden></video>
+        <audio data-type="audio" controls hidden></audio>
+      </main>
+      <nav class="bar viewer-bar">
+        <a id="prev">prev</a>
+        <a id="close">close</a>
+        <a id="next">next</a>
+        <button type="button" class="menu-toggle" popovertarget="menu">
+          menu
+        </button>
+      </nav>
+      <div id="menu" popover="auto">
+        <button type="button" id="viewer-download">download</button>
+        <div class="menu-row" data-types="image video" hidden>
+          <span>zoom</span><button type="button" data-zoom="in">+</button
+          ><button type="button" data-zoom="out">-</button
+          ><button type="button" data-zoom="reset">reset</button>
+        </div>
+        <div class="menu-row" data-types="image video" hidden>
+          <span>move</span
+          ><button type="button" data-move="0 25">up</button
+          ><button type="button" data-move="0 -25">down</button
+          ><button type="button" data-move="25 0">left</button
+          ><button type="button" data-move="-25 0">right</button>
+        </div>
+        <div class="menu-row" data-types="image video" hidden>
+          <span>rotate</span
+          ><button type="button" data-rot="-45">left</button
+          ><button type="button" data-rot="45">right</button>
+        </div>
+        <div class="menu-row" data-types="video" hidden>
+          <span>loop</span><input id="loopstart" placeholder="0:00" /><span
+            >-</span
+          ><input id="loopend" placeholder="0:00" /><button
+            type="button"
+            id="loopclear"
+          >
+            clear
+          </button>
+        </div>
+        <div class="menu-row" data-types="video" hidden>
+          <span>seek</span><button type="button" data-seek="-1">-1s</button
+          ><button type="button" data-seek="1">+1s</button>
+        </div>
+      </div>
+    </template>
     <script>
       GRID_SCRIPT;
     </script>

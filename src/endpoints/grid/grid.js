@@ -16,6 +16,7 @@ const grid = document.querySelector(".grid");
 const galleryBar = document.querySelector(".bar");
 const galleryMenu = document.getElementById("menu");
 const selectionMenu = document.getElementById("selection-menu");
+const viewerTemplate = document.getElementById("viewer-template");
 const title = document.title;
 let viewer = null;
 let cell = parseInt(localStorage.getItem("cell"), 10) || 0;
@@ -405,25 +406,6 @@ function visibleFiles() {
   );
 }
 
-function viewerMenu(type) {
-  let html = '<button type="button" id="viewer-download">download</button>';
-  if (type === "image" || type === "video") {
-    html +=
-      '<div class="menu-row"><span>zoom</span><button type="button" data-zoom="in">+</button><button type="button" data-zoom="out">-</button><button type="button" data-zoom="reset">reset</button></div>';
-    html +=
-      '<div class="menu-row"><span>move</span><button type="button" data-move="0 25">up</button><button type="button" data-move="0 -25">down</button><button type="button" data-move="25 0">left</button><button type="button" data-move="-25 0">right</button></div>';
-    html +=
-      '<div class="menu-row"><span>rotate</span><button type="button" data-rot="-45">left</button><button type="button" data-rot="45">right</button></div>';
-  }
-  if (type === "video") {
-    html +=
-      '<div class="menu-row"><span>loop</span><input id="loopstart" placeholder="0:00"><span>-</span><input id="loopend" placeholder="0:00"><button type="button" id="loopclear">clear</button></div>';
-    html +=
-      '<div class="menu-row"><span>seek</span><button type="button" data-seek="-1">-1s</button><button type="button" data-seek="1">+1s</button></div>';
-  }
-  return html;
-}
-
 function openViewer(path, push = true) {
   if (viewer) closeViewer(false);
 
@@ -447,31 +429,27 @@ function openViewer(path, push = true) {
   const next = files.length
     ? files[(index + 1) % files.length].dataset.path
     : path;
-  const main = document.createElement("main");
-  const bar = document.createElement("nav");
-  const menu = document.createElement("div");
-  const media = document.createElement(
-    type === "image" ? "img" : type === "video" ? "video" : "audio",
-  );
+  const content = viewerTemplate.content.cloneNode(true);
+  const main = content.querySelector(".viewer");
+  const bar = content.querySelector(".viewer-bar");
+  const menu = content.querySelector("#menu");
+  const media = main.querySelector(`[data-type="${type}"]`);
 
   galleryMenu.remove();
   grid.style.display = "none";
   galleryBar.style.display = "none";
 
-  main.className = "viewer";
+  media.hidden = false;
   media.id = type === "audio" ? "" : "media";
   media.src = `/${encodedPath(path)}`;
   if (type === "image") media.alt = path.slice(path.lastIndexOf("/") + 1);
-  else media.controls = true;
-  main.append(media);
-
-  bar.className = "bar viewer-bar";
-  bar.innerHTML = `<a id="prev" href="${viewerUrl(prev)}">prev</a><a id="close" href="${location.pathname}">close</a><a id="next" href="${viewerUrl(next)}">next</a><button type="button" class="menu-toggle" popovertarget="menu">menu</button>`;
-
-  menu.id = "menu";
-  menu.popover = "auto";
-  menu.innerHTML = viewerMenu(type);
-  document.body.append(main, bar, menu);
+  bar.querySelector("#prev").href = viewerUrl(prev);
+  bar.querySelector("#close").href = location.pathname;
+  bar.querySelector("#next").href = viewerUrl(next);
+  menu.querySelectorAll("[data-types]").forEach((control) => {
+    control.hidden = !control.dataset.types.split(" ").includes(type);
+  });
+  document.body.append(content);
   document.title = path.slice(path.lastIndexOf("/") + 1);
   viewer = { path, type, main, bar, menu, media };
   bindViewer(prev, next);

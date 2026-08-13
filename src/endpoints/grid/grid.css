@@ -435,6 +435,10 @@ body > .grid + .bar .menu-toggle,
   border-top: 1px solid var(--border-secondary);
 }
 
+.menu-row[hidden] {
+  display: none;
+}
+
 .menu-row > span {
   color: var(--text-secondary);
 }
