@@ -11,6 +11,14 @@ async function post(action, data) {
   if (!response.ok) throw new Error(await response.text());
 }
 
+function reveal(input, value) {
+  if (!input.hidden) return false;
+  if (value !== undefined) input.value = value;
+  input.hidden = false;
+  input.select();
+  return true;
+}
+
 const root = document.documentElement;
 const grid = document.querySelector(".grid");
 const galleryBar = document.querySelector(".bar");
@@ -95,11 +103,7 @@ grid.addEventListener("click", async (event) => {
       : "";
   if (!action) return;
   const input = item.querySelector(`.${action}-to`);
-  if (input.hidden) {
-    input.hidden = false;
-    input.select();
-    return;
-  }
+  if (reveal(input)) return;
 
   const to = input.value.trim();
   if (!to) return;
@@ -113,12 +117,11 @@ grid.addEventListener("click", async (event) => {
   }
 });
 
-grid.addEventListener("keydown", (event) => {
-  const input = event.target.closest("input.to");
+document.addEventListener("keydown", (event) => {
+  const input = event.target.closest("input.to, #selection-menu input");
   if (!input || event.key !== "Enter") return;
   event.preventDefault();
-  const action = input.classList.contains("cp-to") ? "cp" : "mv";
-  input.parentElement.querySelector(`button.${action}`).click();
+  input.nextElementSibling.click();
 });
 
 grid.addEventListener(
@@ -194,16 +197,11 @@ function bindSelectedPath(action) {
     const items = selectedItems();
     if (!items.length) return;
 
-    if (input.hidden) {
-      const dir = document.querySelector("form.upload [name=path]").value;
-      input.value = dir || "/";
-      input.hidden = false;
-      input.select();
-      return;
-    }
+    const dir = document.querySelector("form.upload [name=path]").value;
+    if (reveal(input, dir || "/")) return;
 
-    const dir = input.value.trim();
-    if (!dir) return;
+    const to = input.value.trim();
+    if (!to) return;
     button.disabled = true;
     const failed = [];
 
@@ -211,7 +209,7 @@ function bindSelectedPath(action) {
       try {
         await post(`/api/${action}`, {
           from: item.dataset.path,
-          to: destinationPath(dir, item.dataset.path),
+          to: destinationPath(to, item.dataset.path),
         });
       } catch (error) {
         failed.push(
@@ -225,11 +223,6 @@ function bindSelectedPath(action) {
   }
 
   button.addEventListener("click", run);
-  input.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    run();
-  });
 }
 
 bindSelectedPath("cp");
