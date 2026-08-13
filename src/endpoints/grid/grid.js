@@ -312,26 +312,24 @@ function applyView() {
   grid.append(...items);
 }
 
-document.querySelectorAll("a[href^='?sort=']").forEach((link) => {
-  link.addEventListener("click", (event) => {
-    event.preventDefault();
-    view.sort = new URL(link.href).searchParams.get("sort");
-    link.parentElement
-      .querySelectorAll("a")
-      .forEach((item) => item.classList.toggle("on", item === link));
-    applyView();
-  });
-});
+galleryMenu.addEventListener("click", (event) => {
+  const link = event.target.closest("a");
+  if (!link) return;
 
-document.querySelectorAll("a[href^='?filter=']").forEach((link) => {
-  link.addEventListener("click", (event) => {
-    event.preventDefault();
-    view.filter = new URL(link.href).searchParams.get("filter");
-    link.parentElement
-      .querySelectorAll("a")
-      .forEach((item) => item.classList.toggle("on", item === link));
-    applyView();
+  const params = new URL(link.href).searchParams;
+  const name = params.has("sort")
+    ? "sort"
+    : params.has("filter")
+      ? "filter"
+      : "";
+  if (!name) return;
+
+  event.preventDefault();
+  view[name] = params.get(name);
+  link.parentElement.querySelectorAll("a").forEach((item) => {
+    item.classList.toggle("on", item === link);
   });
+  applyView();
 });
 
 const search = document.querySelector("form.search");
