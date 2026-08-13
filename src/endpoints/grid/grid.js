@@ -169,6 +169,18 @@ function selectedItems() {
   );
 }
 
+async function runSelected(items, operation, message) {
+  const failed = [];
+  for (const item of items) {
+    try {
+      await operation(item);
+    } catch (error) {
+      failed.push(`${item.dataset.path}: ${error.message || message}`);
+    }
+  }
+  if (failed.length) alert(failed.join("\n"));
+}
+
 function closeSelectionPaths() {
   selectionMenu.querySelectorAll("input").forEach((input) => {
     input.hidden = true;
@@ -213,22 +225,16 @@ function bindSelectedPath(action) {
     const to = input.value.trim();
     if (!to) return;
     button.disabled = true;
-    const failed = [];
 
-    for (const item of items) {
-      try {
-        await post(`/api/${action}`, {
+    await runSelected(
+      items,
+      (item) =>
+        post(`/api/${action}`, {
           from: item.dataset.path,
           to: destinationPath(to, item.dataset.path),
-        });
-      } catch (error) {
-        failed.push(
-          `${item.dataset.path}: ${error.message || `Failed to ${action} item`}`,
-        );
-      }
-    }
-
-    if (failed.length) alert(failed.join("\n"));
+        }),
+      `Failed to ${action} item`,
+    );
     location.reload();
   }
 
@@ -240,20 +246,14 @@ bindSelectedPath("mv");
 
 on("selected-rm", async () => {
   const items = selectedItems();
-  const failed = [];
-
-  for (const item of items) {
-    try {
+  await runSelected(
+    items,
+    async (item) => {
       await post("/api/rm", { path: item.dataset.path });
       item.remove();
-    } catch (error) {
-      failed.push(
-        `${item.dataset.path}: ${error.message || "Failed to remove item"}`,
-      );
-    }
-  }
-
-  if (failed.length) alert(failed.join("\n"));
+    },
+    "Failed to remove item",
+  );
 });
 
 const nameInput = document.getElementById("name");
