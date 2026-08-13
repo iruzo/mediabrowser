@@ -486,12 +486,6 @@ function bindViewer(prev, next) {
     event.preventDefault();
     closeViewer();
   });
-  current.menu
-    .querySelector("#viewer-download")
-    .addEventListener("click", () => {
-      submitDownload([current.path]);
-    });
-
   const media = current.media.id === "media" ? current.media : null;
   let zoom = 1;
   let angle = 0;
@@ -504,6 +498,36 @@ function bindViewer(prev, next) {
     media.classList.toggle("zoomed", zoom > 1);
     media.style.transform = `rotate(${angle}deg) scale(${zoom}) translate(${pos.x / zoom}px, ${pos.y / zoom}px)`;
   }
+
+  current.menu.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+
+    if (button.id === "viewer-download") {
+      submitDownload([current.path]);
+    } else if (button.dataset.seek) {
+      current.media.currentTime = Math.max(
+        0,
+        current.media.currentTime + Number(button.dataset.seek),
+      );
+    } else if (button.dataset.zoom) {
+      if (button.dataset.zoom === "in") zoom *= 1.25;
+      else if (button.dataset.zoom === "out") zoom = Math.max(1, zoom / 1.25);
+      else {
+        zoom = 1;
+        angle = 0;
+      }
+      transform();
+    } else if (button.dataset.move && zoom > 1) {
+      const [dx, dy] = button.dataset.move.split(" ").map(Number);
+      pos.x += dx;
+      pos.y += dy;
+      transform();
+    } else if (button.dataset.rot) {
+      angle += Number(button.dataset.rot);
+      transform();
+    }
+  });
 
   if (media) {
     media.addEventListener("wheel", (event) => {
@@ -534,34 +558,6 @@ function bindViewer(prev, next) {
       transform();
     });
   }
-
-  current.menu.querySelectorAll("[data-zoom]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const op = button.dataset.zoom;
-      if (op === "in") zoom *= 1.25;
-      else if (op === "out") zoom = Math.max(1, zoom / 1.25);
-      else {
-        zoom = 1;
-        angle = 0;
-      }
-      transform();
-    });
-  });
-  current.menu.querySelectorAll("[data-move]").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (zoom <= 1) return;
-      const [dx, dy] = button.dataset.move.split(" ").map(Number);
-      pos.x += dx;
-      pos.y += dy;
-      transform();
-    });
-  });
-  current.menu.querySelectorAll("[data-rot]").forEach((button) => {
-    button.addEventListener("click", () => {
-      angle += Number(button.dataset.rot);
-      transform();
-    });
-  });
 
   if (current.type === "video") bindVideo(current);
 }
@@ -606,14 +602,6 @@ function bindVideo(current) {
     loopEnd = 0;
     start.value = "";
     end.value = "";
-  });
-  current.menu.querySelectorAll("[data-seek]").forEach((button) => {
-    button.addEventListener("click", () => {
-      video.currentTime = Math.max(
-        0,
-        video.currentTime + Number(button.dataset.seek),
-      );
-    });
   });
 }
 
