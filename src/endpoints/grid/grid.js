@@ -3,12 +3,17 @@ function on(id, handler) {
   if (element) element.addEventListener("click", handler);
 }
 
-async function post(action, data) {
-  const response = await fetch(action, {
+async function request(url, options) {
+  const response = await fetch(url, options);
+  if (!response.ok) throw new Error(await response.text());
+  return response;
+}
+
+function post(action, data) {
+  return request(action, {
     method: "POST",
     body: new URLSearchParams(data),
   });
-  if (!response.ok) throw new Error(await response.text());
 }
 
 function reveal(input, value) {
@@ -25,6 +30,7 @@ const galleryBar = document.querySelector(".bar");
 const galleryMenu = document.getElementById("menu");
 const selectionMenu = document.getElementById("selection-menu");
 const viewerTemplate = document.getElementById("viewer-template");
+const upload = document.querySelector("form.upload");
 const title = document.title;
 let viewer = null;
 let cell = parseInt(localStorage.getItem("cell"), 10) || 0;
@@ -32,6 +38,10 @@ let selecting = false;
 const view = { sort: "name", filter: "all" };
 
 if (cell) root.style.setProperty("--cell", `${cell}px`);
+
+function currentPath() {
+  return upload.elements.path.value;
+}
 
 function encodedPath(path) {
   return path.split("/").map(encodeURIComponent).join("/");
@@ -197,7 +207,7 @@ function bindSelectedPath(action) {
     const items = selectedItems();
     if (!items.length) return;
 
-    const dir = document.querySelector("form.upload [name=path]").value;
+    const dir = currentPath();
     if (reveal(input, dir || "/")) return;
 
     const to = input.value.trim();
@@ -252,7 +262,7 @@ on("mkdir", async () => {
   const name = nameInput.value.trim();
   if (!name) return;
 
-  const dir = document.querySelector("form.upload [name=path]").value;
+  const dir = currentPath();
   const path = dir ? `${dir}/${name}` : name;
 
   try {
@@ -339,14 +349,12 @@ search.addEventListener("submit", async (event) => {
 
   try {
     const query = new URLSearchParams(new FormData(search));
-    let response = await fetch(`${search.action}?${query}`);
-    if (!response.ok) throw new Error(await response.text());
+    let response = await request(`${search.action}?${query}`);
 
     const paths = await response.json();
     const body = new URLSearchParams();
     paths.forEach((path) => body.append("path", path));
-    response = await fetch("/ui", { method: "POST", body });
-    if (!response.ok) throw new Error(await response.text());
+    response = await request("/ui", { method: "POST", body });
 
     const page = new DOMParser().parseFromString(
       await response.text(),
@@ -361,7 +369,6 @@ search.addEventListener("submit", async (event) => {
   }
 });
 
-const upload = document.querySelector("form.upload");
 const showUpload = document.querySelector("button.show-upload");
 const files = upload.elements.file;
 const progress = document.getElementById("progress");
@@ -379,11 +386,10 @@ upload.addEventListener("submit", async (event) => {
   progress.textContent = `uploading ${files.files.length}`;
 
   try {
-    const response = await fetch(upload.action, {
+    await request(upload.action, {
       method: upload.method,
       body: new FormData(upload),
     });
-    if (!response.ok) throw new Error(await response.text());
     location.reload();
   } catch (error) {
     alert(error.message || "Failed to upload files");
