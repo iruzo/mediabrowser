@@ -12,16 +12,31 @@ const MAX_SEARCH_RESULTS: usize = 500;
 
 type FindResult<T> = Result<T, (StatusCode, String)>;
 
-pub async fn handle_find(path: Option<&str>, query: Option<&str>) -> Response {
-    match find(path, query).await {
+pub async fn handle_find(
+    path: Option<&str>,
+    query: Option<&str>,
+    path_type: Option<&str>,
+) -> Response {
+    match find(path, query, path_type).await {
         Ok(paths) => response::json(json_paths(&paths)),
         Err((status, message)) => response::text(status, message),
     }
 }
 
-async fn find(path: Option<&str>, query: Option<&str>) -> FindResult<Vec<String>> {
+async fn find(
+    path: Option<&str>,
+    query: Option<&str>,
+    path_type: Option<&str>,
+) -> FindResult<Vec<String>> {
     let (path, root) = resolve_directory(path).await?;
     let query = query.unwrap_or_default().trim().to_string();
+    let path_type = path_type.unwrap_or_default();
+
+    if !matches!(path_type, "" | "all" | "dir" | "file") {
+        return Err((StatusCode::BAD_REQUEST, "invalid type".to_string()));
+    }
+
+    let path_type = path_type.to_string();
 
     if query.len() > MAX_QUERY_SIZE {
         return Err((StatusCode::BAD_REQUEST, "query is too long".to_string()));
@@ -29,6 +44,7 @@ async fn find(path: Option<&str>, query: Option<&str>) -> FindResult<Vec<String>
 
     tokio::task::spawn_blocking(move || {
         let mut paths = list_paths(&path, &root)?;
+        filter_path_type(&mut paths, &path_type);
         filter_paths(&mut paths, &query);
         paths.sort_unstable();
         if !query.is_empty() {
@@ -43,6 +59,14 @@ async fn find(path: Option<&str>, query: Option<&str>) -> FindResult<Vec<String>
             format!("Failed to search directory: {error}"),
         )
     })?
+}
+
+fn filter_path_type(paths: &mut Vec<String>, path_type: &str) {
+    if path_type == "dir" {
+        paths.retain(|path| path.ends_with('/'));
+    } else if path_type == "file" {
+        paths.retain(|path| !path.ends_with('/'));
+    }
 }
 
 async fn resolve_directory(path: Option<&str>) -> FindResult<(PathBuf, PathBuf)> {
@@ -181,7 +205,9 @@ fn find_error(error: std::io::Error) -> (StatusCode, String) {
 
 #[cfg(test)]
 mod tests {
-    use super::{directory_path, filter_paths, json_paths, relative_path, MAX_PATH_SIZE};
+    use super::{
+        directory_path, filter_path_type, filter_paths, json_paths, relative_path, MAX_PATH_SIZE,
+    };
     use hyper::http::StatusCode;
     use std::path::Path;
 
@@ -227,6 +253,33 @@ mod tests {
         let mut paths = vec!["Folder/Notes.txt".to_string()];
         filter_paths(&mut paths, "");
         assert_eq!(paths, ["Folder/Notes.txt"]);
+    }
+
+    #[test]
+    fn filters_path_types_before_query_terms() {
+        let paths = vec![
+            "photos/".to_string(),
+            "photos/trip/".to_string(),
+            "photos/trip/image.jpg".to_string(),
+            "notes.txt".to_string(),
+        ];
+
+        let mut dirs = paths.clone();
+        filter_path_type(&mut dirs, "dir");
+        filter_paths(&mut dirs, "trip");
+        assert_eq!(dirs, ["photos/trip/"]);
+
+        let mut files = paths.clone();
+        filter_path_type(&mut files, "file");
+        filter_paths(&mut files, "trip");
+        assert_eq!(files, ["photos/trip/image.jpg"]);
+
+        let mut all = paths.clone();
+        filter_path_type(&mut all, "all");
+        assert_eq!(all, paths);
+
+        filter_path_type(&mut all, "");
+        assert_eq!(all, paths);
     }
 
     #[test]

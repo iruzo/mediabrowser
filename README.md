@@ -93,7 +93,7 @@ Each endpoint is documented with a curl example in
 [doc/endpoints/](./doc/endpoints/).
 
 ### API Routes
-- `GET /api/find?path=folder&query=name` - Recursively list or search paths as JSON strings; directories end with `/`
+- `GET /api/find?path=folder&query=name&type=dir` - Recursively list or search paths as JSON strings; directories end with `/`, and `type` accepts `dir`, `file`, or `all`
 - `POST /api/upload` - Upload files using multipart `path` and `file` fields (256GB limit)
 - `POST /api/download` - Download selected paths using repeated URL-encoded `path` fields; a single file is sent as-is, anything else as TAR
 - `POST /api/rm` - Remove a file or directory using a URL-encoded `path` field

@@ -41,7 +41,12 @@ pub async fn route(parts: &Parts, body: Incoming) -> Option<Result<Response, Res
 
 async fn find_route(parts: &Parts) -> Response {
     let form = crate::parse_form(parts.uri.query().unwrap_or_default().as_bytes());
-    handle_find(field(&form, "path"), field(&form, "query")).await
+    handle_find(
+        field(&form, "path"),
+        field(&form, "query"),
+        field(&form, "type"),
+    )
+    .await
 }
 
 async fn download_route(body: Incoming) -> Result<Response, Response> {
