@@ -150,7 +150,9 @@ body {
 }
 
 #selection-menu button,
-#selection-menu input {
+#selection-menu input,
+.bar a,
+.bar .menu-toggle {
   padding: 6px 12px;
   border: 0;
   border-radius: 4px;
@@ -159,11 +161,15 @@ body {
   font: inherit;
 }
 
-#selection-menu button {
+#selection-menu button,
+.bar a,
+.bar .menu-toggle {
   cursor: pointer;
 }
 
-#selection-menu button:hover {
+#selection-menu button:hover,
+.bar a:hover,
+.bar .menu-toggle:hover {
   background: var(--bg-quaternary);
 }
 
@@ -255,89 +261,39 @@ body {
 
 .bar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: stretch;
-  min-height: var(--bar);
-  z-index: 10;
-  background: var(--bg-tertiary);
-  border-top: 1px solid var(--border-secondary);
-}
-
-.bar .search {
-  flex: 1;
-  display: flex;
-}
-
-.bar .search input {
-  flex: 1;
-  min-width: 0;
-  background: none;
-  border: 0;
-  color: var(--text-primary);
-  font: inherit;
-  padding: 0 8px;
-  outline: none;
-}
-
-.bar a,
-.menu-toggle {
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  background: none;
-  border: 0;
-  border-left: 1px solid var(--border-secondary);
-  color: var(--text-primary);
-  font: inherit;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.bar a:hover,
-.menu-toggle:hover {
-  background: var(--bg-quaternary);
-}
-
-.menu-toggle {
-  margin-left: auto;
-}
-
-body > .grid + .bar,
-.viewer-bar {
-  right: auto;
   bottom: 12px;
   left: 50%;
-  width: calc(100% - 24px);
-  min-height: 0;
-  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: stretch;
   justify-content: center;
   gap: 4px;
-  background: none;
-  border: 0;
+  width: calc(100% - 24px);
+  transform: translateX(-50%);
 }
 
-body > .grid + .bar .search {
+.gallery-bar .search {
   flex: 0 1 240px;
+  display: flex;
 }
 
-body > .grid + .bar .search input {
+.gallery-bar .search input {
+  flex: 1;
+  min-width: 0;
   padding: 6px;
   border: 1px solid var(--border-secondary);
   border-radius: 4px;
   background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  outline: none;
 }
 
-body > .grid + .bar .menu-toggle,
-.viewer-bar a,
-.viewer-bar .menu-toggle {
-  margin: 0;
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 4px;
-  background: var(--bg-primary);
+.bar a,
+.bar .menu-toggle {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
 }
 
 /* menu */
@@ -413,7 +369,7 @@ body > .grid + .bar .menu-toggle,
 }
 
 @media (max-width: 600px) {
-  body > .grid + .bar .search {
+  .gallery-bar .search {
     flex: 1;
   }
 

@@ -26,7 +26,7 @@ function reveal(input, value) {
 
 const root = document.documentElement;
 const grid = document.querySelector(".grid");
-const galleryBar = document.querySelector(".bar");
+const galleryBar = document.querySelector(".gallery-bar");
 const galleryMenu = document.getElementById("menu");
 const selectionMenu = document.getElementById("selection-menu");
 const viewerTemplate = document.getElementById("viewer-template");

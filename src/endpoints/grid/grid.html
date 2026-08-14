@@ -13,14 +13,14 @@
   </head>
   <body>
     <main class="grid">{{BOXES}}</main>
-    <div class="bar">
+    <nav class="bar gallery-bar">
       <form class="search" method="get" action="/api/find">
         <input name="query" placeholder="search" />
       </form>
       <button type="button" class="menu-toggle" popovertarget="menu">
         menu
       </button>
-    </div>
+    </nav>
     <div id="selection-menu" hidden>
       <button type="button" id="selected-download">download</button>
       <input id="selected-cp-to" placeholder="destination path" hidden />
