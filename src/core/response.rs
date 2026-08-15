@@ -72,26 +72,22 @@ pub fn status(status: StatusCode) -> Response {
         .expect("valid empty response")
 }
 
-pub fn text(status: StatusCode, message: impl Into<String>) -> Response {
+fn content(status: StatusCode, content_type: &'static str, body: Bytes) -> Response {
     hyper::http::Response::builder()
         .status(status)
-        .header("content-type", "text/plain; charset=utf-8")
-        .body(full(message.into()))
-        .expect("valid text response")
-}
-
-pub fn html(body: impl Into<String>) -> Response {
-    hyper::http::Response::builder()
-        .status(StatusCode::OK)
-        .header("content-type", "text/html; charset=utf-8")
-        .body(full(body.into()))
-        .expect("valid HTML response")
-}
-
-pub fn json(body: String) -> Response {
-    hyper::http::Response::builder()
-        .status(StatusCode::OK)
-        .header("content-type", "application/json")
+        .header("content-type", content_type)
         .body(full(body))
-        .expect("valid JSON response")
+        .expect("valid content response")
+}
+
+pub fn text(status: StatusCode, message: impl Into<Bytes>) -> Response {
+    content(status, "text/plain; charset=utf-8", message.into())
+}
+
+pub fn html(body: impl Into<Bytes>) -> Response {
+    content(StatusCode::OK, "text/html; charset=utf-8", body.into())
+}
+
+pub fn json(body: impl Into<Bytes>) -> Response {
+    content(StatusCode::OK, "application/json", body.into())
 }

@@ -25,17 +25,25 @@ const SMALL_FORM_LIMIT: usize = 64 * 1024;
 const DOWNLOAD_FORM_LIMIT: usize = 1024 * 1024;
 const WRITE_FORM_LIMIT: usize = 16 * 1024 * 1024;
 
-pub async fn route(parts: &Parts, body: Incoming) -> Option<Result<Response, Response>> {
-    match (&parts.method, parts.uri.path()) {
-        (&Method::GET, "/api/find") => Some(Ok(find_route(parts).await)),
-        (&Method::POST, "/api/download") => Some(download_route(body).await),
-        (&Method::POST, "/api/upload") => Some(Ok(upload_route(parts, body).await)),
-        (&Method::POST, "/api/rm") => Some(rm_route(body).await),
-        (&Method::POST, "/api/mkdir") => Some(mkdir_route(body).await),
-        (&Method::POST, "/api/write") => Some(write_route(body).await),
-        (&Method::POST, "/api/mv") => Some(mv_route(body).await),
-        (&Method::POST, "/api/cp") => Some(cp_route(body).await),
-        _ => None,
+pub async fn route(parts: &Parts, body: Incoming) -> Option<Response> {
+    let response = match (&parts.method, parts.uri.path()) {
+        (&Method::GET, "/api/find") => find_route(parts).await,
+        (&Method::POST, "/api/download") => into_response(download_route(body).await),
+        (&Method::POST, "/api/upload") => upload_route(parts, body).await,
+        (&Method::POST, "/api/rm") => into_response(rm_route(body).await),
+        (&Method::POST, "/api/mkdir") => into_response(mkdir_route(body).await),
+        (&Method::POST, "/api/write") => into_response(write_route(body).await),
+        (&Method::POST, "/api/mv") => into_response(mv_route(body).await),
+        (&Method::POST, "/api/cp") => into_response(cp_route(body).await),
+        _ => return None,
+    };
+
+    Some(response)
+}
+
+fn into_response(result: Result<Response, Response>) -> Response {
+    match result {
+        Ok(response) | Err(response) => response,
     }
 }
 

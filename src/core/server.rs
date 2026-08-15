@@ -145,28 +145,26 @@ pub(crate) async fn read_form(body: Incoming, limit: usize) -> Result<Form, Resp
     Ok(parse_form(&bytes))
 }
 
-async fn route(request: Request<Incoming>) -> Result<Response, Response> {
+async fn route(request: Request<Incoming>) -> Response {
     let (parts, body) = request.into_parts();
     let path = parts.uri.path();
 
-    if let Some(result) = endpoints::api::route(&parts, body).await {
-        return result;
+    if let Some(response) = endpoints::api::route(&parts, body).await {
+        return response;
     }
 
     if parts.method == Method::GET && (path == "/ui" || path.starts_with("/ui/")) {
-        return Ok(handle_ui());
+        return handle_ui();
     }
 
     match (&parts.method, path) {
-        (&Method::GET, "/favicon.ico") => Ok(response::status(StatusCode::OK)),
-        _ => Ok(handle_file_server(path.trim_start_matches('/'), &parts.headers).await),
+        (&Method::GET, "/favicon.ico") => response::status(StatusCode::OK),
+        _ => handle_file_server(path.trim_start_matches('/'), &parts.headers).await,
     }
 }
 
 async fn serve(request: Request<Incoming>) -> Result<Response, Infallible> {
-    Ok(match route(request).await {
-        Ok(response) | Err(response) => response,
-    })
+    Ok(route(request).await)
 }
 
 pub fn run() {
