@@ -4,6 +4,7 @@ use crate::walk;
 use hyper::http::StatusCode;
 use std::fmt::Write;
 use std::path::{Component, Path, PathBuf};
+use std::time::UNIX_EPOCH;
 use tokio::fs;
 
 const MAX_PATH_SIZE: usize = 4096;
@@ -16,9 +17,11 @@ pub async fn handle_find(
     path: Option<&str>,
     query: Option<&str>,
     path_type: Option<&str>,
+    recursive: Option<&str>,
+    metadata: Option<&str>,
 ) -> Response {
-    match find(path, query, path_type).await {
-        Ok(paths) => response::json(json_paths(&paths)),
+    match find(path, query, path_type, recursive, metadata).await {
+        Ok(json) => response::json(json),
         Err((status, message)) => response::text(status, message),
     }
 }
@@ -27,7 +30,9 @@ async fn find(
     path: Option<&str>,
     query: Option<&str>,
     path_type: Option<&str>,
-) -> FindResult<Vec<String>> {
+    recursive: Option<&str>,
+    metadata: Option<&str>,
+) -> FindResult<String> {
     let (path, root) = resolve_directory(path).await?;
     let query = query.unwrap_or_default().trim().to_string();
     let path_type = path_type.unwrap_or_default();
@@ -35,6 +40,8 @@ async fn find(
     if !matches!(path_type, "" | "all" | "dir" | "file") {
         return Err((StatusCode::BAD_REQUEST, "invalid type".to_string()));
     }
+    let recursive = parse_recursive(recursive)?;
+    let metadata = parse_metadata(metadata)?;
 
     let path_type = path_type.to_string();
 
@@ -43,14 +50,22 @@ async fn find(
     }
 
     tokio::task::spawn_blocking(move || {
-        let mut paths = list_paths(&path, &root)?;
+        let mut paths = if recursive {
+            list_paths(&path, &root)?
+        } else {
+            list_direct_paths(&path, &root)?
+        };
         filter_path_type(&mut paths, &path_type);
         filter_paths(&mut paths, &query);
         paths.sort_unstable();
         if !query.is_empty() {
             paths.truncate(MAX_SEARCH_RESULTS);
         }
-        Ok(paths)
+        if metadata {
+            Ok(json_metadata(&root, &paths))
+        } else {
+            Ok(json_paths(&paths))
+        }
     })
     .await
     .map_err(|error| {
@@ -66,6 +81,22 @@ fn filter_path_type(paths: &mut Vec<String>, path_type: &str) {
         paths.retain(|path| path.ends_with('/'));
     } else if path_type == "file" {
         paths.retain(|path| !path.ends_with('/'));
+    }
+}
+
+fn parse_recursive(value: Option<&str>) -> FindResult<bool> {
+    match value {
+        None | Some("") | Some("true") => Ok(true),
+        Some("false") => Ok(false),
+        Some(_) => Err((StatusCode::BAD_REQUEST, "invalid recursive".to_string())),
+    }
+}
+
+fn parse_metadata(value: Option<&str>) -> FindResult<bool> {
+    match value {
+        None | Some("") | Some("false") => Ok(false),
+        Some("true") => Ok(true),
+        Some(_) => Err((StatusCode::BAD_REQUEST, "invalid metadata".to_string())),
     }
 }
 
@@ -93,7 +124,7 @@ async fn resolve_directory(path: Option<&str>) -> FindResult<(PathBuf, PathBuf)>
 }
 
 fn directory_path(path: Option<&str>) -> FindResult<PathBuf> {
-    let path = path.unwrap_or_default().trim();
+    let path = path.unwrap_or_default();
 
     if path.len() > MAX_PATH_SIZE || path.chars().any(|c| c.is_control() || c == '\\') {
         return Err((StatusCode::BAD_REQUEST, "invalid path".to_string()));
@@ -111,6 +142,25 @@ fn list_paths(path: &Path, root: &Path) -> FindResult<Vec<String>> {
         }
 
         if let Some(path) = relative_path(root, &entry.path, entry.file_type.is_dir()) {
+            paths.push(path);
+        }
+    }
+
+    Ok(paths)
+}
+
+fn list_direct_paths(path: &Path, root: &Path) -> FindResult<Vec<String>> {
+    let mut paths = Vec::new();
+    let entries = std::fs::read_dir(path).map_err(walk_error)?;
+
+    for entry in entries {
+        let entry = entry.map_err(walk_error)?;
+        let file_type = entry.file_type().map_err(walk_error)?;
+        if !file_type.is_file() && !file_type.is_dir() {
+            continue;
+        }
+
+        if let Some(path) = relative_path(root, &entry.path(), file_type.is_dir()) {
             paths.push(path);
         }
     }
@@ -165,24 +215,54 @@ fn json_paths(paths: &[String]) -> String {
         if index > 0 {
             json.push(',');
         }
-        json.push('"');
-
-        for character in path.chars() {
-            match character {
-                '"' => json.push_str("\\\""),
-                '\\' => json.push_str("\\\\"),
-                character if (character as u32) < 0x20 => {
-                    let _ = write!(json, "\\u{:04x}", character as u32);
-                }
-                character => json.push(character),
-            }
-        }
-
-        json.push('"');
+        push_json_string(&mut json, path);
     }
 
     json.push(']');
     json
+}
+
+fn json_metadata(root: &Path, paths: &[String]) -> String {
+    let mut json = String::with_capacity(paths.len() * 48 + 2);
+    json.push('[');
+
+    for (index, path) in paths.iter().enumerate() {
+        if index > 0 {
+            json.push(',');
+        }
+
+        let relative = path.strip_suffix('/').unwrap_or(path);
+        let metadata = std::fs::metadata(root.join(relative)).ok();
+        let size = metadata.as_ref().map_or(0, std::fs::Metadata::len);
+        let date = metadata
+            .and_then(|value| value.modified().ok())
+            .and_then(|value| value.duration_since(UNIX_EPOCH).ok())
+            .map_or(0, |value| value.as_secs());
+
+        json.push_str("{\"path\":");
+        push_json_string(&mut json, path);
+        let _ = write!(json, ",\"size\":{size},\"date\":{date}}}");
+    }
+
+    json.push(']');
+    json
+}
+
+fn push_json_string(json: &mut String, value: &str) {
+    json.push('"');
+
+    for character in value.chars() {
+        match character {
+            '"' => json.push_str("\\\""),
+            '\\' => json.push_str("\\\\"),
+            character if (character as u32) < 0x20 => {
+                let _ = write!(json, "\\u{:04x}", character as u32);
+            }
+            character => json.push(character),
+        }
+    }
+
+    json.push('"');
 }
 
 fn walk_error(error: std::io::Error) -> (StatusCode, String) {
@@ -206,10 +286,12 @@ fn find_error(error: std::io::Error) -> (StatusCode, String) {
 #[cfg(test)]
 mod tests {
     use super::{
-        directory_path, filter_path_type, filter_paths, json_paths, relative_path, MAX_PATH_SIZE,
+        directory_path, filter_path_type, filter_paths, json_metadata, json_paths,
+        list_direct_paths, parse_metadata, parse_recursive, relative_path, MAX_PATH_SIZE,
     };
     use hyper::http::StatusCode;
     use std::path::Path;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn formats_file_and_directory_paths() {
@@ -232,6 +314,33 @@ mod tests {
             json_paths(&["folder/".to_string(), "a\"b\\c\n東京.txt".to_string()]),
             "[\"folder/\",\"a\\\"b\\\\c\\u000a東京.txt\"]"
         );
+    }
+
+    #[test]
+    fn encodes_path_metadata_as_json() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time before epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("mediabrowser-metadata-{suffix}"));
+        let name = "a\"b.txt";
+        std::fs::create_dir(&root).expect("create test directory");
+        std::fs::write(root.join(name), b"test").expect("create test file");
+        let date = std::fs::metadata(root.join(name))
+            .expect("read test metadata")
+            .modified()
+            .expect("read modified time")
+            .duration_since(UNIX_EPOCH)
+            .expect("modified time before epoch")
+            .as_secs();
+
+        assert_eq!(
+            json_metadata(&root, &[name.to_string(), "missing.txt".to_string()]),
+            format!(
+                "[{{\"path\":\"a\\\"b.txt\",\"size\":4,\"date\":{date}}},{{\"path\":\"missing.txt\",\"size\":0,\"date\":0}}]"
+            )
+        );
+        std::fs::remove_dir_all(root).expect("remove test directory");
     }
 
     #[test]
@@ -283,12 +392,55 @@ mod tests {
     }
 
     #[test]
+    fn parses_recursive_mode() {
+        assert_eq!(parse_recursive(None), Ok(true));
+        assert_eq!(parse_recursive(Some("")), Ok(true));
+        assert_eq!(parse_recursive(Some("true")), Ok(true));
+        assert_eq!(parse_recursive(Some("false")), Ok(false));
+        assert_eq!(
+            parse_recursive(Some("other")),
+            Err((StatusCode::BAD_REQUEST, "invalid recursive".to_string()))
+        );
+    }
+
+    #[test]
+    fn parses_metadata_mode() {
+        assert_eq!(parse_metadata(None), Ok(false));
+        assert_eq!(parse_metadata(Some("")), Ok(false));
+        assert_eq!(parse_metadata(Some("false")), Ok(false));
+        assert_eq!(parse_metadata(Some("true")), Ok(true));
+        assert_eq!(
+            parse_metadata(Some("other")),
+            Err((StatusCode::BAD_REQUEST, "invalid metadata".to_string()))
+        );
+    }
+
+    #[test]
+    fn lists_only_direct_paths_when_recursion_is_disabled() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time before epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("mediabrowser-find-{suffix}"));
+        std::fs::create_dir_all(root.join("child/nested")).expect("create test directories");
+        std::fs::write(root.join("root.txt"), []).expect("create root file");
+        std::fs::write(root.join("child/nested.txt"), []).expect("create nested file");
+
+        let mut paths = list_direct_paths(&root, &root).expect("list direct paths");
+        paths.sort_unstable();
+
+        assert_eq!(paths, ["child/", "root.txt"]);
+        std::fs::remove_dir_all(root).expect("remove test directory");
+    }
+
+    #[test]
     fn validates_find_paths() {
         for path in [
             None,
             Some(""),
             Some("/"),
             Some("folder"),
+            Some(" folder "),
             Some("árbol/東京"),
         ] {
             assert!(directory_path(path).is_ok());

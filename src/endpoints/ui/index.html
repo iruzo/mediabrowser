@@ -6,21 +6,22 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content"
     />
-    <title>{{TITLE}}</title>
+    <title>/</title>
     <style>
       {{CSS}}
     </style>
   </head>
   <body>
-    <main class="grid">{{BOXES}}</main>
+    <main id="directories"></main>
     <nav class="bar gallery-bar">
-      <form class="search" method="get" action="/api/find">
+      <form class="search">
         <input name="query" placeholder="search" />
       </form>
       <button type="button" class="menu-toggle" popovertarget="menu">
         menu
       </button>
     </nav>
+
     <div id="selection-menu" hidden>
       <button type="button" id="selected-download">download</button>
       <input id="selected-cp-to" placeholder="destination path" hidden />
@@ -29,8 +30,9 @@
       <button type="button" id="selected-mv">mv</button>
       <button type="button" id="selected-rm">rm</button>
     </div>
+
     <div id="menu" class="general-menu" popover="manual">
-      <button class="show-upload">upload</button>
+      <button type="button" class="show-upload">upload</button>
       <input id="name" placeholder="name" />
       <button type="button" id="mkdir">mkdir</button>
       <button type="button" id="select">select</button>
@@ -46,9 +48,20 @@
       <div class="menu-row">
         <span>filter</span><a class="on" href="?filter=all">all</a
         ><a href="?filter=image">image</a><a href="?filter=video">video</a
-        ><a href="?filter=audio">audio</a><a href="?filter=text">text</a>
+        ><a href="?filter=audio">audio</a
+        ><a href="?filter=text">text</a>
       </div>
     </div>
+
+    <div id="directory-menu" popover="manual">
+      <button type="button" class="download">download</button>
+      <input class="to cp-to" placeholder="destination path" hidden />
+      <button type="button" class="cp">cp</button>
+      <input class="to mv-to" placeholder="destination path" hidden />
+      <button type="button" class="mv">mv</button>
+      <button type="button" class="rm">rm</button>
+    </div>
+
     <form
       class="upload"
       method="post"
@@ -56,10 +69,40 @@
       enctype="multipart/form-data"
       hidden
     >
-      <input type="hidden" name="path" value="{{PATH}}" />
-      <input type="file" name="file" multiple id="file" />
+      <input type="hidden" name="path" />
+      <input type="file" name="file" multiple />
     </form>
     <output id="progress" hidden></output>
+
+    <template id="directory-template">
+      <details class="directory" name="directories">
+        <summary>
+          <span class="directory-name"></span>
+          <button type="button" class="directory-menu-toggle">...</button>
+        </summary>
+        <div class="grid"></div>
+        <p class="empty" hidden>empty</p>
+        <div class="sentinel" hidden>more</div>
+      </details>
+    </template>
+
+    <template id="item-template">
+      <div class="item">
+        <a target="_top"><img alt="" /><span class="name"></span></a>
+        <details class="menu">
+          <summary>...</summary>
+          <form class="actions">
+            <button class="download" type="button">download</button>
+            <input class="to cp-to" hidden />
+            <button class="cp" type="button">cp</button>
+            <input class="to mv-to" hidden />
+            <button class="mv" type="button">mv</button>
+            <button class="rm" type="button">rm</button>
+          </form>
+        </details>
+      </div>
+    </template>
+
     <template id="viewer-template">
       <main class="viewer">
         <img data-type="image" hidden />
@@ -109,8 +152,9 @@
         </div>
       </div>
     </template>
+
     <script>
-      GRID_SCRIPT;
+      UI_SCRIPT;
     </script>
   </body>
 </html>

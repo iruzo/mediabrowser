@@ -45,6 +45,8 @@ async fn find_route(parts: &Parts) -> Response {
         field(&form, "path"),
         field(&form, "query"),
         field(&form, "type"),
+        field(&form, "recursive"),
+        field(&form, "metadata"),
     )
     .await
 }

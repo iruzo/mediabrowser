@@ -1,48 +1,34 @@
 use crate::response::{self, Response};
-use hyper::http::StatusCode;
-use percent_encoding::percent_decode_str;
 
-const MAX_PATH_SIZE: usize = 4096;
+const TEMPLATE: &str = include_str!("ui/index.html");
+const CSS: &str = include_str!("ui/style.css");
+const SCRIPT: &str = include_str!("ui/script.js");
 
-pub async fn handle_ui(path: &str) -> Response {
-    let Ok(path) = percent_decode_str(path).decode_utf8() else {
-        return response::text(StatusCode::BAD_REQUEST, "path is not UTF-8");
-    };
-
-    if path.len() > MAX_PATH_SIZE || path.chars().any(|c| c.is_control() || c == '\\') {
-        return response::text(StatusCode::BAD_REQUEST, "invalid path");
-    }
-
-    super::grid::handle_grid(Some(&path)).await
+pub fn handle_ui() -> Response {
+    response::html(page())
 }
 
-pub async fn handle_ui_paths(paths: Vec<String>) -> Response {
-    super::grid::handle_grid_paths(paths).await
+fn page() -> String {
+    TEMPLATE
+        .replace("{{CSS}}", CSS)
+        .replace("UI_SCRIPT", SCRIPT)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::handle_ui;
-    use hyper::http::StatusCode;
-
-    fn run<F: std::future::Future>(future: F) -> F::Output {
-        tokio::runtime::Builder::new_current_thread()
-            .build()
-            .expect("failed to build runtime")
-            .block_on(future)
-    }
+    use super::page;
 
     #[test]
-    fn rejects_control_characters_in_path() {
-        let response = run(handle_ui("foo%00bar"));
+    fn embeds_the_client_ui() {
+        let page = page();
 
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-    }
-
-    #[test]
-    fn rejects_paths_over_the_size_limit() {
-        let response = run(handle_ui(&"a".repeat(5000)));
-
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert!(page.contains(r#"id="directories""#));
+        assert!(page.contains(r#"id="directory-menu""#));
+        assert!(page.contains(r#"id="selection-menu""#));
+        assert!(page.contains(r#"data-zoom="reset""#));
+        assert!(page.contains("IntersectionObserver"));
+        assert!(page.contains(r#"params.set("metadata", "true")"#));
+        assert!(!page.contains("{{CSS}}"));
+        assert!(!page.contains("UI_SCRIPT"));
     }
 }

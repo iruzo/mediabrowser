@@ -13,6 +13,7 @@
 - **TAR downloads** - Download multiple files and directories as TAR
 - **File management** - Create folders, copy, move, delete, modify and upload files
 - **Recursive search** - Search files and directories recursively from any path
+- **Lazy media browser** - Browse directory grids without loading off-screen images
 
 ## Usage
 
@@ -29,6 +30,9 @@ The application runs on **port 30003** with:
     - `http://localhost:30003/` - Root directory listing
     - `http://localhost:30003/folder/` - Folder listing
     - `http://localhost:30003/folder/file.mp4` - Direct file access
+- **Media browser under `/ui/`**: `http://localhost:30003/ui/`
+  - `http://localhost:30003/ui/folder/` browses the same directory as
+    `http://localhost:30003/folder/`
 
 ### Docker (Development)
 
@@ -48,26 +52,6 @@ docker image inspect mediabrowser >/dev/null 2>&1 || docker build -t mediabrowse
 ```
 ```bash
 sudo docker image inspect mediabrowser >/dev/null 2>&1 || sudo docker build -t mediabrowser https://github.com/iruzo/mediabrowser.git && sudo docker run -p 30003:30003 -e BIND_ADDR=0.0.0.0 -v $(pwd)/data:/data mediabrowser
-```
-
-### Build Variants
-
-Which endpoints get compiled into the binary is controlled at build
-time by environment variables read in `build.rs`:
-
-- `HTTPD=1` - adds the Apache-style httpd root endpoint
-- `GRID=1` - adds httpd plus the `/grid` endpoint
-- `UI=1` - adds httpd, grid and the `/ui` endpoint
-
-A Dockerfile is provided per variant in [containers/](./containers/):
-
-- `containers/server.Dockerfile` - API only, no root serving
-- `containers/httpd.Dockerfile` - `HTTPD=1`
-- `containers/grid.Dockerfile` - `GRID=1`
-- `Dockerfile` (root) - `UI=1`, full build
-
-```bash
-docker build -t mediabrowser-httpd -f containers/httpd.Dockerfile .
 ```
 
 ### Environment Variables
@@ -93,7 +77,7 @@ Each endpoint is documented with a curl example in
 [doc/endpoints/](./doc/endpoints/).
 
 ### API Routes
-- `GET /api/find?path=folder&query=name&type=dir` - Recursively list or search paths as JSON strings; directories end with `/`, and `type` accepts `dir`, `file`, or `all`
+- `GET /api/find?path=folder&query=name&type=dir&recursive=false` - List or search paths; directories end with `/`, `type` accepts `dir`, `file`, or `all`, recursion defaults to enabled, and `metadata=true` includes size and modified time
 - `POST /api/upload` - Upload files using multipart `path` and `file` fields (256GB limit)
 - `POST /api/download` - Download selected paths using repeated URL-encoded `path` fields; a single file is sent as-is, anything else as TAR
 - `POST /api/rm` - Remove a file or directory using a URL-encoded `path` field
@@ -106,3 +90,7 @@ Each endpoint is documented with a curl example in
 - `GET /` - Apache-style directory listing (root)
 - `GET /path/to/file` - Direct file access
 - `GET /path/to/dir/` - Apache-style directory listing
+
+### UI Routes
+- `GET /ui/` - Client-rendered media browser for the data root
+- `GET /ui/path/to/dir/` - Client-rendered media browser scoped to the matching HTTPD directory

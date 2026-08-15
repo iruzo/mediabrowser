@@ -1,0 +1,495 @@
+:root {
+  --bg: #000;
+  --panel: #222;
+  --cell-bg: #333;
+  --dir-bg: #181818;
+  --text: #fff;
+  --muted: #aaa;
+  --border: #555;
+  --selected: #06c;
+  --selection-overlay: rgba(0, 100, 200, 0.3);
+  --cell: 200px;
+  --bar: 36px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fff;
+    --panel: #e0e0e0;
+    --cell-bg: #d0d0d0;
+    --dir-bg: #eee;
+    --text: #000;
+    --muted: #444;
+    --border: #999;
+    --selection-overlay: rgba(0, 100, 200, 0.2);
+  }
+}
+
+@media (max-width: 600px) {
+  :root {
+    --cell: 120px;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: monospace;
+}
+
+button,
+input {
+  color: inherit;
+  font: inherit;
+}
+
+#directories {
+  padding-bottom: calc(var(--bar) + 24px);
+}
+
+.directory {
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+
+.directory > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--dir-bg);
+  cursor: pointer;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directory-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.directory-menu-toggle {
+  padding: 2px 10px;
+  border: 0;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+
+#directories.selecting .directory-menu-toggle {
+  display: none;
+}
+
+.directory.selected > summary {
+  outline: 2px solid var(--selected);
+  outline-offset: -2px;
+  background:
+    linear-gradient(var(--selection-overlay), var(--selection-overlay)),
+    var(--dir-bg);
+}
+
+.directory[open] > summary {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--cell), 100%), 1fr));
+  gap: 2px;
+}
+
+.empty,
+.sentinel {
+  padding: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.item {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1;
+  background: var(--cell-bg);
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--cell);
+}
+
+.item.image {
+  background: var(--panel);
+}
+
+.item > a {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.item .name {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0.6vh;
+  font-size: clamp(13px, 1.6vw, 20px);
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+.item.image:has(img[src]) .name {
+  display: none;
+}
+
+.item.selected {
+  outline: 2px solid var(--selected);
+  outline-offset: -2px;
+}
+
+.item.selected::after {
+  position: absolute;
+  inset: 0;
+  background: var(--selection-overlay);
+  content: "";
+  pointer-events: none;
+}
+
+.grid.selecting .item a {
+  cursor: pointer;
+}
+
+.grid.selecting .item .menu {
+  display: none;
+}
+
+#select.on {
+  background: var(--selected);
+  color: #fff;
+}
+
+.item .menu {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+}
+
+.item:has(.menu[open]) {
+  z-index: 1;
+}
+
+.item .menu[open] {
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.item .menu summary {
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  list-style: none;
+}
+
+.item .menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.item .menu[open] summary {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+}
+
+.item .actions {
+  display: none;
+}
+
+.item .menu[open] .actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.item .actions button {
+  flex: 1;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.item .actions .rm {
+  background: var(--bg);
+}
+
+.item .to {
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+#selection-menu {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 4px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  overflow-x: auto;
+  transform: translateX(-50%);
+}
+
+#selection-menu[hidden] {
+  display: none;
+}
+
+#selection-menu button,
+#selection-menu input,
+.bar a,
+.bar .menu-toggle {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+#selection-menu button,
+.bar a,
+.bar .menu-toggle {
+  cursor: pointer;
+}
+
+#selection-menu button:hover,
+.bar a:hover,
+.bar .menu-toggle:hover {
+  background: var(--cell-bg);
+}
+
+#selection-menu input {
+  width: 180px;
+  border: 1px solid var(--border);
+}
+
+.bar {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 4px;
+  width: calc(100% - 24px);
+  transform: translateX(-50%);
+}
+
+.gallery-bar .search {
+  display: flex;
+  flex: 0 1 240px;
+}
+
+.gallery-bar .search input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+  background: var(--bg);
+}
+
+.bar a,
+.bar .menu-toggle {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+#menu,
+#directory-menu {
+  position: fixed;
+  inset: auto auto calc(var(--bar) + 16px) 50%;
+  width: max-content;
+  min-width: 200px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100vh - var(--bar) - 32px);
+  margin: 0;
+  overflow-y: auto;
+  transform: translateX(-50%);
+  padding: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+#menu:popover-open,
+#directory-menu:popover-open {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+#menu > :nth-child(odd),
+#directory-menu > :nth-child(odd) {
+  background: var(--panel);
+}
+
+#menu > button,
+#menu > a,
+#directory-menu > button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+}
+
+#menu > button:hover,
+#menu > a:hover,
+#directory-menu > button:hover {
+  background: var(--border);
+}
+
+#menu input,
+#directory-menu input {
+  min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+#menu.general-menu > input,
+#directory-menu > input {
+  width: 180px;
+  padding: 6px;
+}
+
+.menu-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.menu-row[hidden] {
+  display: none;
+}
+
+.menu-row > span {
+  color: var(--muted);
+}
+
+.menu-row > button,
+.menu-row > a {
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.menu-row > button:hover,
+.menu-row > a:hover {
+  background: var(--border);
+}
+
+.menu-row > button.on,
+.menu-row > a.on {
+  background: var(--selected);
+}
+
+.menu-row > input {
+  width: 5ch;
+  text-align: center;
+}
+
+.viewer {
+  position: fixed;
+  inset: 0 0 var(--bar) 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.viewer img,
+.viewer video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: grab;
+}
+
+.viewer .zoomed {
+  max-width: none;
+  max-height: none;
+  cursor: move;
+}
+
+#progress {
+  position: fixed;
+  right: 8px;
+  bottom: calc(var(--bar) + 8px);
+  z-index: 20;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  background: var(--cell-bg);
+}
+
+@media (max-width: 600px) {
+  #selection-menu {
+    justify-content: flex-start;
+    width: calc(100% - 24px);
+  }
+
+  #selection-menu input {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .gallery-bar .search {
+    flex: 1;
+  }
+
+  #menu,
+  #directory-menu {
+    width: calc(100% - 24px);
+  }
+
+  #menu.general-menu > input,
+  #directory-menu > input {
+    flex: 1;
+    min-width: 120px;
+  }
+}
