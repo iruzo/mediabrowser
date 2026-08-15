@@ -238,7 +238,6 @@ function clearItems(state) {
 function createItem(path, state) {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
   const kind = mediaKind(path);
-  const metadata = state.metadata.get(path) || { size: 0, date: 0 };
   const link = item.querySelector("a");
   const image = item.querySelector("img");
 
@@ -246,8 +245,6 @@ function createItem(path, state) {
   item.classList.toggle("selected", selected.has(path));
   item.dataset.path = path;
   item.dataset.kind = kind;
-  item.dataset.size = metadata.size;
-  item.dataset.date = metadata.date;
   link.href = kind === "text" ? fileUrl(path) : viewerUrl(path);
   item.querySelector(".name").textContent = baseName(path);
   item.querySelectorAll("input.to").forEach((input) => {
@@ -334,7 +331,6 @@ function addDirectory(path, preset, metadata = new Map()) {
     loading: null,
   };
 
-  details.dataset.path = path;
   details.querySelector(".directory-name").textContent = displayDirectory(path);
   if (path === scope) details.querySelector(".directory-menu-toggle").remove();
   stateFor.set(details, state);
