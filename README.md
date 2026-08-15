@@ -77,7 +77,7 @@ Each endpoint is documented with a curl example in
 [doc/endpoints/](./doc/endpoints/).
 
 ### API Routes
-- `GET /api/find?path=folder&query=name&type=dir&recursive=false` - List or search paths; directories end with `/`, `type` accepts `dir`, `file`, or `all`, recursion defaults to enabled, and `metadata=true` includes size and modified time
+- `GET /api/find?path=folder&query=name&type=dir&recursive=false` - List or search paths; directories end with `/`, `type` accepts `dir`, `file`, or `all`, recursion defaults to enabled, and `metadata=true` includes size, modified time, and media kind
 - `POST /api/upload` - Upload files using multipart `path` and `file` fields (256GB limit)
 - `POST /api/download` - Download selected paths using repeated URL-encoded `path` fields; a single file is sent as-is, anything else as TAR
 - `POST /api/rm` - Remove a file or directory using a URL-encoded `path` field

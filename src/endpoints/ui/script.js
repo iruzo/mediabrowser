@@ -71,51 +71,8 @@ function displayDirectory(path) {
   return path ? `/${path}/` : "/";
 }
 
-const images = new Set([
-  "avif",
-  "bmp",
-  "gif",
-  "ico",
-  "jpeg",
-  "jpg",
-  "png",
-  "svg",
-  "webp",
-]);
-const videos = new Set([
-  "avi",
-  "flv",
-  "m4v",
-  "mkv",
-  "mov",
-  "mp4",
-  "mpeg",
-  "mpg",
-  "ogv",
-  "ts",
-  "webm",
-  "wmv",
-]);
-const audios = new Set([
-  "aac",
-  "flac",
-  "m4a",
-  "mp3",
-  "ogg",
-  "opus",
-  "wav",
-  "wma",
-]);
-
-function mediaKind(path) {
-  const name = baseName(path);
-  const dot = name.lastIndexOf(".");
-  const extension = dot < 0 ? "" : name.slice(dot + 1).toLowerCase();
-
-  if (images.has(extension)) return "image";
-  if (videos.has(extension)) return "video";
-  if (audios.has(extension)) return "audio";
-  return "text";
+function kindFor(state, path) {
+  return state.metadata.get(path)?.kind || "text";
 }
 
 const root = document.documentElement;
@@ -205,13 +162,13 @@ function compareNames(a, b) {
 
 function visiblePaths(state) {
   const paths = state.files.filter(
-    (path) => view.filter === "all" || mediaKind(path) === view.filter,
+    (path) => view.filter === "all" || kindFor(state, path) === view.filter,
   );
 
   paths.sort((a, b) => {
     let value = 0;
     if (view.sort === "type") {
-      const kinds = mediaKind(a).localeCompare(mediaKind(b));
+      const kinds = kindFor(state, a).localeCompare(kindFor(state, b));
       if (kinds) return kinds;
     } else if (view.sort === "date") {
       value = (state.metadata.get(b)?.date || 0) -
@@ -237,14 +194,13 @@ function clearItems(state) {
 
 function createItem(path, state) {
   const item = itemTemplate.content.firstElementChild.cloneNode(true);
-  const kind = mediaKind(path);
+  const kind = kindFor(state, path);
   const link = item.querySelector("a");
   const image = item.querySelector("img");
 
   item.classList.add(kind);
   item.classList.toggle("selected", selected.has(path));
   item.dataset.path = path;
-  item.dataset.kind = kind;
   link.href = kind === "text" ? fileUrl(path) : viewerUrl(path);
   item.querySelector(".name").textContent = baseName(path);
   item.querySelectorAll("input.to").forEach((input) => {
@@ -663,7 +619,7 @@ directories.addEventListener("click", async (event) => {
     if (selecting && item.closest(".grid").classList.contains("selecting")) {
       event.preventDefault();
       selectPath(item.dataset.path, item);
-    } else if (item.dataset.kind !== "text") {
+    } else if (!item.classList.contains("text")) {
       event.preventDefault();
       const state = stateFor.get(item.closest("details.directory"));
       openViewer(item.dataset.path, state);
@@ -902,7 +858,7 @@ upload.addEventListener("submit", async (event) => {
 });
 
 function viewerFiles(state) {
-  return visiblePaths(state).filter((path) => mediaKind(path) !== "text");
+  return visiblePaths(state).filter((path) => kindFor(state, path) !== "text");
 }
 
 function closeViewer(push = true) {
@@ -927,7 +883,8 @@ function closeViewer(push = true) {
 
 function openViewer(path, state, push = true) {
   if (!state || !state.files) return;
-  if (mediaKind(path) === "text") {
+  const type = kindFor(state, path);
+  if (type === "text") {
     location.href = fileUrl(path);
     return;
   }
@@ -939,7 +896,6 @@ function openViewer(path, state, push = true) {
     ? paths[(index + paths.length - 1) % paths.length]
     : path;
   const next = paths.length ? paths[(index + 1) % paths.length] : path;
-  const type = mediaKind(path);
   const content = viewerTemplate.content.cloneNode(true);
   const main = content.querySelector(".viewer");
   const bar = content.querySelector(".viewer-bar");

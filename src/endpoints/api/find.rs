@@ -1,3 +1,4 @@
+use crate::mime::media_kind;
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use crate::walk;
@@ -223,7 +224,7 @@ fn json_paths(paths: &[String]) -> String {
 }
 
 fn json_metadata(root: &Path, paths: &[String]) -> String {
-    let mut json = String::with_capacity(paths.len() * 48 + 2);
+    let mut json = String::with_capacity(paths.len() * 64 + 2);
     json.push('[');
 
     for (index, path) in paths.iter().enumerate() {
@@ -238,10 +239,18 @@ fn json_metadata(root: &Path, paths: &[String]) -> String {
             .and_then(|value| value.modified().ok())
             .and_then(|value| value.duration_since(UNIX_EPOCH).ok())
             .map_or(0, |value| value.as_secs());
+        let kind = if path.ends_with('/') {
+            "text"
+        } else {
+            media_kind(Path::new(path))
+        };
 
         json.push_str("{\"path\":");
         push_json_string(&mut json, path);
-        let _ = write!(json, ",\"size\":{size},\"date\":{date}}}");
+        let _ = write!(
+            json,
+            ",\"size\":{size},\"date\":{date},\"kind\":\"{kind}\"}}"
+        );
     }
 
     json.push(']');
@@ -335,9 +344,16 @@ mod tests {
             .as_secs();
 
         assert_eq!(
-            json_metadata(&root, &[name.to_string(), "missing.txt".to_string()]),
+            json_metadata(
+                &root,
+                &[
+                    name.to_string(),
+                    "missing.WMV".to_string(),
+                    "movie.mp4/".to_string(),
+                ]
+            ),
             format!(
-                "[{{\"path\":\"a\\\"b.txt\",\"size\":4,\"date\":{date}}},{{\"path\":\"missing.txt\",\"size\":0,\"date\":0}}]"
+                "[{{\"path\":\"a\\\"b.txt\",\"size\":4,\"date\":{date},\"kind\":\"text\"}},{{\"path\":\"missing.WMV\",\"size\":0,\"date\":0,\"kind\":\"video\"}},{{\"path\":\"movie.mp4/\",\"size\":0,\"date\":0,\"kind\":\"text\"}}]"
             )
         );
         std::fs::remove_dir_all(root).expect("remove test directory");
