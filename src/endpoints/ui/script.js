@@ -911,12 +911,13 @@ function viewerFiles(state) {
 
 function closeViewer(push = true) {
   if (!viewer) return;
+  if (viewer.menu.matches(":popover-open")) viewer.menu.hidePopover();
   viewer.main.remove();
   viewer.bar.remove();
   viewer.menu.remove();
-  document.body.append(galleryMenu);
   directories.hidden = false;
   galleryBar.hidden = false;
+  galleryMenu.hidden = false;
   selectionMenu.hidden = !selecting;
   document.title = displayDirectory(scope);
   viewer = null;
@@ -946,7 +947,7 @@ function openViewer(path, state, push = true) {
   const content = viewerTemplate.content.cloneNode(true);
   const main = content.querySelector(".viewer");
   const bar = content.querySelector(".viewer-bar");
-  const menu = content.querySelector("#menu");
+  const menu = content.querySelector("#viewer-menu");
   const media = main.querySelector(`[data-type="${type}"]`);
 
   media.hidden = false;
@@ -962,7 +963,7 @@ function openViewer(path, state, push = true) {
 
   closeDirectoryMenu();
   if (galleryMenu.matches(":popover-open")) galleryMenu.hidePopover();
-  galleryMenu.remove();
+  galleryMenu.hidden = true;
   directories.hidden = true;
   galleryBar.hidden = true;
   selectionMenu.hidden = true;

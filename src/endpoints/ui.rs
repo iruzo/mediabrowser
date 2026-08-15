@@ -25,6 +25,8 @@ mod tests {
         assert!(page.contains(r#"id="directories""#));
         assert!(page.contains(r#"id="directory-menu""#));
         assert!(page.contains(r#"id="selection-menu""#));
+        assert!(page.contains(r#"id="viewer-menu""#));
+        assert_eq!(page.matches(r#"id="menu""#).count(), 1);
         assert!(page.contains(r#"data-zoom="reset""#));
         assert!(page.contains("IntersectionObserver"));
         assert!(page.contains(r#"params.set("metadata", "true")"#));

@@ -37,6 +37,10 @@
   padding: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -331,7 +335,8 @@ input {
 }
 
 #menu,
-#directory-menu {
+#directory-menu,
+#viewer-menu {
   position: fixed;
   inset: auto auto calc(var(--bar) + 16px) 50%;
   width: max-content;
@@ -347,7 +352,8 @@ input {
 }
 
 #menu:popover-open,
-#directory-menu:popover-open {
+#directory-menu:popover-open,
+#viewer-menu:popover-open {
   display: flex;
   flex-flow: row wrap;
   justify-content: center;
@@ -355,13 +361,15 @@ input {
 }
 
 #menu > :nth-child(odd),
-#directory-menu > :nth-child(odd) {
+#directory-menu > :nth-child(odd),
+#viewer-menu > :nth-child(odd) {
   background: var(--panel);
 }
 
 #menu > button,
 #menu > a,
-#directory-menu > button {
+#directory-menu > button,
+#viewer-menu > button {
   padding: 6px 12px;
   border: 0;
   border-radius: 4px;
@@ -374,12 +382,14 @@ input {
 
 #menu > button:hover,
 #menu > a:hover,
-#directory-menu > button:hover {
+#directory-menu > button:hover,
+#viewer-menu > button:hover {
   background: var(--border);
 }
 
 #menu input,
-#directory-menu input {
+#directory-menu input,
+#viewer-menu input {
   min-width: 0;
   padding: 4px 6px;
   border: 1px solid var(--border);
@@ -483,7 +493,8 @@ input {
   }
 
   #menu,
-  #directory-menu {
+  #directory-menu,
+  #viewer-menu {
     width: calc(100% - 24px);
   }
 
