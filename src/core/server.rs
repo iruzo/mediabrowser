@@ -168,7 +168,7 @@ async fn serve(request: Request<Incoming>) -> Result<Response, Infallible> {
 }
 
 pub fn run() {
-    tokio::runtime::Builder::new_multi_thread()
+    tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .expect("failed to build runtime")
