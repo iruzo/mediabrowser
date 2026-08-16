@@ -267,9 +267,7 @@ input {
   text-decoration: none;
 }
 
-#menu,
-#action-menu,
-#viewer-menu {
+.popover {
   position: fixed;
   inset: auto auto calc(var(--bar) + 16px) 50%;
   width: max-content;
@@ -284,25 +282,18 @@ input {
   background: var(--bg);
 }
 
-#menu:popover-open,
-#action-menu:popover-open,
-#viewer-menu:popover-open {
+.popover:popover-open {
   display: flex;
   flex-flow: row wrap;
   justify-content: center;
   gap: 4px;
 }
 
-#menu > :nth-child(odd),
-#action-menu > :nth-child(odd),
-#viewer-menu > :nth-child(odd) {
+.popover > :nth-child(odd) {
   background: var(--panel);
 }
 
-#menu > button,
-#menu > a,
-#action-menu > button,
-#viewer-menu > button {
+.popover > button {
   padding: 6px 12px;
   border: 0;
   border-radius: 4px;
@@ -310,27 +301,20 @@ input {
   color: var(--text);
   cursor: pointer;
   text-align: left;
-  text-decoration: none;
 }
 
-#menu > button:hover,
-#menu > a:hover,
-#action-menu > button:hover,
-#viewer-menu > button:hover {
+.popover > button:hover {
   background: var(--border);
 }
 
-#menu input,
-#action-menu input,
-#viewer-menu input {
+.popover input {
   min-width: 0;
   padding: 4px 6px;
   border: 1px solid var(--border);
   background: var(--bg);
 }
 
-#menu.general-menu > input,
-#action-menu > input {
+.popover > input {
   width: 180px;
   padding: 6px;
 }
@@ -425,14 +409,11 @@ input {
     flex: 1;
   }
 
-  #menu,
-  #action-menu,
-  #viewer-menu {
+  .popover {
     width: calc(100% - 24px);
   }
 
-  #menu.general-menu > input,
-  #action-menu > input {
+  .popover > input {
     flex: 1;
     min-width: 120px;
   }

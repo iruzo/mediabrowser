@@ -142,6 +142,9 @@ mod tests {
         assert_eq!(attribute_count("id", "viewer-template"), 0);
         assert_eq!(attribute_count("id", "viewer-menu"), 1);
         assert_eq!(attribute_count("id", "viewer-download"), 1);
+        assert_eq!(attribute_count("class", "popover"), 3);
+        assert_eq!(attribute_count("popover", "manual"), 2);
+        assert_eq!(attribute_count("popover", "auto"), 1);
         assert_eq!(attribute_count("id", "prev"), 1);
         assert_eq!(attribute_count("id", "close"), 1);
         assert_eq!(attribute_count("id", "next"), 1);

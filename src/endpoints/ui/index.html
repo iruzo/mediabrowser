@@ -31,7 +31,7 @@
       <button type="button" id="selected-rm">rm</button>
     </div>
 
-    <div id="menu" class="general-menu" popover="manual">
+    <div id="menu" class="popover" popover="manual">
       <button type="button" class="show-upload">upload</button>
       <input id="name" placeholder="name" />
       <button type="button" id="mkdir">mkdir</button>
@@ -53,7 +53,7 @@
       </div>
     </div>
 
-    <div id="action-menu" popover="manual">
+    <div id="action-menu" class="popover" popover="manual">
       <button type="button" class="download">download</button>
       <input class="to cp-to" placeholder="destination path" hidden />
       <button type="button" class="cp">cp</button>
@@ -109,7 +109,7 @@
           menu
         </button>
       </nav>
-      <div id="viewer-menu" popover="auto">
+      <div id="viewer-menu" class="popover" popover="auto">
         <button type="button" id="viewer-download">download</button>
         <div class="menu-row" data-types="image video" hidden>
           <span>zoom</span><button type="button" data-zoom="in">+</button
