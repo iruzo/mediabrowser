@@ -36,6 +36,7 @@ services:
     volumes:
       - ./Cargo.toml:/app/Cargo.toml:z
       - ./Cargo.lock:/app/Cargo.lock:z
+      - ./build.rs:/app/build.rs:z
       - ./src:/app/src:z
       - ./data:/data:z
     ports:

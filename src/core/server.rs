@@ -1,4 +1,4 @@
-use crate::endpoints::{self, handle_file_server, handle_ui};
+use crate::endpoints::{self, handle_file_server, handle_ui_request};
 use crate::response::{self, Response};
 use crate::types::data_dir;
 use bytes::Bytes;
@@ -154,7 +154,7 @@ async fn route(request: Request<Incoming>) -> Response {
     }
 
     if parts.method == Method::GET && (path == "/ui" || path.starts_with("/ui/")) {
-        return handle_ui();
+        return handle_ui_request(&parts.headers);
     }
 
     match (&parts.method, path) {

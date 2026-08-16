@@ -94,3 +94,12 @@ Each endpoint is documented with a curl example in
 ### UI Routes
 - `GET /ui/` - Client-rendered media browser for the data root
 - `GET /ui/path/to/dir/` - Client-rendered media browser scoped to the matching HTTPD directory
+
+The UI response is stored and served as gzip. Browsers negotiate this
+automatically. Other clients can request and decompress it with:
+
+```bash
+curl --compressed http://localhost:30003/ui/
+```
+
+A client that explicitly rejects gzip receives `406 Not Acceptable`.

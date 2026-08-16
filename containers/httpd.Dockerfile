@@ -7,7 +7,7 @@ COPY . .
 
 ENV HTTPD=1
 ENV RUSTFLAGS="-C target-feature=+crt-static"
-RUN cargo build --release --target x86_64-unknown-linux-musl
+RUN cargo build --locked --release --target x86_64-unknown-linux-musl
 RUN strip /app/target/x86_64-unknown-linux-musl/release/mediabrowser || true
 
 FROM scratch

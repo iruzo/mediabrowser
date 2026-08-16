@@ -4,6 +4,7 @@
 !.gitignore
 !Cargo.lock
 !Cargo.toml
+!build.rs
 !Dockerfile
 !LICENSE
 !README.md
