@@ -82,7 +82,7 @@ const itemTemplate = document.getElementById("item-template");
 const viewerTemplate = document.getElementById("viewer-template");
 const galleryBar = document.querySelector(".gallery-bar");
 const galleryMenu = document.getElementById("menu");
-const directoryMenu = document.getElementById("directory-menu");
+const actionMenu = document.getElementById("action-menu");
 const selectionMenu = document.getElementById("selection-menu");
 const search = document.querySelector("form.search");
 const upload = document.querySelector("form.upload");
@@ -101,7 +101,7 @@ let viewer = null;
 let initialView = new URL(location.href).searchParams.get("view");
 let directoryLoad = 0;
 let currentQuery = "";
-let directoryActionPath = null;
+let actionTarget = null;
 
 document.title = scope === null ? "invalid path" : displayDirectory(scope);
 if (cell) root.style.setProperty("--cell", `${cell}px`);
@@ -203,9 +203,6 @@ function createItem(path, state) {
   item.dataset.path = path;
   link.href = kind === "text" ? fileUrl(path) : viewerUrl(path);
   item.querySelector(".name").textContent = baseName(path);
-  item.querySelectorAll("input.to").forEach((input) => {
-    input.value = path;
-  });
 
   if (kind === "image") {
     image.dataset.src = fileUrl(path);
@@ -322,7 +319,7 @@ async function loadDirectories(query = "") {
   const load = ++directoryLoad;
   currentQuery = query;
   closeViewer(false);
-  closeDirectoryMenu();
+  closeActionMenu();
   setSelecting(false);
   clearDirectories();
   activePath = scope;
@@ -432,6 +429,7 @@ function closeSelectionPaths() {
 }
 
 function setSelecting(value) {
+  if (value) closeActionMenu();
   selecting = value;
   const button = document.getElementById("select");
   const state = currentState();
@@ -558,45 +556,60 @@ function selectPath(path, element) {
   element.classList.toggle("selected", value);
 }
 
-function closeDirectoryMenu() {
-  if (directoryMenu.matches(":popover-open")) directoryMenu.hidePopover();
-  directoryActionPath = null;
-  directoryMenu.querySelectorAll("input.to").forEach((input) => {
+function resetActionMenu() {
+  actionTarget = null;
+  actionMenu.querySelectorAll("input.to").forEach((input) => {
     input.hidden = true;
   });
 }
 
-galleryBar.querySelector(".menu-toggle").addEventListener("click", () => {
-  closeDirectoryMenu();
-});
+function closeActionMenu() {
+  if (actionMenu.matches(":popover-open")) actionMenu.hidePopover();
+  resetActionMenu();
+}
 
-directories.addEventListener("click", async (event) => {
-  const menuToggle = event.target.closest(".directory-menu-toggle");
-  if (menuToggle) {
-    event.preventDefault();
-    const state = stateFor.get(menuToggle.closest("details.directory"));
-    if (
-      directoryMenu.matches(":popover-open") &&
-      directoryActionPath === state.path
-    ) {
-      closeDirectoryMenu();
-      return;
-    }
-    closeDirectoryMenu();
-    directoryActionPath = state.path;
-    directoryMenu.querySelectorAll("input.to").forEach((input) => {
-      input.value = state.path;
-      input.hidden = true;
-    });
-    directoryMenu.querySelectorAll("button").forEach((button) => {
-      button.disabled = false;
-    });
-    if (galleryMenu.matches(":popover-open")) galleryMenu.hidePopover();
-    directoryMenu.showPopover();
+function isActionTarget(target) {
+  return actionTarget?.toggle === target.toggle;
+}
+
+function toggleActionMenu(toggle, path, directory) {
+  if (
+    actionMenu.matches(":popover-open") &&
+    actionTarget?.toggle === toggle
+  ) {
+    closeActionMenu();
     return;
   }
 
-  closeDirectoryMenu();
+  closeActionMenu();
+  actionTarget = { toggle, path, directory };
+  actionMenu.querySelectorAll("input.to").forEach((input) => {
+    input.value = path;
+    input.hidden = true;
+  });
+  if (galleryMenu.matches(":popover-open")) galleryMenu.hidePopover();
+  actionMenu.showPopover();
+}
+
+galleryBar.querySelector(".menu-toggle").addEventListener("click", () => {
+  closeActionMenu();
+});
+
+directories.addEventListener("click", (event) => {
+  const menuToggle = event.target.closest(".action-menu-toggle");
+  if (menuToggle) {
+    event.preventDefault();
+    const item = menuToggle.closest(".item");
+    if (item) {
+      toggleActionMenu(menuToggle, item.dataset.path, false);
+    } else {
+      const state = stateFor.get(menuToggle.closest("details.directory"));
+      toggleActionMenu(menuToggle, state.path, true);
+    }
+    return;
+  }
+
+  closeActionMenu();
 
   const summary = event.target.closest("summary");
   if (summary?.parentElement?.matches("details.directory") && selecting) {
@@ -626,120 +639,67 @@ directories.addEventListener("click", async (event) => {
     }
     return;
   }
+});
 
+actionMenu.addEventListener("click", async (event) => {
   const button = event.target.closest("button");
-  if (!button) return;
+  if (!button || actionTarget === null) return;
+
+  const target = actionTarget;
 
   if (button.classList.contains("download")) {
-    submitDownload([item.dataset.path]);
+    submitDownload([target.path]);
     return;
   }
 
-  if (button.classList.contains("rm")) {
-    button.disabled = true;
-    try {
-      await post("/api/rm", { path: item.dataset.path });
-      removePath(item.dataset.path);
-    } catch (error) {
-      alert(error.message || "Failed to remove item");
-      button.disabled = false;
-    }
-    return;
-  }
-
-  const action = button.classList.contains("cp")
-    ? "cp"
-    : button.classList.contains("mv")
-      ? "mv"
-      : "";
+  const action = button.classList.contains("rm")
+    ? "rm"
+    : button.classList.contains("cp")
+      ? "cp"
+      : button.classList.contains("mv")
+        ? "mv"
+        : "";
   if (!action) return;
 
-  const input = item.querySelector(`.${action}-to`);
-  if (reveal(input)) return;
-  const to = input.value.trim();
-  if (!to) return;
+  let data = { path: target.path };
+  if (action !== "rm") {
+    const input = actionMenu.querySelector(`.${action}-to`);
+    if (reveal(input)) return;
+    const to = input.value.trim();
+    if (!to) return;
+    data = { from: target.path, to };
+  }
 
   button.disabled = true;
   try {
-    await post(`/api/${action}`, { from: item.dataset.path, to });
-    location.reload();
+    await post(`/api/${action}`, data);
+    if (action === "rm") {
+      if (isActionTarget(target)) closeActionMenu();
+      if (target.directory) await loadDirectories(currentQuery);
+      else removePath(target.path);
+    } else {
+      location.reload();
+    }
   } catch (error) {
-    alert(error.message || `Failed to ${action} item`);
+    const operation = action === "rm" ? "remove" : action;
+    const type = target.directory ? "directory" : "item";
+    alert(error.message || `Failed to ${operation} ${type}`);
+  } finally {
     button.disabled = false;
   }
 });
 
-directoryMenu.addEventListener("click", async (event) => {
-  const button = event.target.closest("button");
-  if (!button || directoryActionPath === null) return;
-
-  if (button.classList.contains("download")) {
-    submitDownload([directoryActionPath]);
-    return;
-  }
-
-  if (button.classList.contains("rm")) {
-    button.disabled = true;
-    try {
-      await post("/api/rm", { path: directoryActionPath });
-      closeDirectoryMenu();
-      await loadDirectories(currentQuery);
-    } catch (error) {
-      alert(error.message || "Failed to remove directory");
-      button.disabled = false;
-    }
-    return;
-  }
-
-  const action = button.classList.contains("cp")
-    ? "cp"
-    : button.classList.contains("mv")
-      ? "mv"
-      : "";
-  if (!action) return;
-
-  const input = directoryMenu.querySelector(`.${action}-to`);
-  if (reveal(input)) return;
-  const to = input.value.trim();
-  if (!to) return;
-
-  button.disabled = true;
-  try {
-    await post(`/api/${action}`, { from: directoryActionPath, to });
-    location.reload();
-  } catch (error) {
-    alert(error.message || `Failed to ${action} directory`);
-    button.disabled = false;
-  }
-});
-
-directoryMenu.addEventListener("toggle", () => {
-  if (directoryMenu.matches(":popover-open")) return;
-  directoryActionPath = null;
-  directoryMenu.querySelectorAll("input.to").forEach((input) => {
-    input.hidden = true;
-  });
+actionMenu.addEventListener("toggle", () => {
+  if (actionMenu.matches(":popover-open")) return;
+  resetActionMenu();
 });
 
 document.addEventListener("keydown", (event) => {
-  const input = event.target.closest(
-    "input.to, #selection-menu input, #directory-menu input",
-  );
+  const input = event.target.closest("input.to, #selection-menu input");
   if (!input || event.key !== "Enter") return;
   event.preventDefault();
   input.nextElementSibling.click();
 });
-
-directories.addEventListener(
-  "toggle",
-  (event) => {
-    if (!event.target.matches("details.menu") || event.target.open) return;
-    event.target.querySelectorAll("input.to").forEach((input) => {
-      input.hidden = true;
-    });
-  },
-  true,
-);
 
 on("select", () => setSelecting(!selecting));
 on("selected-download", () => submitDownload(selectedPaths()));
@@ -913,7 +873,7 @@ function openViewer(path, state, push = true) {
     control.hidden = !control.dataset.types.split(" ").includes(type);
   });
 
-  closeDirectoryMenu();
+  closeActionMenu();
   if (galleryMenu.matches(":popover-open")) galleryMenu.hidePopover();
   galleryMenu.hidden = true;
   directories.hidden = true;

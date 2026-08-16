@@ -73,7 +73,7 @@ input {
   text-overflow: ellipsis;
 }
 
-.directory-menu-toggle {
+.action-menu-toggle {
   padding: 2px 10px;
   border: 0;
   background: rgba(0, 0, 0, 0.6);
@@ -174,7 +174,7 @@ input {
   cursor: pointer;
 }
 
-.grid.selecting .item .menu {
+.grid.selecting .item-menu-toggle {
   display: none;
 }
 
@@ -183,66 +183,11 @@ input {
   color: #fff;
 }
 
-.item .menu {
+.item-menu-toggle {
   position: absolute;
   top: 4px;
   right: 4px;
   z-index: 2;
-}
-
-.item:has(.menu[open]) {
-  z-index: 1;
-}
-
-.item .menu[open] {
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-}
-
-.item .menu summary {
-  padding: 4px 10px;
-  background: rgba(0, 0, 0, 0.6);
-  cursor: pointer;
-  list-style: none;
-}
-
-.item .menu summary::-webkit-details-marker {
-  display: none;
-}
-
-.item .menu[open] summary {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  z-index: 1;
-}
-
-.item .actions {
-  display: none;
-}
-
-.item .menu[open] .actions {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.item .actions button {
-  flex: 1;
-  border: 1px solid var(--border);
-  background: var(--panel);
-}
-
-.item .actions .rm {
-  background: var(--bg);
-}
-
-.item .to {
-  min-width: 0;
-  padding: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg);
 }
 
 #selection-menu {
@@ -323,7 +268,7 @@ input {
 }
 
 #menu,
-#directory-menu,
+#action-menu,
 #viewer-menu {
   position: fixed;
   inset: auto auto calc(var(--bar) + 16px) 50%;
@@ -340,7 +285,7 @@ input {
 }
 
 #menu:popover-open,
-#directory-menu:popover-open,
+#action-menu:popover-open,
 #viewer-menu:popover-open {
   display: flex;
   flex-flow: row wrap;
@@ -349,14 +294,14 @@ input {
 }
 
 #menu > :nth-child(odd),
-#directory-menu > :nth-child(odd),
+#action-menu > :nth-child(odd),
 #viewer-menu > :nth-child(odd) {
   background: var(--panel);
 }
 
 #menu > button,
 #menu > a,
-#directory-menu > button,
+#action-menu > button,
 #viewer-menu > button {
   padding: 6px 12px;
   border: 0;
@@ -370,13 +315,13 @@ input {
 
 #menu > button:hover,
 #menu > a:hover,
-#directory-menu > button:hover,
+#action-menu > button:hover,
 #viewer-menu > button:hover {
   background: var(--border);
 }
 
 #menu input,
-#directory-menu input,
+#action-menu input,
 #viewer-menu input {
   min-width: 0;
   padding: 4px 6px;
@@ -385,7 +330,7 @@ input {
 }
 
 #menu.general-menu > input,
-#directory-menu > input {
+#action-menu > input {
   width: 180px;
   padding: 6px;
 }
@@ -481,13 +426,13 @@ input {
   }
 
   #menu,
-  #directory-menu,
+  #action-menu,
   #viewer-menu {
     width: calc(100% - 24px);
   }
 
   #menu.general-menu > input,
-  #directory-menu > input {
+  #action-menu > input {
     flex: 1;
     min-width: 120px;
   }

@@ -53,7 +53,7 @@
       </div>
     </div>
 
-    <div id="directory-menu" popover="manual">
+    <div id="action-menu" popover="manual">
       <button type="button" class="download">download</button>
       <input class="to cp-to" placeholder="destination path" hidden />
       <button type="button" class="cp">cp</button>
@@ -78,7 +78,9 @@
       <details class="directory" name="directories">
         <summary>
           <span class="directory-name"></span>
-          <button type="button" class="directory-menu-toggle">...</button>
+          <button type="button" class="action-menu-toggle directory-menu-toggle">
+            ...
+          </button>
         </summary>
         <div class="grid"></div>
         <p class="empty" hidden>empty</p>
@@ -89,17 +91,7 @@
     <template id="item-template">
       <div class="item">
         <a target="_top"><img alt="" /><span class="name"></span></a>
-        <details class="menu">
-          <summary>...</summary>
-          <form class="actions">
-            <button class="download" type="button">download</button>
-            <input class="to cp-to" hidden />
-            <button class="cp" type="button">cp</button>
-            <input class="to mv-to" hidden />
-            <button class="mv" type="button">mv</button>
-            <button class="rm" type="button">rm</button>
-          </form>
-        </details>
+        <button type="button" class="action-menu-toggle item-menu-toggle">...</button>
       </div>
     </template>
 
