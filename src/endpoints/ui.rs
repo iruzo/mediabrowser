@@ -138,12 +138,26 @@ mod tests {
         assert_eq!(attribute_count("id", "directories"), 1);
         assert_eq!(attribute_count("id", "action-menu"), 1);
         assert_eq!(attribute_count("id", "selection-menu"), 1);
+        assert_eq!(attribute_count("id", "viewer-root"), 1);
+        assert_eq!(attribute_count("id", "viewer-template"), 0);
         assert_eq!(attribute_count("id", "viewer-menu"), 1);
+        assert_eq!(attribute_count("id", "viewer-download"), 1);
+        assert_eq!(attribute_count("id", "prev"), 1);
+        assert_eq!(attribute_count("id", "close"), 1);
+        assert_eq!(attribute_count("id", "next"), 1);
+        assert_eq!(attribute_count("id", "loopstart"), 1);
+        assert_eq!(attribute_count("id", "loopend"), 1);
+        assert_eq!(attribute_count("id", "loopclear"), 1);
         assert_eq!(attribute_count("id", "menu"), 1);
         assert_eq!(attribute_count("class", "download"), 1);
         assert_eq!(attribute_count("class", "to cp-to"), 1);
         assert_eq!(attribute_count("class", "actions"), 0);
         assert_eq!(attribute_count("data-zoom", "reset"), 1);
+        assert!(
+            PAGE.contains(r#"id="viewer-root" hidden"#)
+                || PAGE.contains("id='viewer-root' hidden")
+                || PAGE.contains("id=viewer-root hidden")
+        );
         assert!(PAGE.contains("IntersectionObserver"));
         assert!(PAGE.contains("metadata"));
         assert!(!PAGE.contains("{{CSS}}"));

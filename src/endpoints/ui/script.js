@@ -79,7 +79,21 @@ const root = document.documentElement;
 const directories = document.getElementById("directories");
 const directoryTemplate = document.getElementById("directory-template");
 const itemTemplate = document.getElementById("item-template");
-const viewerTemplate = document.getElementById("viewer-template");
+const viewerRoot = document.getElementById("viewer-root");
+const viewerMain = viewerRoot.querySelector(".viewer");
+const viewerBar = viewerRoot.querySelector(".viewer-bar");
+const viewerMenu = document.getElementById("viewer-menu");
+const viewerPrevious = document.getElementById("prev");
+const viewerClose = document.getElementById("close");
+const viewerNext = document.getElementById("next");
+const viewerMedia = {
+  image: viewerMain.querySelector('[data-type="image"]'),
+  video: viewerMain.querySelector('[data-type="video"]'),
+  audio: viewerMain.querySelector('[data-type="audio"]'),
+};
+const viewerControls = viewerMenu.querySelectorAll("[data-types]");
+const loopStartInput = document.getElementById("loopstart");
+const loopEndInput = document.getElementById("loopend");
 const galleryBar = document.querySelector(".gallery-bar");
 const galleryMenu = document.getElementById("menu");
 const actionMenu = document.getElementById("action-menu");
@@ -98,6 +112,12 @@ let activePath = scope || "";
 let cell = parseInt(localStorage.getItem("cell"), 10) || 0;
 let selecting = false;
 let viewer = null;
+let zoom = 1;
+let angle = 0;
+let position = { x: 0, y: 0 };
+let drag = null;
+let loopStart = 0;
+let loopEnd = 0;
 let initialView = new URL(location.href).searchParams.get("view");
 let directoryLoad = 0;
 let currentQuery = "";
@@ -821,18 +841,62 @@ function viewerFiles(state) {
   return visiblePaths(state).filter((path) => kindFor(state, path) !== "text");
 }
 
+function stopDragging(event) {
+  if (!drag || (event && drag.id !== event.pointerId)) return;
+  if (drag.media.hasPointerCapture(drag.id)) {
+    drag.media.releasePointerCapture(drag.id);
+  }
+  drag = null;
+}
+
+function resetLoop() {
+  loopStart = 0;
+  loopEnd = 0;
+  loopStartInput.value = "";
+  loopEndInput.value = "";
+}
+
+function resetViewer() {
+  if (viewerMenu.matches(":popover-open")) viewerMenu.hidePopover();
+  stopDragging();
+  resetLoop();
+  zoom = 1;
+  angle = 0;
+  position.x = 0;
+  position.y = 0;
+
+  const media = viewer.media;
+  if (viewer.type === "image") {
+    media.removeAttribute("alt");
+  } else {
+    if (document.pictureInPictureElement === media) {
+      document.exitPictureInPicture();
+    }
+    if (document.fullscreenElement === media) document.exitFullscreen();
+    media.pause();
+    media.volume = 1;
+    media.muted = false;
+    media.loop = false;
+    media.defaultPlaybackRate = 1;
+    media.playbackRate = 1;
+  }
+  media.removeAttribute("src");
+  if (viewer.type !== "image") media.load();
+  media.hidden = true;
+  media.classList.remove("zoomed");
+  media.style.removeProperty("transform");
+  viewer = null;
+}
+
 function closeViewer(push = true) {
   if (!viewer) return;
-  if (viewer.menu.matches(":popover-open")) viewer.menu.hidePopover();
-  viewer.main.remove();
-  viewer.bar.remove();
-  viewer.menu.remove();
+  resetViewer();
+  viewerRoot.hidden = true;
   directories.hidden = false;
   galleryBar.hidden = false;
   galleryMenu.hidden = false;
   selectionMenu.hidden = !selecting;
   document.title = displayDirectory(scope);
-  viewer = null;
 
   if (push) {
     const url = new URL(location.href);
@@ -848,7 +912,7 @@ function openViewer(path, state, push = true) {
     location.href = fileUrl(path);
     return;
   }
-  if (viewer) closeViewer(false);
+  if (viewer) resetViewer();
 
   const paths = viewerFiles(state);
   const index = Math.max(0, paths.indexOf(path));
@@ -856,20 +920,16 @@ function openViewer(path, state, push = true) {
     ? paths[(index + paths.length - 1) % paths.length]
     : path;
   const next = paths.length ? paths[(index + 1) % paths.length] : path;
-  const content = viewerTemplate.content.cloneNode(true);
-  const main = content.querySelector(".viewer");
-  const bar = content.querySelector(".viewer-bar");
-  const menu = content.querySelector("#viewer-menu");
-  const media = main.querySelector(`[data-type="${type}"]`);
+  const media = viewerMedia[type];
 
+  viewer = { path, type, state, media, previous, next };
   media.hidden = false;
-  media.id = type === "audio" ? "" : "media";
   media.src = fileUrl(path);
   if (type === "image") media.alt = baseName(path);
-  bar.querySelector("#prev").href = viewerUrl(previous);
-  bar.querySelector("#close").href = location.pathname;
-  bar.querySelector("#next").href = viewerUrl(next);
-  menu.querySelectorAll("[data-types]").forEach((control) => {
+  viewerPrevious.href = viewerUrl(previous);
+  viewerClose.href = location.pathname;
+  viewerNext.href = viewerUrl(next);
+  viewerControls.forEach((control) => {
     control.hidden = !control.dataset.types.split(" ").includes(type);
   });
 
@@ -879,110 +939,20 @@ function openViewer(path, state, push = true) {
   directories.hidden = true;
   galleryBar.hidden = true;
   selectionMenu.hidden = true;
-  document.body.append(content);
+  viewerRoot.hidden = false;
   document.title = baseName(path);
-  viewer = { path, type, state, main, bar, menu, media };
-  bindViewer(previous, next);
 
   if (push) history.pushState({ view: path }, "", viewerUrl(path));
 }
 
-function bindViewer(previous, next) {
-  const current = viewer;
-  current.bar.querySelector("#prev").addEventListener("click", (event) => {
-    event.preventDefault();
-    openViewer(previous, current.state);
-  });
-  current.bar.querySelector("#next").addEventListener("click", (event) => {
-    event.preventDefault();
-    openViewer(next, current.state);
-  });
-  current.bar.querySelector("#close").addEventListener("click", (event) => {
-    event.preventDefault();
-    closeViewer();
-  });
-
-  const media = current.media.id === "media" ? current.media : null;
-  let zoom = 1;
-  let angle = 0;
-  let position = { x: 0, y: 0 };
-  let drag = null;
-
-  function transform() {
-    if (!media) return;
-    if (zoom <= 1) position = { x: 0, y: 0 };
-    media.classList.toggle("zoomed", zoom > 1);
-    media.style.transform = `rotate(${angle}deg) scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`;
+function transformViewer() {
+  if (!viewer || viewer.type === "audio") return;
+  if (zoom <= 1) {
+    position.x = 0;
+    position.y = 0;
   }
-
-  current.menu.addEventListener("click", (event) => {
-    const button = event.target.closest("button");
-    if (!button) return;
-
-    if (button.id === "viewer-download") {
-      submitDownload([current.path]);
-    } else if (button.dataset.seek) {
-      current.media.currentTime = Math.max(
-        0,
-        current.media.currentTime + Number(button.dataset.seek),
-      );
-    } else if (button.dataset.zoom) {
-      if (button.dataset.zoom === "in") zoom *= 1.25;
-      else if (button.dataset.zoom === "out") zoom = Math.max(1, zoom / 1.25);
-      else {
-        zoom = 1;
-        angle = 0;
-      }
-      transform();
-    } else if (button.dataset.move && zoom > 1) {
-      const [dx, dy] = button.dataset.move.split(" ").map(Number);
-      position.x += dx;
-      position.y += dy;
-      transform();
-    } else if (button.dataset.rot) {
-      angle += Number(button.dataset.rot);
-      transform();
-    }
-  });
-
-  if (media) {
-    media.addEventListener("wheel", (event) => {
-      event.preventDefault();
-      zoom = Math.max(1, zoom * (event.deltaY > 0 ? 0.9 : 1.1));
-      transform();
-    });
-    media.addEventListener("pointerdown", (event) => {
-      if (zoom <= 1) return;
-      event.preventDefault();
-      media.setPointerCapture(event.pointerId);
-      drag = {
-        x: event.clientX - position.x,
-        y: event.clientY - position.y,
-      };
-    });
-    media.addEventListener("pointermove", (event) => {
-      if (!drag) return;
-      position = {
-        x: event.clientX - drag.x,
-        y: event.clientY - drag.y,
-      };
-      transform();
-    });
-    const stopDragging = (event) => {
-      if (media.hasPointerCapture(event.pointerId)) {
-        media.releasePointerCapture(event.pointerId);
-      }
-      drag = null;
-    };
-    media.addEventListener("pointerup", stopDragging);
-    media.addEventListener("pointercancel", stopDragging);
-    media.addEventListener("dblclick", () => {
-      zoom = zoom > 1 ? 1 : 2;
-      transform();
-    });
-  }
-
-  if (current.type === "video") bindVideo(current);
+  viewer.media.classList.toggle("zoomed", zoom > 1);
+  viewer.media.style.transform = `rotate(${angle}deg) scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`;
 }
 
 function parseTime(text) {
@@ -991,43 +961,117 @@ function parseTime(text) {
   const minutes = parseInt(parts[0], 10);
   const seconds = parseInt(parts[1], 10);
   return Number.isInteger(minutes) &&
-    Number.isInteger(seconds) &&
-    minutes >= 0 &&
-    seconds >= 0 &&
-    seconds < 60
+      Number.isInteger(seconds) &&
+      minutes >= 0 &&
+      seconds >= 0 &&
+      seconds < 60
     ? minutes * 60 + seconds
     : null;
 }
 
-function bindVideo(current) {
-  const video = current.media;
-  const start = current.menu.querySelector("#loopstart");
-  const end = current.menu.querySelector("#loopend");
-  let loopStart = 0;
-  let loopEnd = 0;
+function isVisualEvent(event) {
+  return viewer && viewer.type !== "audio" && event.target === viewer.media;
+}
 
-  video.addEventListener("timeupdate", () => {
-    if (loopEnd > loopStart && video.currentTime >= loopEnd) {
-      video.currentTime = loopStart;
+function bindViewer() {
+  viewerBar.addEventListener("click", (event) => {
+    const link = event.target.closest("a");
+    if (!link || !viewer) return;
+    event.preventDefault();
+    const current = viewer;
+    if (link === viewerPrevious) {
+      openViewer(current.previous, current.state);
+    } else if (link === viewerNext) {
+      openViewer(current.next, current.state);
+    } else if (link === viewerClose) {
+      closeViewer();
     }
   });
-  start.addEventListener("change", () => {
-    const time = parseTime(start.value);
-    if (time === null) start.value = "";
+
+  viewerMenu.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button || !viewer) return;
+
+    if (button.id === "viewer-download") {
+      submitDownload([viewer.path]);
+    } else if (button.dataset.seek) {
+      viewer.media.currentTime = Math.max(
+        0,
+        viewer.media.currentTime + Number(button.dataset.seek),
+      );
+    } else if (button.dataset.zoom) {
+      if (button.dataset.zoom === "in") zoom *= 1.25;
+      else if (button.dataset.zoom === "out") zoom = Math.max(1, zoom / 1.25);
+      else {
+        zoom = 1;
+        angle = 0;
+      }
+      transformViewer();
+    } else if (button.dataset.move && zoom > 1) {
+      const [dx, dy] = button.dataset.move.split(" ").map(Number);
+      position.x += dx;
+      position.y += dy;
+      transformViewer();
+    } else if (button.dataset.rot) {
+      angle += Number(button.dataset.rot);
+      transformViewer();
+    } else if (button.id === "loopclear") {
+      resetLoop();
+    }
+  });
+
+  viewerMain.addEventListener("wheel", (event) => {
+    if (!isVisualEvent(event)) return;
+    event.preventDefault();
+    zoom = Math.max(1, zoom * (event.deltaY > 0 ? 0.9 : 1.1));
+    transformViewer();
+  });
+  viewerMain.addEventListener("pointerdown", (event) => {
+    if (!isVisualEvent(event) || zoom <= 1) return;
+    event.preventDefault();
+    viewer.media.setPointerCapture(event.pointerId);
+    drag = {
+      id: event.pointerId,
+      media: viewer.media,
+      x: event.clientX - position.x,
+      y: event.clientY - position.y,
+    };
+  });
+  viewerMain.addEventListener("pointermove", (event) => {
+    if (!drag || drag.id !== event.pointerId) return;
+    position.x = event.clientX - drag.x;
+    position.y = event.clientY - drag.y;
+    transformViewer();
+  });
+  viewerMain.addEventListener("pointerup", stopDragging);
+  viewerMain.addEventListener("pointercancel", stopDragging);
+  viewerMain.addEventListener("dblclick", (event) => {
+    if (!isVisualEvent(event)) return;
+    zoom = zoom > 1 ? 1 : 2;
+    transformViewer();
+  });
+
+  viewerMedia.video.addEventListener("timeupdate", () => {
+    if (
+      loopEnd > loopStart &&
+      viewerMedia.video.currentTime >= loopEnd
+    ) {
+      viewerMedia.video.currentTime = loopStart;
+    }
+  });
+  loopStartInput.addEventListener("change", () => {
+    const time = parseTime(loopStartInput.value);
+    if (time === null) loopStartInput.value = "";
     else loopStart = time;
   });
-  end.addEventListener("change", () => {
-    const time = parseTime(end.value);
-    if (time === null) end.value = "";
+  loopEndInput.addEventListener("change", () => {
+    const time = parseTime(loopEndInput.value);
+    if (time === null) loopEndInput.value = "";
     else loopEnd = time;
   });
-  current.menu.querySelector("#loopclear").addEventListener("click", () => {
-    loopStart = 0;
-    loopEnd = 0;
-    start.value = "";
-    end.value = "";
-  });
 }
+
+bindViewer();
 
 async function showViewPath(path, push) {
   const dir = parentPath(path);
@@ -1048,10 +1092,12 @@ document.addEventListener("keydown", (event) => {
     return;
   }
 
-  const link = { Escape: "close", ArrowLeft: "prev", ArrowRight: "next" }[
-    event.key
-  ];
-  if (link) viewer.bar.querySelector(`#${link}`).click();
+  const link = {
+    Escape: viewerClose,
+    ArrowLeft: viewerPrevious,
+    ArrowRight: viewerNext,
+  }[event.key];
+  if (link) link.click();
 });
 
 addEventListener("popstate", async () => {

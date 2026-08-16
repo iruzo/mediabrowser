@@ -95,12 +95,12 @@
       </div>
     </template>
 
-    <template id="viewer-template">
-      <main class="viewer">
+    <main id="viewer-root" hidden>
+      <div class="viewer">
         <img data-type="image" hidden />
         <video data-type="video" controls hidden></video>
         <audio data-type="audio" controls hidden></audio>
-      </main>
+      </div>
       <nav class="bar viewer-bar">
         <a id="prev">prev</a>
         <a id="close">close</a>
@@ -143,7 +143,7 @@
           ><button type="button" data-seek="1">+1s</button>
         </div>
       </div>
-    </template>
+    </main>
 
     <script>
       UI_SCRIPT;
