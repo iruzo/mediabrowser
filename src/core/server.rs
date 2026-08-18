@@ -1,4 +1,4 @@
-use crate::endpoints::{self, handle_file_server, handle_ui_request};
+use crate::endpoints::{self, handle_file_server, handle_ui_path};
 use crate::response::{self, Response};
 use crate::types::data_dir;
 use bytes::Bytes;
@@ -108,7 +108,7 @@ pub(crate) fn parse_form(bytes: &[u8]) -> Form {
         .map(|pair| {
             let (key, value) = match pair.iter().position(|&b| b == b'=') {
                 Some(i) => (&pair[..i], &pair[i + 1..]),
-                None => (pair, &pair[pair.len()..]),
+                _none => (pair, &pair[pair.len()..]),
             };
             (decode_form_part(key), decode_form_part(value))
         })
@@ -154,7 +154,7 @@ async fn route(request: Request<Incoming>) -> Response {
     }
 
     if parts.method == Method::GET && (path == "/ui" || path.starts_with("/ui/")) {
-        return handle_ui_request(&parts.headers);
+        return handle_ui_path(&parts.uri, &parts.headers).await;
     }
 
     match (&parts.method, path) {

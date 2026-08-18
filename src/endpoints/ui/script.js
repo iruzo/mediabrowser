@@ -34,9 +34,11 @@ function fileUrl(path) {
   return `/${encodedPath(path)}`;
 }
 
-function viewerUrl(path) {
+function uiUrl(path, suffix = "") {
   const url = new URL(location.href);
-  url.searchParams.set("view", path);
+  const encoded = encodedPath(path);
+  url.pathname = `/ui/${encoded}${encoded ? suffix : ""}`;
+  url.searchParams.delete("view");
   return `${url.pathname}${url.search}`;
 }
 
@@ -52,6 +54,10 @@ function scopePath() {
   } catch (_) {
     return null;
   }
+}
+
+function viewPath(path = scopePath()) {
+  return path && !location.pathname.endsWith("/") ? path : null;
 }
 
 function cleanDirectory(path) {
@@ -102,7 +108,9 @@ const search = document.querySelector("form.search");
 const upload = document.querySelector("form.upload");
 const files = upload.elements.file;
 const progress = document.getElementById("progress");
-const scope = scopePath();
+const routePath = scopePath();
+const routeView = viewPath(routePath);
+const scope = routeView ? parentPath(routeView) : routePath;
 const states = new Set();
 const stateFor = new WeakMap();
 const stateForSentinel = new WeakMap();
@@ -118,7 +126,7 @@ let position = { x: 0, y: 0 };
 let drag = null;
 let loopStart = 0;
 let loopEnd = 0;
-let initialView = new URL(location.href).searchParams.get("view");
+let initialView = routeView;
 let directoryLoad = 0;
 let currentQuery = "";
 let actionTarget = null;
@@ -221,7 +229,7 @@ function createItem(path, state) {
   item.classList.add(kind);
   item.classList.toggle("selected", selected.has(path));
   item.dataset.path = path;
-  link.href = kind === "text" ? fileUrl(path) : viewerUrl(path);
+  link.href = kind === "text" ? fileUrl(path) : uiUrl(path);
   item.querySelector(".name").textContent = baseName(path);
 
   if (kind === "image") {
@@ -898,18 +906,15 @@ function closeViewer(push = true) {
   selectionMenu.hidden = !selecting;
   document.title = displayDirectory(scope);
 
-  if (push) {
-    const url = new URL(location.href);
-    url.searchParams.delete("view");
-    history.pushState({}, "", `${url.pathname}${url.search}`);
-  }
+  if (push) history.pushState({}, "", uiUrl(scope, "/"));
 }
 
 function openViewer(path, state, push = true) {
   if (!state || !state.files) return;
   const type = kindFor(state, path);
-  if (type === "text") {
-    location.href = fileUrl(path);
+  const media = viewerMedia[type];
+  if (!media) {
+    location.replace(fileUrl(path));
     return;
   }
   if (viewer) resetViewer();
@@ -920,15 +925,14 @@ function openViewer(path, state, push = true) {
     ? paths[(index + paths.length - 1) % paths.length]
     : path;
   const next = paths.length ? paths[(index + 1) % paths.length] : path;
-  const media = viewerMedia[type];
 
   viewer = { path, type, state, media, previous, next };
   media.hidden = false;
   media.src = fileUrl(path);
   if (type === "image") media.alt = baseName(path);
-  viewerPrevious.href = viewerUrl(previous);
-  viewerClose.href = location.pathname;
-  viewerNext.href = viewerUrl(next);
+  viewerPrevious.href = uiUrl(previous);
+  viewerClose.href = uiUrl(scope, "/");
+  viewerNext.href = uiUrl(next);
   viewerControls.forEach((control) => {
     control.hidden = !control.dataset.types.split(" ").includes(type);
   });
@@ -942,7 +946,7 @@ function openViewer(path, state, push = true) {
   viewerRoot.hidden = false;
   document.title = baseName(path);
 
-  if (push) history.pushState({ view: path }, "", viewerUrl(path));
+  if (push) history.pushState({}, "", uiUrl(path));
 }
 
 function transformViewer() {
@@ -1101,7 +1105,7 @@ document.addEventListener("keydown", (event) => {
 });
 
 addEventListener("popstate", async () => {
-  const path = new URL(location.href).searchParams.get("view");
+  const path = viewPath();
   if (path) await showViewPath(path, false);
   else closeViewer(false);
 });

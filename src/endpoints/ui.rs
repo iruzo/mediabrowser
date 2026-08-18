@@ -1,7 +1,9 @@
+use super::httpd::resolve_path;
+use crate::mime::media_kind;
 use crate::response::{self, Response};
 use bytes::Bytes;
-use hyper::http::header::{ACCEPT_ENCODING, CONTENT_ENCODING, VARY};
-use hyper::http::{HeaderMap, HeaderValue, StatusCode};
+use hyper::http::header::{ACCEPT_ENCODING, CONTENT_ENCODING, LOCATION, VARY};
+use hyper::http::{HeaderMap, HeaderValue, StatusCode, Uri};
 
 const PAGE_GZIP: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/ui.html.gz"));
 
@@ -107,14 +109,80 @@ pub fn handle_ui_request(headers: &HeaderMap) -> Response {
     response
 }
 
+fn redirect(status: StatusCode, path: &str, query: Option<&str>) -> Response {
+    let mut location = path.to_string();
+    if let Some(query) = query {
+        location.push('?');
+        location.push_str(query);
+    }
+
+    let mut response = response::status(status);
+    response.headers_mut().insert(
+        LOCATION,
+        HeaderValue::from_str(&location).expect("valid redirect URI"),
+    );
+    response
+}
+
+pub(crate) async fn handle_ui_path(uri: &Uri, headers: &HeaderMap) -> Response {
+    let path = uri.path();
+    if path == "/ui" {
+        return redirect(StatusCode::PERMANENT_REDIRECT, "/ui/", uri.query());
+    }
+    if path == "/ui/" {
+        return handle_ui_request(headers);
+    }
+
+    let requested_path = path.strip_prefix("/ui/").unwrap_or_default();
+    let (file_path, metadata) = match resolve_path(requested_path).await {
+        Ok(path) => path,
+        Err(response) => return response,
+    };
+
+    handle_ui_entry(uri, headers, &file_path, &metadata)
+}
+
+fn handle_ui_entry(
+    uri: &Uri,
+    headers: &HeaderMap,
+    file_path: &std::path::Path,
+    metadata: &std::fs::Metadata,
+) -> Response {
+    let path = uri.path();
+    let requested_path = path.strip_prefix("/ui/").unwrap_or_default();
+
+    if metadata.is_dir() {
+        if path.ends_with('/') {
+            return handle_ui_request(headers);
+        }
+
+        let mut canonical = path.to_string();
+        canonical.push('/');
+        return redirect(StatusCode::TEMPORARY_REDIRECT, &canonical, uri.query());
+    }
+
+    if path.ends_with('/') {
+        return response::text(StatusCode::NOT_FOUND, "Not found");
+    }
+    if metadata.is_file() && media_kind(&file_path) != "text" {
+        return handle_ui_request(headers);
+    }
+
+    let mut httpd_path = String::with_capacity(path.len().saturating_sub(3));
+    httpd_path.push('/');
+    httpd_path.push_str(requested_path.trim_start_matches('/'));
+    redirect(StatusCode::TEMPORARY_REDIRECT, &httpd_path, uri.query())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{accepts_gzip, handle_ui_request, PAGE, PAGE_GZIP};
+    use super::{accepts_gzip, handle_ui_entry, handle_ui_request, redirect, PAGE, PAGE_GZIP};
     use crate::response::Body;
     use flate2::read::GzDecoder;
-    use hyper::http::header::{ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE, VARY};
+    use hyper::http::header::{ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE, LOCATION, VARY};
     use hyper::http::{HeaderMap, HeaderValue, StatusCode};
     use std::io::Read;
+    use std::path::Path;
 
     fn headers(values: &[&'static str]) -> HeaderMap {
         let mut headers = HeaderMap::new();
@@ -222,5 +290,56 @@ mod tests {
         assert_eq!(response.headers()[VARY], "Accept-Encoding");
         assert!(!response.headers().contains_key(CONTENT_ENCODING));
         assert!(matches!(response.body(), Body::Empty));
+    }
+
+    #[test]
+    fn builds_same_origin_redirects_with_queries() {
+        let response = redirect(
+            StatusCode::TEMPORARY_REDIRECT,
+            "/folder/file.txt",
+            Some("download=true"),
+        );
+        assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(
+            response.headers()[LOCATION],
+            "/folder/file.txt?download=true"
+        );
+        assert!(matches!(response.body(), Body::Empty));
+    }
+
+    #[test]
+    fn routes_resolved_ui_paths() {
+        let executable = std::env::current_exe().unwrap();
+        let file = std::fs::metadata(executable).unwrap();
+        let directory = std::fs::metadata(std::env::current_dir().unwrap()).unwrap();
+        let headers = headers(&["gzip"]);
+
+        let uri = "/ui/photos?sort=name".parse().unwrap();
+        let response = handle_ui_entry(&uri, &headers, Path::new("photos"), &directory);
+        assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(response.headers()[LOCATION], "/ui/photos/?sort=name");
+        assert!(!response.headers().contains_key(CONTENT_ENCODING));
+        assert!(!response.headers().contains_key(VARY));
+
+        let uri = "/ui/photos.jpg/".parse().unwrap();
+        let response = handle_ui_entry(&uri, &headers, Path::new("photos.jpg"), &directory);
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[CONTENT_ENCODING], "gzip");
+
+        let uri = "/ui/photos/image%20%23%3F.jpg".parse().unwrap();
+        let response = handle_ui_entry(&uri, &headers, Path::new("photos/image #?.jpg"), &file);
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[CONTENT_ENCODING], "gzip");
+
+        let uri = "/ui//notes.txt?download=true".parse().unwrap();
+        let response = handle_ui_entry(&uri, &headers, Path::new("notes.txt"), &file);
+        assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
+        assert_eq!(response.headers()[LOCATION], "/notes.txt?download=true");
+        assert!(!response.headers().contains_key(CONTENT_ENCODING));
+        assert!(!response.headers().contains_key(VARY));
+
+        let uri = "/ui/notes.txt/".parse().unwrap();
+        let response = handle_ui_entry(&uri, &headers, Path::new("notes.txt"), &file);
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 }

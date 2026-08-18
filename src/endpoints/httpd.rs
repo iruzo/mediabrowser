@@ -4,7 +4,7 @@ use crate::types::data_path;
 use hyper::http::{HeaderMap, StatusCode};
 use percent_encoding::{percent_decode_str, utf8_percent_encode};
 use std::fmt::Write as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
@@ -16,17 +16,9 @@ struct DirectoryItem {
 }
 
 pub async fn handle_file_server(requested_path: &str, headers: &HeaderMap) -> Response {
-    let decoded_path = percent_decode_str(requested_path).decode_utf8_lossy();
-
-    let Some(file_path) = data_path(decoded_path.as_ref()) else {
-        return response::text(StatusCode::FORBIDDEN, "Access denied");
-    };
-
-    let metadata = match fs::metadata(&file_path).await {
-        Ok(metadata) => metadata,
-        Err(_) => {
-            return response::text(StatusCode::NOT_FOUND, "Not found");
-        }
+    let (file_path, metadata) = match resolve_path(requested_path).await {
+        Ok(path) => path,
+        Err(response) => return response,
     };
 
     if metadata.is_dir() {
@@ -34,6 +26,25 @@ pub async fn handle_file_server(requested_path: &str, headers: &HeaderMap) -> Re
     } else {
         serve_file(&file_path, headers, metadata.len()).await
     }
+}
+
+pub(crate) async fn resolve_path(
+    requested_path: &str,
+) -> Result<(PathBuf, std::fs::Metadata), Response> {
+    let decoded_path = percent_decode_str(requested_path).decode_utf8_lossy();
+
+    let Some(file_path) = data_path(decoded_path.as_ref()) else {
+        return Err(response::text(StatusCode::FORBIDDEN, "Access denied"));
+    };
+
+    let metadata = match fs::metadata(&file_path).await {
+        Ok(metadata) => metadata,
+        Err(_) => {
+            return Err(response::text(StatusCode::NOT_FOUND, "Not found"));
+        }
+    };
+
+    Ok((file_path, metadata))
 }
 
 async fn serve_file(file_path: &Path, headers: &HeaderMap, file_size: u64) -> Response {

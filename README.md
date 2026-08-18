@@ -33,6 +33,8 @@ The application runs on **port 30003** with:
 - **Media browser under `/ui/`**: `http://localhost:30003/ui/`
   - `http://localhost:30003/ui/folder/` browses the same directory as
     `http://localhost:30003/folder/`
+  - `http://localhost:30003/ui/folder/file.mp4` opens the same file as
+    `http://localhost:30003/folder/file.mp4` in the media viewer
 
 ### Docker (Development)
 
@@ -94,6 +96,11 @@ Each endpoint is documented with a curl example in
 ### UI Routes
 - `GET /ui/` - Client-rendered media browser for the data root
 - `GET /ui/path/to/dir/` - Client-rendered media browser scoped to the matching HTTPD directory
+- `GET /ui/path/to/media` - Open an image, video, or audio file in the media viewer
+
+UI directory paths end with `/`. A missing trailing slash on a directory is
+redirected to its canonical UI path. Files the viewer does not support are
+redirected to the same path under the root HTTPD endpoint.
 
 The UI response is stored and served as gzip. Browsers negotiate this
 automatically. Other clients can request and decompress it with:
