@@ -1,7 +1,13 @@
-use crate::endpoints::{self, handle_file_server, handle_ui_path};
+#[cfg(feature = "api")]
+use crate::endpoints;
+use crate::endpoints::handle_file_server;
+#[cfg(feature = "ui")]
+use crate::endpoints::handle_ui_path;
 use crate::response::{self, Response};
 use crate::types::data_dir;
+#[cfg(feature = "api")]
 use bytes::Bytes;
+#[cfg(feature = "api")]
 use http_body::Body as HttpBody;
 use hyper::body::Incoming;
 use hyper::http::{Method, Request, StatusCode};
@@ -11,7 +17,9 @@ use hyper_util::server::graceful::GracefulShutdown;
 use std::convert::Infallible;
 use std::future::{poll_fn, Future};
 use std::net::Ipv4Addr;
-use std::pin::{pin, Pin};
+use std::pin::pin;
+#[cfg(feature = "api")]
+use std::pin::Pin;
 use std::task::Poll;
 use tokio::net::TcpListener;
 
@@ -74,6 +82,7 @@ async fn shutdown_signal() {
     println!("Shutdown signal received, stopping server gracefully...");
 }
 
+#[cfg(feature = "api")]
 async fn read_body(mut body: Incoming, limit: usize) -> Result<Bytes, Response> {
     let mut data = Vec::new();
 
@@ -99,8 +108,10 @@ async fn read_body(mut body: Incoming, limit: usize) -> Result<Bytes, Response> 
     Ok(Bytes::from(data))
 }
 
+#[cfg(feature = "api")]
 pub(crate) type Form = Vec<(String, String)>;
 
+#[cfg(feature = "api")]
 pub(crate) fn parse_form(bytes: &[u8]) -> Form {
     bytes
         .split(|&b| b == b'&')
@@ -115,6 +126,7 @@ pub(crate) fn parse_form(bytes: &[u8]) -> Form {
         .collect()
 }
 
+#[cfg(feature = "api")]
 fn decode_form_part(bytes: &[u8]) -> String {
     let plus_decoded: Vec<u8> = bytes
         .iter()
@@ -125,12 +137,14 @@ fn decode_form_part(bytes: &[u8]) -> String {
         .into_owned()
 }
 
+#[cfg(feature = "api")]
 pub(crate) fn field<'a>(form: &'a Form, name: &str) -> Option<&'a str> {
     form.iter()
         .find(|(key, _)| key == name)
         .map(|(_, value)| value.as_str())
 }
 
+#[cfg(feature = "api")]
 pub(crate) fn require<'a>(form: &'a Form, name: &str) -> Result<&'a str, Response> {
     field(form, name).ok_or_else(|| {
         response::text(
@@ -140,6 +154,7 @@ pub(crate) fn require<'a>(form: &'a Form, name: &str) -> Result<&'a str, Respons
     })
 }
 
+#[cfg(feature = "api")]
 pub(crate) async fn read_form(body: Incoming, limit: usize) -> Result<Form, Response> {
     let bytes = read_body(body, limit).await?;
     Ok(parse_form(&bytes))
@@ -149,10 +164,15 @@ async fn route(request: Request<Incoming>) -> Response {
     let (parts, body) = request.into_parts();
     let path = parts.uri.path();
 
+    #[cfg(feature = "api")]
     if let Some(response) = endpoints::api::route(&parts, body).await {
         return response;
     }
 
+    #[cfg(not(feature = "api"))]
+    drop(body);
+
+    #[cfg(feature = "ui")]
     if parts.method == Method::GET && (path == "/ui" || path.starts_with("/ui/")) {
         return handle_ui_path(&parts.uri, &parts.headers).await;
     }

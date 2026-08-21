@@ -62,6 +62,7 @@ pub(crate) fn content_type(path: &Path) -> &'static str {
     }
 }
 
+#[cfg(any(feature = "api", test))]
 pub(crate) fn media_kind(path: &Path) -> &'static str {
     let content_type = content_type(path);
 

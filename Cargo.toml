@@ -3,8 +3,13 @@ name = "mediabrowser"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["api", "ui"]
+api = ["dep:tar", "tokio/sync"]
+ui = ["api", "dep:flate2"]
+
 [dependencies]
-tokio = { version = "1.0", default-features = false, features = ["rt", "fs", "io-util", "net", "signal", "sync"] }
+tokio = { version = "1.0", default-features = false, features = ["rt", "fs", "io-util", "net", "signal"] }
 tokio-util = { version = "0.7", default-features = false, features = ["io"] }
 hyper = { version = "1", default-features = false, features = ["http1", "server"] }
 hyper-util = { version = "0.1", default-features = false, features = ["http1", "server", "server-graceful", "tokio"] }
@@ -12,10 +17,10 @@ http-body = "1"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 percent-encoding = { version = "2.3", default-features = false, features = ["alloc"] }
 bytes = { version = "1.0", default-features = false }
-tar = { version = "0.4", default-features = false }
+tar = { version = "0.4", default-features = false, optional = true }
 
 [build-dependencies]
-flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"], optional = true }
 
 [dev-dependencies]
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }

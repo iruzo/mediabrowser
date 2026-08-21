@@ -28,6 +28,7 @@ pub fn data_path(path: &str) -> Option<PathBuf> {
     Some(data_dir().join(path))
 }
 
+#[cfg(feature = "api")]
 pub(crate) async fn ensure_no_symlinks(path: &Path) -> io::Result<()> {
     ensure_no_symlinks_from(data_dir(), path).await
 }
@@ -36,10 +37,12 @@ pub(crate) async fn path_metadata(path: &Path) -> io::Result<std::fs::Metadata> 
     path_metadata_from(data_dir(), path).await
 }
 
+#[cfg(feature = "api")]
 pub(crate) async fn create_data_dirs(path: &Path) -> io::Result<()> {
     create_data_dirs_from(data_dir(), path).await
 }
 
+#[cfg(any(feature = "api", test))]
 async fn create_data_dirs_from(root: &Path, path: &Path) -> io::Result<()> {
     ensure_no_symlinks_from(root, path).await?;
     fs::create_dir_all(path).await?;
@@ -58,6 +61,7 @@ async fn path_metadata_from(root: &Path, path: &Path) -> io::Result<std::fs::Met
         .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
 }
 
+#[cfg(any(feature = "api", test))]
 async fn ensure_no_symlinks_from(root: &Path, path: &Path) -> io::Result<()> {
     no_symlink_metadata_from(root, path).await.map(|_| ())
 }

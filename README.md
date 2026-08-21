@@ -23,6 +23,13 @@
 cargo run
 ```
 
+The default build includes the API and UI and exposes all routes described
+below. To run only the HTTP file server, without `/api` or `/ui`:
+
+```bash
+cargo run --no-default-features
+```
+
 The application runs on **port 30003** with:
 
 - **Apache like httpd at root**: `http://localhost:30003/`
@@ -46,6 +53,12 @@ docker-compose --profile dev up
 
 ```bash
 docker-compose --profile pro up
+```
+
+### Docker (HTTPD only)
+
+```bash
+docker build --file containers/httpd.Dockerfile --tag mediabrowser-httpd .
 ```
 
 ### Docker (oneline)

@@ -1,19 +1,31 @@
+#[cfg(feature = "ui")]
 use flate2::{Compression, GzBuilder};
+#[cfg(feature = "ui")]
 use std::env;
+#[cfg(feature = "ui")]
 use std::fs::{self, File};
+#[cfg(feature = "ui")]
 use std::io::{self, Write};
+#[cfg(feature = "ui")]
 use std::path::PathBuf;
 
+#[cfg(feature = "ui")]
 const TEMPLATE_PATH: &str = "src/endpoints/ui/index.html";
+#[cfg(feature = "ui")]
 const CSS_PATH: &str = "src/endpoints/ui/style.css";
+#[cfg(feature = "ui")]
 const SCRIPT_PATH: &str = "src/endpoints/ui/script.js";
+#[cfg(feature = "ui")]
 const CSS_MARKER: &str = "{{CSS}}";
+#[cfg(feature = "ui")]
 const SCRIPT_MARKER: &str = "UI_SCRIPT";
 
+#[cfg(feature = "ui")]
 fn invalid(message: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }
 
+#[cfg(feature = "ui")]
 fn contains_closing_tag(source: &str, tag: &[u8]) -> bool {
     source
         .as_bytes()
@@ -21,6 +33,7 @@ fn contains_closing_tag(source: &str, tag: &[u8]) -> bool {
         .any(|part| part.eq_ignore_ascii_case(tag))
 }
 
+#[cfg(feature = "ui")]
 fn assemble(template: &str, css: &str, script: &str) -> io::Result<String> {
     if template.matches(CSS_MARKER).count() != 1 {
         return Err(invalid("UI template must contain one CSS marker"));
@@ -51,6 +64,7 @@ fn assemble(template: &str, css: &str, script: &str) -> io::Result<String> {
     Ok(page)
 }
 
+#[cfg(feature = "ui")]
 fn main() -> io::Result<()> {
     println!("cargo:rerun-if-changed={TEMPLATE_PATH}");
     println!("cargo:rerun-if-changed={CSS_PATH}");
@@ -74,3 +88,6 @@ fn main() -> io::Result<()> {
     gzip.finish()?;
     Ok(())
 }
+
+#[cfg(not(feature = "ui"))]
+fn main() {}
