@@ -95,7 +95,7 @@ export PORT=30003
 ## API Endpoints
 
 Each endpoint is documented with a curl example in
-[doc/endpoints/](./doc/endpoints/).
+[docs/endpoints/](./docs/endpoints/).
 
 ### API Routes
 - `GET /api/find?path=folder&query=name&type=dir&recursive=false` - List or search paths; directories end with `/`, `type` accepts `dir`, `file`, or `all`, recursion defaults to enabled, and `metadata=true` includes size, modified time, and media kind
