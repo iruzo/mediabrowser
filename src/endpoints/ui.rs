@@ -204,6 +204,7 @@ mod tests {
     #[test]
     fn embeds_the_client_ui() {
         assert_eq!(attribute_count("id", "directories"), 1);
+        assert_eq!(attribute_count("name", "directories"), 0);
         assert_eq!(attribute_count("id", "action-menu"), 1);
         assert_eq!(attribute_count("id", "selection-menu"), 1);
         assert_eq!(attribute_count("id", "viewer-root"), 1);
