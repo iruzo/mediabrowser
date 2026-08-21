@@ -12,6 +12,5 @@
 !containers/
 !doc/
 !docker-compose.yml
-!legacy/
 !src/
 !scripts/

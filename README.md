@@ -103,7 +103,6 @@ Each endpoint is documented with a curl example in
 - `POST /api/download` - Download selected paths using repeated URL-encoded `path` fields; a single file is sent as-is, anything else as TAR
 - `POST /api/rm` - Remove a file or directory using a URL-encoded `path` field
 - `POST /api/mkdir` - Recursively create a directory using a URL-encoded `path` field
-- `POST /api/write` - Create or replace a UTF-8 text file using URL-encoded `path` and `content` fields
 - `POST /api/mv` - Move one path using URL-encoded `from` and `to` fields
 - `POST /api/cp` - Copy one file or directory using URL-encoded `from` and `to` fields
 
