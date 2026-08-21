@@ -6,15 +6,6 @@
 	<img src="./assets/preview.webp"/>
 </div>
 
-## Features
-
-- **Apache-style HTTP file serving** - Pure httpd server at root path, compatible with standard tools
-- **Upload support** - Upload files up to 256GB
-- **TAR downloads** - Download multiple files and directories as TAR
-- **File management** - Create folders, copy, move, delete, modify and upload files
-- **Recursive search** - Search files and directories recursively from any path
-- **Lazy media browser** - Browse directory grids without loading off-screen images
-
 ## Usage
 
 ### Direct Execution
@@ -97,30 +88,13 @@ export PORT=30003
 Each endpoint is documented with a curl example in
 [docs/endpoints/](./docs/endpoints/).
 
-### API Routes
-- `GET /api/find?path=folder&query=name&type=dir&recursive=false` - List or search paths; directories end with `/`, `type` accepts `dir`, `file`, or `all`, recursion defaults to enabled, and `metadata=true` includes size, modified time, and media kind
-- `POST /api/upload` - Upload files using multipart `path` and `file` fields (256GB limit)
-- `POST /api/download` - Download selected paths using repeated URL-encoded `path` fields; a single file is sent as-is, anything else as TAR
-- `POST /api/rm` - Remove a file or directory using a URL-encoded `path` field
-- `POST /api/mkdir` - Recursively create a directory using a URL-encoded `path` field
-- `POST /api/mv` - Move one path using URL-encoded `from` and `to` fields
-- `POST /api/cp` - Copy one file or directory using URL-encoded `from` and `to` fields
-
-### Apache httpd Routes (Root)
-- `GET /` - Apache-style directory listing (root)
-- `GET /path/to/file` - Direct file access
-- `GET /path/to/dir/` - Apache-style directory listing
+## Security and HTTP Behavior
 
 `DATA_DIR` is the trusted filesystem anchor. Symbolic links below it are hidden
 from listings and searches.
 Direct paths to a link, or through one, behave as missing paths. Recursive copy
 and download skip links; moving or removing a real directory may move or remove
 link entries contained by that directory, but their targets are never followed.
-
-### UI Routes
-- `GET /ui/` - Client-rendered media browser for the data root
-- `GET /ui/path/to/dir/` - Client-rendered media browser scoped to the matching HTTPD directory
-- `GET /ui/path/to/media` - Open an image, video, or audio file in the media viewer
 
 UI directory paths end with `/`. A missing trailing slash on a directory is
 redirected to its canonical UI path. Files the viewer does not support are
