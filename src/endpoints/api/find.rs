@@ -1,7 +1,7 @@
 use crate::mime::media_kind;
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
-use crate::walk;
+use crate::{path_metadata, walk};
 use hyper::http::StatusCode;
 use std::fmt::Write;
 use std::path::{Component, Path, PathBuf};
@@ -103,6 +103,14 @@ fn parse_metadata(value: Option<&str>) -> FindResult<bool> {
 
 async fn resolve_directory(path: Option<&str>) -> FindResult<(PathBuf, PathBuf)> {
     let path = directory_path(path)?;
+    let metadata = path_metadata(&path).await.map_err(find_error)?;
+    if !metadata.is_dir() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "path is not a directory".to_string(),
+        ));
+    }
+
     let root = fs::canonicalize(data_dir()).await.map_err(find_error)?;
     let path = fs::canonicalize(path).await.map_err(find_error)?;
 
@@ -110,14 +118,6 @@ async fn resolve_directory(path: Option<&str>) -> FindResult<(PathBuf, PathBuf)>
         return Err((
             StatusCode::FORBIDDEN,
             "path escapes data directory".to_string(),
-        ));
-    }
-
-    let metadata = fs::metadata(&path).await.map_err(find_error)?;
-    if !metadata.is_dir() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            "path is not a directory".to_string(),
         ));
     }
 
@@ -156,8 +156,19 @@ fn list_direct_paths(path: &Path, root: &Path) -> FindResult<Vec<String>> {
 
     for entry in entries {
         let entry = entry.map_err(walk_error)?;
-        let file_type = entry.file_type().map_err(walk_error)?;
-        if !file_type.is_file() && !file_type.is_dir() {
+        let file_type = {
+            #[cfg(windows)]
+            {
+                std::fs::symlink_metadata(entry.path())
+                    .map_err(walk_error)?
+                    .file_type()
+            }
+            #[cfg(not(windows))]
+            {
+                entry.file_type().map_err(walk_error)?
+            }
+        };
+        if file_type.is_symlink() || (!file_type.is_file() && !file_type.is_dir()) {
             continue;
         }
 
@@ -227,13 +238,23 @@ fn json_metadata(root: &Path, paths: &[String]) -> String {
     let mut json = String::with_capacity(paths.len() * 64 + 2);
     json.push('[');
 
-    for (index, path) in paths.iter().enumerate() {
-        if index > 0 {
-            json.push(',');
+    let mut first = true;
+    for path in paths {
+        let relative = path.strip_suffix('/').unwrap_or(path);
+        let metadata = std::fs::symlink_metadata(root.join(relative)).ok();
+        if metadata
+            .as_ref()
+            .map(|value| value.file_type().is_symlink())
+            .unwrap_or(false)
+        {
+            continue;
         }
 
-        let relative = path.strip_suffix('/').unwrap_or(path);
-        let metadata = std::fs::metadata(root.join(relative)).ok();
+        if !first {
+            json.push(',');
+        }
+        first = false;
+
         let size = metadata.as_ref().map_or(0, std::fs::Metadata::len);
         let date = metadata
             .and_then(|value| value.modified().ok())
@@ -441,6 +462,13 @@ mod tests {
         std::fs::create_dir_all(root.join("child/nested")).expect("create test directories");
         std::fs::write(root.join("root.txt"), []).expect("create root file");
         std::fs::write(root.join("child/nested.txt"), []).expect("create nested file");
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink("root.txt", root.join("file-link"))
+                .expect("create file link");
+            std::os::unix::fs::symlink("child", root.join("directory-link"))
+                .expect("create directory link");
+        }
 
         let mut paths = list_direct_paths(&root, &root).expect("list direct paths");
         paths.sort_unstable();

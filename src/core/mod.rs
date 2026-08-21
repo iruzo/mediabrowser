@@ -7,4 +7,5 @@ mod walk;
 
 pub use server::run;
 pub(crate) use server::{field, parse_form, read_form, require, Form};
+pub(crate) use types::{create_data_dirs, ensure_no_symlinks, path_metadata};
 pub(crate) use walk::walk;

@@ -1,8 +1,8 @@
+use crate::create_data_dirs;
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
 use std::path::PathBuf;
-use tokio::fs;
 
 type MkdirResult<T> = Result<T, (StatusCode, String)>;
 
@@ -17,23 +17,22 @@ pub(crate) async fn create_dirs(path: &str) -> MkdirResult<()> {
     let path =
         folder_path(path).map_err(|message| (StatusCode::BAD_REQUEST, message.to_string()))?;
 
-    fs::create_dir_all(path).await.map_err(mkdir_error)
+    create_data_dirs(&path).await.map_err(mkdir_error)
 }
 
 fn mkdir_error(error: std::io::Error) -> (StatusCode, String) {
-    if matches!(
-        error.kind(),
-        std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::NotADirectory
-    ) {
-        (
+    match error.kind() {
+        std::io::ErrorKind::NotFound => {
+            (StatusCode::NOT_FOUND, "folder path not found".to_string())
+        }
+        std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::NotADirectory => (
             StatusCode::CONFLICT,
             "folder path conflicts with an existing file".to_string(),
-        )
-    } else {
-        (
+        ),
+        _ => (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to create folder: {error}"),
-        )
+        ),
     }
 }
 

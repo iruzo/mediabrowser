@@ -93,6 +93,12 @@ Each endpoint is documented with a curl example in
 - `GET /path/to/file` - Direct file access
 - `GET /path/to/dir/` - Apache-style directory listing
 
+`DATA_DIR` is the trusted filesystem anchor. Symbolic links below it are hidden
+from listings and searches.
+Direct paths to a link, or through one, behave as missing paths. Recursive copy
+and download skip links; moving or removing a real directory may move or remove
+link entries contained by that directory, but their targets are never followed.
+
 ### UI Routes
 - `GET /ui/` - Client-rendered media browser for the data root
 - `GET /ui/path/to/dir/` - Client-rendered media browser scoped to the matching HTTPD directory

@@ -1,3 +1,4 @@
+use crate::path_metadata;
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
 use hyper::http::StatusCode;
@@ -17,8 +18,8 @@ pub async fn handle_rm(path: &str) -> Response {
 
 pub(crate) async fn remove_path(path: &str) -> RmResult<()> {
     let path = rm_path(path).map_err(|(status, message)| (status, message.to_string()))?;
+    let metadata = path_metadata(&path).await.map_err(remove_error)?;
     let path = contained_path(path).await?;
-    let metadata = fs::symlink_metadata(&path).await.map_err(remove_error)?;
 
     if metadata.is_dir() {
         fs::remove_dir_all(path).await.map_err(remove_error)

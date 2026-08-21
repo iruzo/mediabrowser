@@ -1,6 +1,7 @@
 use crate::multipart::{parse_boundary, Multipart};
 use crate::response::{self, Response};
 use crate::types::data_path;
+use crate::{create_data_dirs, ensure_no_symlinks};
 use hyper::http::StatusCode;
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -38,11 +39,9 @@ pub async fn handle_upload(content_type: &str, body: hyper::body::Incoming) -> R
             let Some(path) = data_path(path.trim()) else {
                 return response::text(StatusCode::BAD_REQUEST, "Invalid upload path");
             };
-            if let Err(error) = fs::create_dir_all(&path).await {
-                return response::text(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("Failed to create upload directory: {error}"),
-                );
+            if let Err((status, message)) = create_data_dirs(&path).await.map_err(upload_dir_error)
+            {
+                return response::text(status, message);
             }
             target_dir = Some(path);
             continue;
@@ -130,11 +129,15 @@ async fn save_upload_part(
     result
 }
 
-fn save_file_error(e: std::io::Error) -> (StatusCode, String) {
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        format!("Failed to save file: {e}"),
-    )
+fn save_file_error(error: std::io::Error) -> (StatusCode, String) {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        (StatusCode::NOT_FOUND, "Upload path not found".to_string())
+    } else {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to save file: {error}"),
+        )
+    }
 }
 
 fn valid_upload_filename(filename: &str) -> bool {
@@ -162,6 +165,8 @@ async fn open_upload_file(
     let mut suffix = 0;
 
     loop {
+        ensure_no_symlinks(&path).await?;
+
         match create_upload_file(&path).await {
             Ok(file) => return Ok((file, path)),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
@@ -170,6 +175,17 @@ async fn open_upload_file(
             }
             Err(e) => return Err(e),
         }
+    }
+}
+
+fn upload_dir_error(error: std::io::Error) -> (StatusCode, String) {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        (StatusCode::NOT_FOUND, "Upload path not found".to_string())
+    } else {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to create upload directory: {error}"),
+        )
     }
 }
 

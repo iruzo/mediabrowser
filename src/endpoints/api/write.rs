@@ -1,5 +1,6 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
+use crate::{create_data_dirs, ensure_no_symlinks};
 use hyper::http::StatusCode;
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -18,7 +19,8 @@ pub async fn handle_write(path: &str, content: &str) -> Response {
 
 pub(crate) async fn write_path(path: &str, content: &[u8]) -> WriteResult<()> {
     let path = file_path(path)?;
-    fs::create_dir_all(data_dir()).await.map_err(write_error)?;
+    create_data_dirs(data_dir()).await.map_err(write_error)?;
+    ensure_no_symlinks(&path).await.map_err(write_error)?;
     let root = fs::canonicalize(data_dir()).await.map_err(write_error)?;
     let path = create_parent_dirs(path, &root).await?;
 
@@ -64,29 +66,7 @@ async fn create_parent_dirs(path: PathBuf, root: &Path) -> WriteResult<PathBuf> 
     let parent = path
         .parent()
         .ok_or_else(|| (StatusCode::BAD_REQUEST, "invalid path".to_string()))?;
-    let mut ancestor = parent.to_path_buf();
-
-    loop {
-        match fs::symlink_metadata(&ancestor).await {
-            Ok(_) => break,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                if !ancestor.pop() {
-                    return Err((StatusCode::BAD_REQUEST, "invalid path".to_string()));
-                }
-            }
-            Err(error) => return Err(write_error(error)),
-        }
-    }
-
-    let ancestor = fs::canonicalize(ancestor).await.map_err(write_error)?;
-    if !ancestor.starts_with(root) {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "path escapes data directory".to_string(),
-        ));
-    }
-
-    fs::create_dir_all(parent).await.map_err(write_error)?;
+    create_data_dirs(parent).await.map_err(write_error)?;
     let parent = fs::canonicalize(parent).await.map_err(write_error)?;
 
     if !parent.starts_with(root) {

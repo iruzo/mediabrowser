@@ -1,6 +1,6 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
-use crate::Form;
+use crate::{path_metadata, walk, Form};
 use bytes::Bytes;
 use futures_util::stream;
 use hyper::http::StatusCode;
@@ -34,37 +34,27 @@ pub async fn handle_download(form: Form) -> Response {
 async fn download(form: Form) -> DownloadResult<Response> {
     let sources = source_paths(form)?;
     let root = fs::canonicalize(data_dir()).await.map_err(download_error)?;
+    let sources = resolve_sources(sources, &root).await?;
 
     // A lone regular file is served as-is; anything else is packed into a TAR.
     if let [source] = sources.as_slice() {
         if is_file(&source.path).await {
-            return file_response(&source.path, &root).await;
+            return file_response(&source.path).await;
         }
     }
-
-    let sources = resolve_sources(sources, &root).await?;
 
     Ok(tar_response(sources))
 }
 
 async fn is_file(path: &Path) -> bool {
-    fs::metadata(path)
+    fs::symlink_metadata(path)
         .await
         .map(|metadata| metadata.is_file())
         .unwrap_or(false)
 }
 
-async fn file_response(path: &Path, root: &Path) -> DownloadResult<Response> {
-    let path = fs::canonicalize(path).await.map_err(download_error)?;
-
-    if !path.starts_with(root) {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "path escapes data directory".to_string(),
-        ));
-    }
-
-    let file = fs::File::open(&path).await.map_err(download_error)?;
+async fn file_response(path: &Path) -> DownloadResult<Response> {
+    let file = fs::File::open(path).await.map_err(download_error)?;
     let metadata = file.metadata().await.map_err(download_error)?;
     let filename = path
         .file_name()
@@ -171,18 +161,18 @@ async fn resolve_sources(sources: Vec<Source>, root: &Path) -> DownloadResult<Ve
     let mut resolved = Vec::with_capacity(sources.len());
 
     for source in sources {
+        let metadata = path_metadata(&source.path).await.map_err(download_error)?;
         let path = if source.path.as_path() == data_dir() {
             root.to_path_buf()
         } else {
             contained_path(source.path, root).await?
         };
-        let metadata = fs::symlink_metadata(&path).await.map_err(download_error)?;
         let file_type = metadata.file_type();
 
-        if !file_type.is_file() && !file_type.is_dir() && !file_type.is_symlink() {
+        if !file_type.is_file() && !file_type.is_dir() {
             return Err((
                 StatusCode::BAD_REQUEST,
-                "path is not a file, directory, or symbolic link".to_string(),
+                "path is not a file or directory".to_string(),
             ));
         }
 
@@ -249,18 +239,39 @@ fn build_tar_stream(
     let mut tar = Builder::new(buffered);
     tar.follow_symlinks(false);
 
+    append_sources(&mut tar, sources)?;
+
+    let mut output = tar.into_inner()?;
+    output.flush()
+}
+
+fn append_sources<W: Write>(tar: &mut Builder<W>, sources: &[Source]) -> std::io::Result<()> {
     for source in sources {
         let metadata = std::fs::symlink_metadata(&source.path)?;
 
         if metadata.is_dir() {
-            tar.append_dir_all(&source.name, &source.path)?;
-        } else {
+            if !source.name.as_os_str().is_empty() {
+                tar.append_dir(&source.name, &source.path)?;
+            }
+
+            for entry in walk(&source.path)? {
+                let Ok(relative) = entry.path.strip_prefix(&source.path) else {
+                    continue;
+                };
+                let name = source.name.join(relative);
+
+                if entry.file_type.is_dir() {
+                    tar.append_dir(&name, &entry.path)?;
+                } else if entry.file_type.is_file() {
+                    tar.append_path_with_name(&entry.path, &name)?;
+                }
+            }
+        } else if metadata.is_file() {
             tar.append_path_with_name(&source.path, &source.name)?;
         }
     }
 
-    let mut output = tar.into_inner()?;
-    output.flush()
+    Ok(())
 }
 
 fn content_disposition(filename: &str) -> String {
@@ -281,9 +292,12 @@ fn download_error(error: std::io::Error) -> (StatusCode, String) {
 
 #[cfg(test)]
 mod tests {
-    use super::{content_disposition, source_path, source_paths, MAX_PATH_SIZE};
+    use super::{
+        append_sources, content_disposition, source_path, source_paths, Source, MAX_PATH_SIZE,
+    };
     use crate::Form;
     use hyper::http::StatusCode;
+    use std::path::PathBuf;
 
     #[test]
     fn accepts_repeated_path_fields() {
@@ -356,5 +370,61 @@ mod tests {
             disposition,
             "attachment; filename=\"download\"; filename*=UTF-8''%C3%A1%22%2Etxt"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn excludes_symlinks_from_tar_archives() {
+        use std::os::unix::fs::symlink;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time before epoch")
+            .as_nanos();
+        let base = std::env::temp_dir().join(format!("mediabrowser-tar-{suffix}"));
+        let root = base.join("folder");
+        let outside = base.join("outside");
+        std::fs::create_dir_all(root.join("nested")).expect("create archive directory");
+        std::fs::create_dir_all(&outside).expect("create outside directory");
+        std::fs::write(root.join("file.txt"), b"file").expect("create archive file");
+        std::fs::write(root.join("nested/deep.txt"), b"deep").expect("create nested archive file");
+        std::fs::write(outside.join("secret.txt"), b"secret").expect("create outside file");
+        symlink("file.txt", root.join("file-link")).expect("create file link");
+        symlink(&outside, root.join("directory-link")).expect("create directory link");
+
+        let source = Source {
+            path: root.clone(),
+            name: PathBuf::from("folder"),
+        };
+        let mut tar = tar::Builder::new(Vec::new());
+        tar.follow_symlinks(false);
+        append_sources(&mut tar, &[source]).expect("build archive");
+        let bytes = tar.into_inner().expect("finish archive");
+        let mut archive = tar::Archive::new(bytes.as_slice());
+        let mut paths = archive
+            .entries()
+            .expect("read archive")
+            .map(|entry| {
+                entry
+                    .expect("read archive entry")
+                    .path()
+                    .expect("read archive path")
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect::<Vec<_>>();
+        paths.sort_unstable();
+
+        assert_eq!(
+            paths,
+            [
+                "folder",
+                "folder/file.txt",
+                "folder/nested",
+                "folder/nested/deep.txt"
+            ]
+        );
+        std::fs::remove_dir_all(base).expect("remove archive files");
     }
 }

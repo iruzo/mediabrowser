@@ -1,4 +1,5 @@
 use crate::mime::{content_type, PATH_SEGMENT};
+use crate::path_metadata;
 use crate::response::{self, Response};
 use crate::types::data_path;
 use hyper::http::{HeaderMap, StatusCode};
@@ -37,7 +38,7 @@ pub(crate) async fn resolve_path(
         return Err(response::text(StatusCode::FORBIDDEN, "Access denied"));
     };
 
-    let metadata = match fs::metadata(&file_path).await {
+    let metadata = match path_metadata(&file_path).await {
         Ok(metadata) => metadata,
         Err(_) => {
             return Err(response::text(StatusCode::NOT_FOUND, "Not found"));
@@ -166,9 +167,26 @@ async fn serve_directory(dir_path: &Path, requested_path: &str) -> Response {
     let mut items = Vec::new();
 
     while let Ok(Some(entry)) = entries.next_entry().await {
-        if let Ok(metadata) = entry.metadata().await {
+        let file_type = {
+            #[cfg(windows)]
+            {
+                fs::symlink_metadata(entry.path())
+                    .await
+                    .map(|metadata| metadata.file_type())
+            }
+            #[cfg(not(windows))]
+            {
+                entry.file_type().await
+            }
+        };
+
+        if let Ok(file_type) = file_type {
+            if file_type.is_symlink() {
+                continue;
+            }
+
             if let Some(name) = entry.file_name().to_str() {
-                let is_dir = metadata.is_dir();
+                let is_dir = file_type.is_dir();
                 let name = name.to_string();
                 let sort_key = name.to_lowercase();
 
@@ -241,4 +259,45 @@ fn generate_directory_listing(path: &str, items: &[DirectoryItem]) -> String {
         display_path, display_path, list_items
     );
     html
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::serve_directory;
+    use crate::response::Body;
+    use hyper::http::StatusCode;
+    use std::os::unix::fs::symlink;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn directory_listing_hides_symlinks() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time before epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("mediabrowser-httpd-{suffix}"));
+        std::fs::create_dir_all(root.join("directory")).expect("create test directory");
+        std::fs::write(root.join("file.txt"), []).expect("create test file");
+        symlink("file.txt", root.join("file-link")).expect("create file link");
+        symlink("directory", root.join("directory-link")).expect("create directory link");
+        symlink("missing", root.join("broken-link")).expect("create broken link");
+
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .expect("create runtime");
+        let response = runtime.block_on(serve_directory(&root, ""));
+        assert_eq!(response.status(), StatusCode::OK);
+        let Body::Full(Some(body)) = response.body() else {
+            panic!("expected directory listing body");
+        };
+        let html = std::str::from_utf8(body).expect("listing is UTF-8");
+
+        assert!(html.contains("directory/"));
+        assert!(html.contains("file.txt"));
+        assert!(!html.contains("file-link"));
+        assert!(!html.contains("directory-link"));
+        assert!(!html.contains("broken-link"));
+
+        std::fs::remove_dir_all(root).expect("remove test directory");
+    }
 }

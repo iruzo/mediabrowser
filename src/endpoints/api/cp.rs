@@ -1,6 +1,6 @@
 use crate::response::{self, Response};
 use crate::types::{data_dir, data_path};
-use crate::walk;
+use crate::{ensure_no_symlinks, path_metadata, walk};
 use hyper::http::StatusCode;
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -19,6 +19,8 @@ pub async fn handle_cp(from: &str, to: &str) -> Response {
 pub(crate) async fn copy_path(from: &str, to: &str) -> CpResult<()> {
     let from = cp_path(from, "source")?;
     let to = cp_path(to, "destination")?;
+    let metadata = path_metadata(&from).await.map_err(copy_error)?;
+    ensure_no_symlinks(&to).await.map_err(copy_error)?;
     let root = fs::canonicalize(data_dir()).await.map_err(copy_error)?;
     let from = contained_path(from, &root).await?;
     let to = contained_path(to, &root).await?;
@@ -29,8 +31,6 @@ pub(crate) async fn copy_path(from: &str, to: &str) -> CpResult<()> {
             "source and destination must differ".to_string(),
         ));
     }
-
-    let metadata = fs::symlink_metadata(&from).await.map_err(copy_error)?;
 
     match fs::symlink_metadata(&to).await {
         Ok(_) => {
