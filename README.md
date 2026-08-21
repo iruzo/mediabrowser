@@ -30,6 +30,12 @@ below. To run only the HTTP file server, without `/api` or `/ui`:
 cargo run --no-default-features
 ```
 
+To run the HTTP file server and API without the UI:
+
+```bash
+cargo run --no-default-features --features api
+```
+
 The application runs on **port 30003** with:
 
 - **Apache like httpd at root**: `http://localhost:30003/`
