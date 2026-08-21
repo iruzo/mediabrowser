@@ -108,3 +108,8 @@ curl --compressed http://localhost:30003/ui/
 ```
 
 A client that explicitly rejects gzip receives `406 Not Acceptable`.
+
+## TODO
+
+- Implement security and user system
+- Text file editing (?)
