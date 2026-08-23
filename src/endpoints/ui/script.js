@@ -412,9 +412,6 @@ directories.addEventListener(
     const state = stateFor.get(event.target);
 
     if (event.target.open) {
-      if (selecting && activePath !== state.path && !currentQuery) {
-        setSelecting(false);
-      }
       activePath = state.path;
       states.forEach((item) => {
         item.grid.classList.toggle("selecting", selecting && item === state);
@@ -642,10 +639,7 @@ directories.addEventListener("click", (event) => {
   const summary = event.target.closest("summary");
   if (summary?.parentElement?.matches("details.directory") && selecting) {
     const state = stateFor.get(summary.parentElement);
-    if (
-      state.path !== scope &&
-      (currentQuery || parentPath(state.path) === activePath)
-    ) {
+    if (state.path !== scope) {
       event.preventDefault();
       selectPath(state.path, state.details);
       return;
