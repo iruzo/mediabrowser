@@ -103,6 +103,7 @@ const loopEndInput = document.getElementById("loopend");
 const galleryBar = document.querySelector(".gallery-bar");
 const galleryMenu = document.getElementById("menu");
 const actionMenu = document.getElementById("action-menu");
+const uploadButton = actionMenu.querySelector(".upload-files");
 const selectionMenu = document.getElementById("selection-menu");
 const search = document.querySelector("form.search");
 const upload = document.querySelector("form.upload");
@@ -312,7 +313,6 @@ function addDirectory(path, preset, metadata = new Map()) {
   };
 
   details.querySelector(".directory-name").textContent = displayDirectory(path);
-  if (path === scope) details.querySelector(".directory-menu-toggle").remove();
   stateFor.set(details, state);
   stateForSentinel.set(state.sentinel, state);
   states.add(state);
@@ -598,6 +598,10 @@ function toggleActionMenu(toggle, path, directory) {
     input.value = "";
     input.hidden = true;
   });
+  uploadButton.hidden = !directory;
+  actionMenu.querySelectorAll(".download, .cp, .mv, .rm").forEach((button) => {
+    button.hidden = directory && path === scope;
+  });
   if (galleryMenu.matches(":popover-open")) galleryMenu.hidePopover();
   actionMenu.showPopover();
 }
@@ -654,6 +658,13 @@ actionMenu.addEventListener("click", async (event) => {
   if (!button || actionTarget === null) return;
 
   const target = actionTarget;
+
+  if (button === uploadButton) {
+    upload.elements.path.value = target.path;
+    closeActionMenu();
+    files.click();
+    return;
+  }
 
   if (button.classList.contains("download")) {
     submitDownload([target.path]);
@@ -793,20 +804,14 @@ document.getElementById("name").addEventListener("keydown", (event) => {
   document.getElementById("mkdir").click();
 });
 
-const showUpload = document.querySelector(".show-upload");
-
-showUpload.addEventListener("click", () => {
-  files.click();
-});
-
 files.addEventListener("change", () => {
   if (files.files.length) upload.requestSubmit();
 });
 
 upload.addEventListener("submit", async (event) => {
   event.preventDefault();
-  showUpload.disabled = true;
-  upload.elements.path.value = scope;
+  uploadButton.disabled = true;
+  const path = upload.elements.path.value;
   progress.hidden = false;
   progress.textContent = `uploading ${files.files.length}`;
 
@@ -821,7 +826,7 @@ upload.addEventListener("submit", async (event) => {
       await loadDirectories(currentQuery);
       return;
     }
-    const state = [...states].find((item) => item.path === scope);
+    const state = [...states].find((item) => item.path === path);
     if (state) {
       state.files = null;
       await loadState(state);
@@ -831,7 +836,7 @@ upload.addEventListener("submit", async (event) => {
     progress.hidden = true;
     files.value = "";
   } finally {
-    showUpload.disabled = false;
+    uploadButton.disabled = false;
   }
 });
 
