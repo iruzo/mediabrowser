@@ -47,6 +47,11 @@ input {
   font: inherit;
 }
 
+input {
+  color: var(--text);
+  caret-color: var(--text);
+}
+
 #directories {
   padding-bottom: calc(var(--bar) + 24px);
 }

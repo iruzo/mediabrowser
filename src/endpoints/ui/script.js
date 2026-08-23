@@ -792,7 +792,9 @@ on("mkdir", async () => {
   const input = document.getElementById("name");
   const name = input.value.trim();
   if (!name) return;
-  const path = activePath ? `${activePath}/${name}` : name;
+  const path = scope ? `${scope}/${name}` : name;
+  const submit = document.getElementById("mkdir");
+  submit.disabled = true;
 
   try {
     await post("/api/mkdir", { path });
@@ -800,7 +802,15 @@ on("mkdir", async () => {
     await loadDirectories(search.elements.query.value.trim());
   } catch (error) {
     alert(error.message || "Failed to create folder");
+  } finally {
+    submit.disabled = false;
   }
+});
+
+document.getElementById("name").addEventListener("keydown", (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  document.getElementById("mkdir").click();
 });
 
 const showUpload = document.querySelector(".show-upload");
