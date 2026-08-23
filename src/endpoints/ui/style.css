@@ -195,12 +195,12 @@ input {
   z-index: 2;
 }
 
-#selection-menu {
+#selection-menu,
+#action-menu {
   position: fixed;
   top: 12px;
   left: 50%;
   z-index: 10;
-  display: flex;
   justify-content: center;
   gap: 4px;
   width: max-content;
@@ -209,8 +209,28 @@ input {
   transform: translateX(-50%);
 }
 
+#selection-menu {
+  display: flex;
+}
+
+#action-menu {
+  inset: 12px auto auto 50%;
+  min-width: 0;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  overflow-y: hidden;
+  background: transparent;
+}
+
+#action-menu:popover-open {
+  flex-flow: row nowrap;
+}
+
 #selection-menu button,
 #selection-menu input,
+#action-menu button,
+#action-menu input,
 .bar a,
 .bar .menu-toggle {
   padding: 6px 12px;
@@ -222,20 +242,31 @@ input {
 }
 
 #selection-menu button,
+#action-menu button,
 .bar a,
 .bar .menu-toggle {
   cursor: pointer;
 }
 
+#action-menu button {
+  text-align: center;
+}
+
 #selection-menu button:hover,
+#action-menu button:hover,
 .bar a:hover,
 .bar .menu-toggle:hover {
   background: var(--cell-bg);
 }
 
-#selection-menu input {
+#selection-menu input,
+#action-menu input {
   width: 180px;
   border: 1px solid var(--border);
+}
+
+#action-menu > :nth-child(odd) {
+  background: var(--bg);
 }
 
 .bar {
@@ -400,12 +431,14 @@ input {
     --cell: 120px;
   }
 
-  #selection-menu {
+  #selection-menu,
+  #action-menu {
     justify-content: flex-start;
     width: calc(100% - 24px);
   }
 
-  #selection-menu input {
+  #selection-menu input,
+  #action-menu input {
     flex: 1;
     min-width: 120px;
   }
