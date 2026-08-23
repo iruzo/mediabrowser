@@ -116,7 +116,6 @@ const stateFor = new WeakMap();
 const stateForSentinel = new WeakMap();
 const view = { sort: "name", filter: "all" };
 const selected = new Set();
-let activePath = scope || "";
 let cell = parseInt(localStorage.getItem("cell"), 10) || 0;
 let selecting = false;
 let viewer = null;
@@ -350,7 +349,6 @@ async function loadDirectories(query = "") {
   closeActionMenu();
   setSelecting(false);
   clearDirectories();
-  activePath = scope;
 
   try {
     if (!query) {
@@ -412,10 +410,7 @@ directories.addEventListener(
     const state = stateFor.get(event.target);
 
     if (event.target.open) {
-      activePath = state.path;
-      states.forEach((item) => {
-        item.grid.classList.toggle("selecting", selecting && item === state);
-      });
+      state.grid.classList.toggle("selecting", selecting);
       loadState(state);
     } else {
       clearItems(state);
@@ -443,12 +438,9 @@ function submitDownload(paths) {
   setTimeout(() => form.remove(), 0);
 }
 
-function currentState() {
-  return [...states].find((state) => state.path === activePath) || null;
-}
-
 function closeSelectionPaths() {
   selectionMenu.querySelectorAll("input").forEach((input) => {
+    input.value = "";
     input.hidden = true;
   });
 }
@@ -457,10 +449,9 @@ function setSelecting(value) {
   if (value) closeActionMenu();
   selecting = value;
   const button = document.getElementById("select");
-  const state = currentState();
 
   states.forEach((item) => {
-    item.grid.classList.toggle("selecting", value && item === state);
+    item.grid.classList.toggle("selecting", value);
   });
   directories.classList.toggle("selecting", value);
   selectionMenu.hidden = !value;
@@ -479,12 +470,7 @@ function setSelecting(value) {
 }
 
 function selectedPaths() {
-  const state = currentState();
-  const files = new Set(
-    currentQuery
-      ? [...states].flatMap((item) => item.files || [])
-      : state?.files || [],
-  );
+  const files = new Set([...states].flatMap((item) => item.files || []));
   const dirs = new Set(
     [...states]
       .map((item) => item.path)
@@ -529,7 +515,7 @@ function bindSelectedPath(action) {
   button.addEventListener("click", async () => {
     const paths = selectedPaths();
     if (!paths.length) return;
-    if (reveal(input, activePath || "/")) return;
+    if (reveal(input)) return;
 
     const to = input.value.trim();
     if (!to) return;
@@ -609,7 +595,7 @@ function toggleActionMenu(toggle, path, directory) {
   closeActionMenu();
   actionTarget = { toggle, path, directory };
   actionMenu.querySelectorAll("input.to").forEach((input) => {
-    input.value = path;
+    input.value = "";
     input.hidden = true;
   });
   if (galleryMenu.matches(":popover-open")) galleryMenu.hidePopover();
@@ -820,7 +806,7 @@ files.addEventListener("change", () => {
 upload.addEventListener("submit", async (event) => {
   event.preventDefault();
   showUpload.disabled = true;
-  upload.elements.path.value = activePath;
+  upload.elements.path.value = scope;
   progress.hidden = false;
   progress.textContent = `uploading ${files.files.length}`;
 
@@ -835,7 +821,7 @@ upload.addEventListener("submit", async (event) => {
       await loadDirectories(currentQuery);
       return;
     }
-    const state = [...states].find((item) => item.path === activePath);
+    const state = [...states].find((item) => item.path === scope);
     if (state) {
       state.files = null;
       await loadState(state);
@@ -1086,7 +1072,6 @@ async function showViewPath(path, push) {
   const state = [...states].find((item) => item.path === dir);
   if (!state) return;
   state.details.open = true;
-  activePath = state.path;
   await loadState(state);
   openViewer(path, state, push);
 }
