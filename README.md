@@ -58,6 +58,12 @@ docker-compose --profile pro up
 docker build --file containers/httpd.Dockerfile --tag mediabrowser-httpd .
 ```
 
+### Docker (HTTPD + API)
+
+```bash
+docker build --file containers/server.Dockerfile --tag mediabrowser-server .
+```
+
 ### Docker (oneline)
 ```bash
 docker image inspect mediabrowser >/dev/null 2>&1 || docker build -t mediabrowser https://github.com/iruzo/mediabrowser.git && docker run -p 30003:30003 -e BIND_ADDR=0.0.0.0 -v $(pwd)/data:/data mediabrowser
