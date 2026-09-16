@@ -97,8 +97,17 @@ export PORT=30003
 
 ## API Endpoints
 
-Each endpoint is documented with a curl example in
+Each endpoint is documented with curl and HTML form examples in
 [docs/endpoints/](./docs/endpoints/).
+
+All `/api/*` operations accept parameters in POST bodies: URL-encoded forms,
+or multipart forms for uploads. The HTML examples use URLs relative to this
+server. Successful upload, copy, move, remove, and mkdir requests return an
+empty `200 OK` response.
+
+`/api/find` and `/api/cat` are the only API endpoints that do not fully support
+an HTML-only UI: use the optional [HTTPD file server](docs/endpoints/httpd.md)
+instead for directory browsing and direct media URLs without JavaScript.
 
 ## Security and HTTP Behavior
 
@@ -108,8 +117,8 @@ Direct paths to a link, or through one, behave as missing paths. Recursive copy
 and download skip links; moving or removing a real directory may move or remove
 link entries contained by that directory, but their targets are never followed.
 
-UI directory paths end with `/`. A missing trailing slash on a directory is
-redirected to its canonical UI path. The UI obtains regular files through
+UI and HTTPD directory paths end with `/`. A missing trailing slash on a
+directory is redirected to its canonical path. The UI obtains regular files through
 `POST /api/cat`; unsupported media is displayed as the endpoint response.
 
 The UI response is stored and served as gzip. Browsers negotiate this

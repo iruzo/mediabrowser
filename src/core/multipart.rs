@@ -216,21 +216,40 @@ fn parse_part_header(header: &[u8]) -> MultipartResult<PartHeader> {
 }
 
 fn disposition_param(value: &str, name: &str) -> Option<String> {
-    for section in value.split(';') {
-        let Some(section) = section.trim().strip_prefix(name) else {
-            continue;
-        };
-        let Some(section) = section.trim_start().strip_prefix('=') else {
-            continue;
-        };
-        let section = section.trim();
-        let section = section.strip_prefix('"').unwrap_or(section);
-        let section = section.strip_suffix('"').unwrap_or(section);
+    let (_, mut rest) = value.split_once(';')?;
 
-        return Some(section.to_string());
+    loop {
+        let (key, value) = rest.trim_start().split_once('=')?;
+        let value = value.trim_start();
+        let mut decoded = String::new();
+
+        if let Some(value) = value.strip_prefix('"') {
+            let mut chars = value.char_indices();
+            loop {
+                let (index, character) = chars.next()?;
+                match character {
+                    '"' => {
+                        rest = value[index + 1..].trim_start();
+                        break;
+                    }
+                    '\\' => decoded.push(chars.next()?.1),
+                    _ => decoded.push(character),
+                }
+            }
+        } else {
+            let end = value.find(';').unwrap_or(value.len());
+            decoded.push_str(value[..end].trim_end());
+            rest = &value[end..];
+        }
+
+        if !rest.is_empty() && !rest.starts_with(';') {
+            return None;
+        }
+        if key.trim().eq_ignore_ascii_case(name) {
+            return Some(decoded);
+        }
+        rest = rest.strip_prefix(';')?;
     }
-
-    None
 }
 
 fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
@@ -313,6 +332,42 @@ mod tests {
             Some("x.txt".to_string())
         );
         assert_eq!(disposition_param("form-data; filename=\"x\"", "name"), None);
+    }
+
+    #[test]
+    fn preserves_quoted_filename_parameters() {
+        for (value, expected) in [
+            (
+                r#"form-data; filename="report;final.txt"; name="file""#,
+                "report;final.txt",
+            ),
+            (
+                r#"form-data; filename="report;name=other.txt"; name="file""#,
+                "report;name=other.txt",
+            ),
+            (
+                r#"form-data; filename="report\";final.txt"; name="file""#,
+                "report\";final.txt",
+            ),
+            (
+                r#"form-data; filename="árbol;東京.txt"; name="file""#,
+                "árbol;東京.txt",
+            ),
+        ] {
+            assert_eq!(
+                disposition_param(value, "filename").as_deref(),
+                Some(expected)
+            );
+            assert_eq!(disposition_param(value, "name").as_deref(), Some("file"));
+        }
+
+        for value in [
+            "form-data; filename=\"unfinished",
+            "form-data; filename=\"unfinished\\",
+            "form-data; filename=\"file.txt\"extra",
+        ] {
+            assert_eq!(disposition_param(value, "filename"), None);
+        }
     }
 
     #[test]

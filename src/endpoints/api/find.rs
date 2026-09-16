@@ -125,7 +125,7 @@ async fn resolve_directory(path: Option<&str>) -> FindResult<(PathBuf, PathBuf)>
 }
 
 fn directory_path(path: Option<&str>) -> FindResult<PathBuf> {
-    let path = path.unwrap_or_default();
+    let path = path.unwrap_or_default().trim();
 
     if path.len() > MAX_PATH_SIZE || path.chars().any(|c| c.is_control() || c == '\\') {
         return Err((StatusCode::BAD_REQUEST, "invalid path".to_string()));

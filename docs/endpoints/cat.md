@@ -21,3 +21,5 @@ curl \
 
 The POST response can be displayed as a document or in a form target. HTML
 media elements cannot submit POST requests directly.
+When built with `httpd`, use [direct file URLs](httpd.md) for HTML media
+elements instead.

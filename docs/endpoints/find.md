@@ -15,6 +15,10 @@ fallback rather than a MIME guarantee. Metadata defaults to `false`.
 Matching is case-insensitive unless the query contains an
 uppercase letter.
 
+The HTML form below submits the search, but the response remains JSON.
+For directory browsing without JavaScript, use the optional
+[HTTPD file server](httpd.md).
+
 ```html
 <form method="post" action="/api/find">
   <input name="path" value="folder">

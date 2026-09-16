@@ -27,6 +27,15 @@ pub async fn handle_file_server(requested_path: &str, headers: &HeaderMap) -> Re
 }
 
 async fn serve_directory(dir_path: &Path, requested_path: &str) -> Response {
+    if !requested_path.is_empty() && !requested_path.ends_with('/') {
+        let location = format!("/{}/", requested_path.trim_start_matches('/'));
+        return hyper::http::Response::builder()
+            .status(StatusCode::PERMANENT_REDIRECT)
+            .header("location", location)
+            .body(response::empty())
+            .expect("valid directory redirect");
+    }
+
     let mut entries = match fs::read_dir(dir_path).await {
         Ok(entries) => entries,
         Err(_) => {
@@ -187,6 +196,19 @@ mod tests {
         assert!(!html.contains("file-link"));
         assert!(!html.contains("directory-link"));
         assert!(!html.contains("broken-link"));
+
+        for path in ["folder", "nested/folder", "folder%20name", "/folder"] {
+            let response = runtime.block_on(serve_directory(&root, path));
+            assert_eq!(response.status(), StatusCode::PERMANENT_REDIRECT);
+            assert_eq!(
+                response.headers()["location"],
+                format!("/{}/", path.trim_start_matches('/'))
+            );
+            assert!(matches!(response.body(), Body::Empty));
+        }
+
+        let response = runtime.block_on(serve_directory(&root, "folder/"));
+        assert_eq!(response.status(), StatusCode::OK);
 
         std::fs::remove_dir_all(root).expect("remove test directory");
     }

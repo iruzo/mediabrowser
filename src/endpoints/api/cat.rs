@@ -22,7 +22,7 @@ pub async fn handle_cat(path: Option<&str>, headers: &HeaderMap) -> Response {
 }
 
 fn cat_path(path: Option<&str>) -> Option<PathBuf> {
-    let path = path?;
+    let path = path?.trim();
 
     if path.len() > MAX_PATH_SIZE || path.chars().any(|c| c.is_control() || c == '\\') {
         return None;
