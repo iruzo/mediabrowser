@@ -1,5 +1,4 @@
-use super::httpd::resolve_path;
-use crate::mime::media_kind;
+use crate::resolve_path;
 use crate::response::{self, Response};
 use bytes::Bytes;
 use hyper::http::header::{ACCEPT_ENCODING, CONTENT_ENCODING, LOCATION, VARY};
@@ -134,22 +133,16 @@ pub(crate) async fn handle_ui_path(uri: &Uri, headers: &HeaderMap) -> Response {
     }
 
     let requested_path = path.strip_prefix("/ui/").unwrap_or_default();
-    let (file_path, metadata) = match resolve_path(requested_path).await {
+    let (_, metadata) = match resolve_path(requested_path).await {
         Ok(path) => path,
         Err(response) => return response,
     };
 
-    handle_ui_entry(uri, headers, &file_path, &metadata)
+    handle_ui_entry(uri, headers, &metadata)
 }
 
-fn handle_ui_entry(
-    uri: &Uri,
-    headers: &HeaderMap,
-    file_path: &std::path::Path,
-    metadata: &std::fs::Metadata,
-) -> Response {
+fn handle_ui_entry(uri: &Uri, headers: &HeaderMap, metadata: &std::fs::Metadata) -> Response {
     let path = uri.path();
-    let requested_path = path.strip_prefix("/ui/").unwrap_or_default();
 
     if metadata.is_dir() {
         if path.ends_with('/') {
@@ -164,14 +157,11 @@ fn handle_ui_entry(
     if path.ends_with('/') {
         return response::text(StatusCode::NOT_FOUND, "Not found");
     }
-    if metadata.is_file() && media_kind(&file_path) != "text" {
+    if metadata.is_file() {
         return handle_ui_request(headers);
     }
 
-    let mut httpd_path = String::with_capacity(path.len().saturating_sub(3));
-    httpd_path.push('/');
-    httpd_path.push_str(requested_path.trim_start_matches('/'));
-    redirect(StatusCode::TEMPORARY_REDIRECT, &httpd_path, uri.query())
+    response::text(StatusCode::NOT_FOUND, "Not found")
 }
 
 #[cfg(test)]
@@ -182,7 +172,6 @@ mod tests {
     use hyper::http::header::{ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_TYPE, LOCATION, VARY};
     use hyper::http::{HeaderMap, HeaderValue, StatusCode};
     use std::io::Read;
-    use std::path::Path;
 
     fn headers(values: &[&'static str]) -> HeaderMap {
         let mut headers = HeaderMap::new();
@@ -232,6 +221,9 @@ mod tests {
         );
         assert!(PAGE.contains("IntersectionObserver"));
         assert!(PAGE.contains("metadata"));
+        assert!(PAGE.contains("/api/cat"));
+        assert!(PAGE.contains("URL.createObjectURL"));
+        assert!(!PAGE.contains("function fileUrl"));
         assert!(!PAGE.contains("{{CSS}}"));
         assert!(!PAGE.contains("UI_SCRIPT"));
     }
@@ -316,31 +308,30 @@ mod tests {
         let headers = headers(&["gzip"]);
 
         let uri = "/ui/photos?sort=name".parse().unwrap();
-        let response = handle_ui_entry(&uri, &headers, Path::new("photos"), &directory);
+        let response = handle_ui_entry(&uri, &headers, &directory);
         assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
         assert_eq!(response.headers()[LOCATION], "/ui/photos/?sort=name");
         assert!(!response.headers().contains_key(CONTENT_ENCODING));
         assert!(!response.headers().contains_key(VARY));
 
         let uri = "/ui/photos.jpg/".parse().unwrap();
-        let response = handle_ui_entry(&uri, &headers, Path::new("photos.jpg"), &directory);
+        let response = handle_ui_entry(&uri, &headers, &directory);
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.headers()[CONTENT_ENCODING], "gzip");
 
         let uri = "/ui/photos/image%20%23%3F.jpg".parse().unwrap();
-        let response = handle_ui_entry(&uri, &headers, Path::new("photos/image #?.jpg"), &file);
+        let response = handle_ui_entry(&uri, &headers, &file);
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.headers()[CONTENT_ENCODING], "gzip");
 
         let uri = "/ui//notes.txt?download=true".parse().unwrap();
-        let response = handle_ui_entry(&uri, &headers, Path::new("notes.txt"), &file);
-        assert_eq!(response.status(), StatusCode::TEMPORARY_REDIRECT);
-        assert_eq!(response.headers()[LOCATION], "/notes.txt?download=true");
-        assert!(!response.headers().contains_key(CONTENT_ENCODING));
-        assert!(!response.headers().contains_key(VARY));
+        let response = handle_ui_entry(&uri, &headers, &file);
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[CONTENT_ENCODING], "gzip");
+        assert_eq!(response.headers()[VARY], "Accept-Encoding");
 
         let uri = "/ui/notes.txt/".parse().unwrap();
-        let response = handle_ui_entry(&uri, &headers, Path::new("notes.txt"), &file);
+        let response = handle_ui_entry(&uri, &headers, &file);
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 }

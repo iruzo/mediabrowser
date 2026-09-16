@@ -1,6 +1,6 @@
 FROM docker.io/library/alpine:3.24.1 AS minifier
 
-RUN apk add --no-cache minify=2.24.17-r0
+RUN apk add --no-cache minify
 
 COPY src/endpoints/ui/index.html /static/
 COPY src/endpoints/ui/style.css /static/

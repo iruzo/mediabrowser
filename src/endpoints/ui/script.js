@@ -11,11 +11,17 @@ async function request(url, options) {
   return response;
 }
 
-function post(action, data) {
+function post(action, data, signal) {
   return request(action, {
     method: "POST",
     body: new URLSearchParams(data),
+    signal,
   });
+}
+
+async function catUrl(path, signal) {
+  const response = await post("/api/cat", { path }, signal);
+  return URL.createObjectURL(await response.blob());
 }
 
 function reveal(input, value) {
@@ -30,10 +36,6 @@ function encodedPath(path) {
   return path.split("/").map(encodeURIComponent).join("/");
 }
 
-function fileUrl(path) {
-  return `/${encodedPath(path)}`;
-}
-
 function uiUrl(path, suffix = "") {
   const url = new URL(location.href);
   const encoded = encodedPath(path);
@@ -46,11 +48,7 @@ function scopePath() {
   const path = location.pathname.slice(3);
 
   try {
-    return path
-      .split("/")
-      .filter(Boolean)
-      .map(decodeURIComponent)
-      .join("/");
+    return path.split("/").filter(Boolean).map(decodeURIComponent).join("/");
   } catch (_) {
     return null;
   }
@@ -131,21 +129,55 @@ let directoryLoad = 0;
 let currentQuery = "";
 let actionTarget = null;
 
+const imageResources = new WeakMap();
+
 document.title = scope === null ? "invalid path" : displayDirectory(scope);
 if (cell) root.style.setProperty("--cell", `${cell}px`);
+
+function releaseImage(image) {
+  const resource = imageResources.get(image);
+  if (resource) {
+    resource.controller.abort();
+    if (resource.url) URL.revokeObjectURL(resource.url);
+    imageResources.delete(image);
+  }
+  image.removeAttribute("src");
+}
+
+async function loadImage(image) {
+  if (imageResources.has(image)) return;
+
+  const resource = {
+    controller: new AbortController(),
+    url: null,
+  };
+  imageResources.set(image, resource);
+
+  try {
+    const url = await catUrl(image.dataset.path, resource.controller.signal);
+    if (!image.isConnected || imageResources.get(image) !== resource) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+    resource.url = url;
+    image.src = url;
+  } catch (error) {
+    if (error.name !== "AbortError") image.removeAttribute("src");
+  }
+}
 
 const imageObserver = new IntersectionObserver((entries) => {
   entries.forEach((entry) => {
     const image = entry.target;
     if (!image.isConnected) {
       imageObserver.unobserve(image);
-      image.removeAttribute("src");
+      releaseImage(image);
       return;
     }
     if (entry.isIntersecting) {
-      if (!image.hasAttribute("src")) image.src = image.dataset.src;
+      loadImage(image);
     } else {
-      image.removeAttribute("src");
+      releaseImage(image);
     }
   });
 });
@@ -199,11 +231,11 @@ function visiblePaths(state) {
       const kinds = kindFor(state, a).localeCompare(kindFor(state, b));
       if (kinds) return kinds;
     } else if (view.sort === "date") {
-      value = (state.metadata.get(b)?.date || 0) -
-        (state.metadata.get(a)?.date || 0);
+      value =
+        (state.metadata.get(b)?.date || 0) - (state.metadata.get(a)?.date || 0);
     } else if (view.sort === "size") {
-      value = (state.metadata.get(b)?.size || 0) -
-        (state.metadata.get(a)?.size || 0);
+      value =
+        (state.metadata.get(b)?.size || 0) - (state.metadata.get(a)?.size || 0);
     }
     if (value) return value;
     return compareNames(baseName(a), baseName(b));
@@ -214,7 +246,7 @@ function visiblePaths(state) {
 function clearItems(state) {
   state.grid.querySelectorAll("img").forEach((image) => {
     imageObserver.unobserve(image);
-    image.removeAttribute("src");
+    releaseImage(image);
   });
   state.grid.replaceChildren();
   state.shown = 0;
@@ -229,11 +261,11 @@ function createItem(path, state) {
   item.classList.add(kind);
   item.classList.toggle("selected", selected.has(path));
   item.dataset.path = path;
-  link.href = kind === "text" ? fileUrl(path) : uiUrl(path);
+  link.href = uiUrl(path);
   item.querySelector(".name").textContent = baseName(path);
 
   if (kind === "image") {
-    image.dataset.src = fileUrl(path);
+    image.dataset.path = path;
     image.alt = baseName(path);
   } else {
     image.remove();
@@ -358,7 +390,9 @@ async function loadDirectories(query = "") {
         paths.map(cleanDirectory).filter((path) => path !== scope),
       );
       addDirectory(scope, null);
-      [...unique].sort(compareNames).forEach((path) => addDirectory(path, null));
+      [...unique]
+        .sort(compareNames)
+        .forEach((path) => addDirectory(path, null));
     } else {
       const items = await findPaths(scope, "all", query, true, true);
       if (load !== directoryLoad) return;
@@ -377,7 +411,8 @@ async function loadDirectories(query = "") {
         foundDirectories.add(dir);
         if (!filesByDirectory.has(dir)) filesByDirectory.set(dir, []);
         filesByDirectory.get(dir).push(path);
-        if (!metadataByDirectory.has(dir)) metadataByDirectory.set(dir, new Map());
+        if (!metadataByDirectory.has(dir))
+          metadataByDirectory.set(dir, new Map());
         metadataByDirectory.get(dir).set(path, item);
       });
 
@@ -419,11 +454,11 @@ directories.addEventListener(
   true,
 );
 
-function submitDownload(paths) {
+function submitPaths(action, paths) {
   if (!paths.length) return;
   const form = document.createElement("form");
   form.method = "post";
-  form.action = "/api/download";
+  form.action = action;
   form.hidden = true;
 
   paths.forEach((path) => {
@@ -436,6 +471,14 @@ function submitDownload(paths) {
   document.body.append(form);
   form.requestSubmit();
   setTimeout(() => form.remove(), 0);
+}
+
+function submitCat(path) {
+  submitPaths("/api/cat", [path]);
+}
+
+function submitDownload(paths) {
+  submitPaths("/api/download", paths);
 }
 
 function closeSelectionPaths() {
@@ -472,9 +515,7 @@ function setSelecting(value) {
 function selectedPaths() {
   const files = new Set([...states].flatMap((item) => item.files || []));
   const dirs = new Set(
-    [...states]
-      .map((item) => item.path)
-      .filter((path) => path !== scope),
+    [...states].map((item) => item.path).filter((path) => path !== scope),
   );
   const paths = [...selected].filter(
     (path) => files.has(path) || dirs.has(path),
@@ -550,7 +591,7 @@ function removePath(path) {
     const image = item?.querySelector("img");
     if (image) {
       imageObserver.unobserve(image);
-      image.removeAttribute("src");
+      releaseImage(image);
     }
     if (item) item.remove();
 
@@ -584,10 +625,7 @@ function isActionTarget(target) {
 }
 
 function toggleActionMenu(toggle, path, directory) {
-  if (
-    actionMenu.matches(":popover-open") &&
-    actionTarget?.toggle === toggle
-  ) {
+  if (actionMenu.matches(":popover-open") && actionTarget?.toggle === toggle) {
     closeActionMenu();
     return;
   }
@@ -644,10 +682,14 @@ directories.addEventListener("click", (event) => {
     if (selecting && item.closest(".grid").classList.contains("selecting")) {
       event.preventDefault();
       selectPath(item.dataset.path, item);
-    } else if (!item.classList.contains("text")) {
+    } else {
       event.preventDefault();
-      const state = stateFor.get(item.closest("details.directory"));
-      openViewer(item.dataset.path, state);
+      if (item.classList.contains("text")) {
+        submitCat(item.dataset.path);
+      } else {
+        const state = stateFor.get(item.closest("details.directory"));
+        openViewer(item.dataset.path, state);
+      }
     }
     return;
   }
@@ -860,6 +902,8 @@ function resetLoop() {
 }
 
 function resetViewer() {
+  const current = viewer;
+  current.controller.abort();
   if (viewerMenu.matches(":popover-open")) viewerMenu.hidePopover();
   stopDragging();
   resetLoop();
@@ -868,8 +912,8 @@ function resetViewer() {
   position.x = 0;
   position.y = 0;
 
-  const media = viewer.media;
-  if (viewer.type === "image") {
+  const media = current.media;
+  if (current.type === "image") {
     media.removeAttribute("alt");
   } else {
     if (document.pictureInPictureElement === media) {
@@ -884,11 +928,29 @@ function resetViewer() {
     media.playbackRate = 1;
   }
   media.removeAttribute("src");
-  if (viewer.type !== "image") media.load();
+  if (current.type !== "image") media.load();
+  if (current.url) URL.revokeObjectURL(current.url);
   media.hidden = true;
   media.classList.remove("zoomed");
   media.style.removeProperty("transform");
   viewer = null;
+}
+
+async function loadViewerFile(current) {
+  try {
+    const url = await catUrl(current.path, current.controller.signal);
+    if (viewer !== current) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+    current.url = url;
+    current.media.src = url;
+  } catch (error) {
+    if (viewer === current && error.name !== "AbortError") {
+      alert(error.message || "Failed to load file");
+      closeViewer();
+    }
+  }
 }
 
 function closeViewer(push = true) {
@@ -909,7 +971,7 @@ function openViewer(path, state, push = true) {
   const type = kindFor(state, path);
   const media = viewerMedia[type];
   if (!media) {
-    location.replace(fileUrl(path));
+    submitCat(path);
     return;
   }
   if (viewer) resetViewer();
@@ -921,9 +983,18 @@ function openViewer(path, state, push = true) {
     : path;
   const next = paths.length ? paths[(index + 1) % paths.length] : path;
 
-  viewer = { path, type, state, media, previous, next };
+  const current = {
+    path,
+    type,
+    state,
+    media,
+    previous,
+    next,
+    controller: new AbortController(),
+    url: null,
+  };
+  viewer = current;
   media.hidden = false;
-  media.src = fileUrl(path);
   if (type === "image") media.alt = baseName(path);
   viewerPrevious.href = uiUrl(previous);
   viewerClose.href = uiUrl(scope, "/");
@@ -942,6 +1013,7 @@ function openViewer(path, state, push = true) {
   document.title = baseName(path);
 
   if (push) history.pushState({}, "", uiUrl(path));
+  loadViewerFile(current);
 }
 
 function transformViewer() {
@@ -960,10 +1032,10 @@ function parseTime(text) {
   const minutes = parseInt(parts[0], 10);
   const seconds = parseInt(parts[1], 10);
   return Number.isInteger(minutes) &&
-      Number.isInteger(seconds) &&
-      minutes >= 0 &&
-      seconds >= 0 &&
-      seconds < 60
+    Number.isInteger(seconds) &&
+    minutes >= 0 &&
+    seconds >= 0 &&
+    seconds < 60
     ? minutes * 60 + seconds
     : null;
 }
@@ -1051,10 +1123,7 @@ function bindViewer() {
   });
 
   viewerMedia.video.addEventListener("timeupdate", () => {
-    if (
-      loopEnd > loopStart &&
-      viewerMedia.video.currentTime >= loopEnd
-    ) {
+    if (loopEnd > loopStart && viewerMedia.video.currentTime >= loopEnd) {
       viewerMedia.video.currentTime = loopStart;
     }
   });

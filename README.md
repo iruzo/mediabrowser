@@ -37,8 +37,8 @@ The application runs on **port 30003** with:
 - **Media browser under `/ui/`**: `http://localhost:30003/ui/`
   - `http://localhost:30003/ui/folder/` browses the same directory as
     `http://localhost:30003/folder/`
-  - `http://localhost:30003/ui/folder/file.mp4` opens the same file as
-    `http://localhost:30003/folder/file.mp4` in the media viewer
+  - `http://localhost:30003/ui/folder/file.mp4` obtains the file through
+    `POST /api/cat` and opens it in the media viewer
 
 ### Docker (Development)
 
@@ -103,8 +103,8 @@ and download skip links; moving or removing a real directory may move or remove
 link entries contained by that directory, but their targets are never followed.
 
 UI directory paths end with `/`. A missing trailing slash on a directory is
-redirected to its canonical UI path. Files the viewer does not support are
-redirected to the same path under the root HTTPD endpoint.
+redirected to its canonical UI path. The UI obtains regular files through
+`POST /api/cat`; unsupported media is displayed as the endpoint response.
 
 The UI response is stored and served as gzip. Browsers negotiate this
 automatically. Other clients can request and decompress it with:

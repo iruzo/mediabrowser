@@ -1,10 +1,31 @@
 use crate::mime::content_type;
 use crate::response::{self, Response};
+use crate::types::{data_path, path_metadata};
 use hyper::http::{HeaderMap, StatusCode};
-use std::path::Path;
+use percent_encoding::percent_decode_str;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
+
+pub(crate) async fn resolve_path(
+    requested_path: &str,
+) -> Result<(PathBuf, std::fs::Metadata), Response> {
+    let decoded_path = percent_decode_str(requested_path).decode_utf8_lossy();
+
+    let Some(file_path) = data_path(decoded_path.as_ref()) else {
+        return Err(response::text(StatusCode::FORBIDDEN, "Access denied"));
+    };
+
+    let metadata = match path_metadata(&file_path).await {
+        Ok(metadata) => metadata,
+        Err(_) => {
+            return Err(response::text(StatusCode::NOT_FOUND, "Not found"));
+        }
+    };
+
+    Ok((file_path, metadata))
+}
 
 pub(crate) async fn serve_file(file_path: &Path, headers: &HeaderMap, file_size: u64) -> Response {
     let mime_type = content_type(file_path);

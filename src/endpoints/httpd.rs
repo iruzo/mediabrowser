@@ -1,11 +1,10 @@
 use crate::mime::PATH_SEGMENT;
 use crate::response::{self, Response};
-use crate::types::data_path;
-use crate::{path_metadata, serve_file};
+use crate::{resolve_path, serve_file};
 use hyper::http::{HeaderMap, StatusCode};
-use percent_encoding::{percent_decode_str, utf8_percent_encode};
+use percent_encoding::utf8_percent_encode;
 use std::fmt::Write as _;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tokio::fs;
 
 struct DirectoryItem {
@@ -25,25 +24,6 @@ pub async fn handle_file_server(requested_path: &str, headers: &HeaderMap) -> Re
     } else {
         serve_file(&file_path, headers, metadata.len()).await
     }
-}
-
-pub(crate) async fn resolve_path(
-    requested_path: &str,
-) -> Result<(PathBuf, std::fs::Metadata), Response> {
-    let decoded_path = percent_decode_str(requested_path).decode_utf8_lossy();
-
-    let Some(file_path) = data_path(decoded_path.as_ref()) else {
-        return Err(response::text(StatusCode::FORBIDDEN, "Access denied"));
-    };
-
-    let metadata = match path_metadata(&file_path).await {
-        Ok(metadata) => metadata,
-        Err(_) => {
-            return Err(response::text(StatusCode::NOT_FOUND, "Not found"));
-        }
-    };
-
-    Ok((file_path, metadata))
 }
 
 async fn serve_directory(dir_path: &Path, requested_path: &str) -> Response {
