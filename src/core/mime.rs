@@ -1,7 +1,9 @@
+#[cfg(feature = "httpd")]
 use percent_encoding::{AsciiSet, CONTROLS};
 use std::path::Path;
 
 // Encode only characters that are not allowed in URL paths (matching Apache)
+#[cfg(feature = "httpd")]
 pub(crate) const PATH_SEGMENT: &AsciiSet = &CONTROLS
     .add(b' ')
     .add(b'"')

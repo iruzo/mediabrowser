@@ -1,13 +1,18 @@
 use crate::mime::content_type;
 use crate::response::{self, Response};
+#[cfg(any(feature = "ui", feature = "httpd"))]
 use crate::types::{data_path, path_metadata};
 use hyper::http::{HeaderMap, StatusCode};
+#[cfg(any(feature = "ui", feature = "httpd"))]
 use percent_encoding::percent_decode_str;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(any(feature = "ui", feature = "httpd"))]
+use std::path::PathBuf;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 
+#[cfg(any(feature = "ui", feature = "httpd"))]
 pub(crate) async fn resolve_path(
     requested_path: &str,
 ) -> Result<(PathBuf, std::fs::Metadata), Response> {

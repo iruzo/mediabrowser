@@ -1,5 +1,6 @@
 #[cfg(feature = "api")]
 use crate::endpoints;
+#[cfg(feature = "httpd")]
 use crate::endpoints::handle_file_server;
 #[cfg(feature = "ui")]
 use crate::endpoints::handle_ui_path;
@@ -177,10 +178,15 @@ async fn route(request: Request<Incoming>) -> Response {
         return handle_ui_path(&parts.uri, &parts.headers).await;
     }
 
-    match (&parts.method, path) {
-        (&Method::GET, "/favicon.ico") => response::status(StatusCode::OK),
-        _ => handle_file_server(path.trim_start_matches('/'), &parts.headers).await,
+    if parts.method == Method::GET && path == "/favicon.ico" {
+        return response::status(StatusCode::OK);
     }
+
+    #[cfg(feature = "httpd")]
+    return handle_file_server(path.trim_start_matches('/'), &parts.headers).await;
+
+    #[cfg(not(feature = "httpd"))]
+    response::text(StatusCode::NOT_FOUND, "Not found")
 }
 
 async fn serve(request: Request<Incoming>) -> Result<Response, Infallible> {

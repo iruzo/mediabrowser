@@ -1,9 +1,11 @@
 #[cfg(feature = "api")]
 pub mod api;
+#[cfg(feature = "httpd")]
 pub mod httpd;
 #[cfg(feature = "ui")]
 pub mod ui;
 
+#[cfg(feature = "httpd")]
 pub use httpd::handle_file_server;
 #[cfg(feature = "ui")]
 pub(crate) use ui::handle_ui_path;

@@ -1,3 +1,4 @@
+#[cfg(any(feature = "api", feature = "httpd"))]
 mod file;
 pub mod mime;
 #[cfg(feature = "api")]
@@ -8,7 +9,10 @@ pub mod types;
 #[cfg(feature = "api")]
 mod walk;
 
-pub(crate) use file::{resolve_path, serve_file};
+#[cfg(any(feature = "ui", feature = "httpd"))]
+pub(crate) use file::resolve_path;
+#[cfg(any(feature = "api", feature = "httpd"))]
+pub(crate) use file::serve_file;
 pub use server::run;
 #[cfg(feature = "api")]
 pub(crate) use server::{field, read_form, require, Form};

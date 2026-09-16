@@ -14,27 +14,33 @@
 cargo run
 ```
 
-The default build includes the API and UI and exposes all routes described
-below. To run only the HTTP file server, without `/api` or `/ui`:
+The default build includes the API and UI. Use these commands for each
+supported combination:
 
 ```bash
-cargo run --no-default-features
-```
+# HTTPD only
+cargo run --no-default-features --features httpd
 
-To run the HTTP file server and API without the UI:
-
-```bash
+# API only
 cargo run --no-default-features --features api
+
+# API and UI (default)
+cargo run
+
+# HTTPD, API, and UI
+cargo run --all-features
 ```
 
 The application runs on **port 30003** with:
 
-- **Apache like httpd at root**: `http://localhost:30003/`
+- **Apache like httpd at root** when built with `httpd`:
+  `http://localhost:30003/`
   - Examples:
     - `http://localhost:30003/` - Root directory listing
     - `http://localhost:30003/folder/` - Folder listing
     - `http://localhost:30003/folder/file.mp4` - Direct file access
-- **Media browser under `/ui/`**: `http://localhost:30003/ui/`
+- **Media browser under `/ui/`** when built with `ui`:
+  `http://localhost:30003/ui/`
   - `http://localhost:30003/ui/folder/` browses the same directory as
     `http://localhost:30003/folder/`
   - `http://localhost:30003/ui/folder/file.mp4` obtains the file through

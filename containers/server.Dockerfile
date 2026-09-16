@@ -6,7 +6,7 @@ WORKDIR /app
 COPY . .
 
 ENV RUSTFLAGS="-C target-feature=+crt-static"
-RUN cargo build --locked --release --target x86_64-unknown-linux-musl --no-default-features --features api
+RUN cargo build --locked --release --target x86_64-unknown-linux-musl --no-default-features --features api httpd
 RUN strip /app/target/x86_64-unknown-linux-musl/release/mediabrowser || true
 
 FROM scratch
