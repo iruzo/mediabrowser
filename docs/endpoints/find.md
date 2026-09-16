@@ -1,7 +1,8 @@
-# GET /api/find
+# POST /api/find
 
 List or search paths as JSON. By default the response is an array of strings.
-Directories end with `/`. All parameters are optional:
+Directories end with `/`. Parameters are submitted as URL-encoded form fields,
+and all are optional:
 `path` scopes the walk, `type` keeps `dir`, `file`, or `all` paths before
 query filtering, and `query` filters the returned paths by space-separated
 terms (max 500 results when searching). `type` defaults to `all`.
@@ -14,12 +15,17 @@ fallback rather than a MIME guarantee. Metadata defaults to `false`.
 Matching is case-insensitive unless the query contains an
 uppercase letter.
 
-```sh
-curl "http://localhost:30003/api/find?path=folder&query=report&type=dir"
+```html
+<form method="post" action="/api/find">
+  <input name="path" value="folder">
+  <input name="query" value="report">
+  <input type="hidden" name="type" value="dir">
+  <button type="submit">Find</button>
+</form>
 ```
 
 ```sh
-curl -G \
+curl \
   --data-urlencode "path=folder" \
   --data-urlencode "query=report" \
   --data-urlencode "type=dir" \

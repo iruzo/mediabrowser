@@ -211,7 +211,7 @@ async function findPaths(
   if (query) params.set("query", query);
   if (!recursive) params.set("recursive", "false");
   if (metadata) params.set("metadata", "true");
-  const response = await request(`/api/find?${params}`);
+  const response = await post("/api/find", params);
   return response.json();
 }
 

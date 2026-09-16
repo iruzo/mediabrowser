@@ -221,8 +221,10 @@ mod tests {
         );
         assert!(PAGE.contains("IntersectionObserver"));
         assert!(PAGE.contains("metadata"));
+        assert!(PAGE.contains("post(\"/api/find\""));
         assert!(PAGE.contains("/api/cat"));
         assert!(PAGE.contains("URL.createObjectURL"));
+        assert!(!PAGE.contains("/api/find?"));
         assert!(!PAGE.contains("function fileUrl"));
         assert!(!PAGE.contains("{{CSS}}"));
         assert!(!PAGE.contains("UI_SCRIPT"));

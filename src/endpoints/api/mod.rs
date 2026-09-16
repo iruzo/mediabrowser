@@ -26,8 +26,8 @@ const DOWNLOAD_FORM_LIMIT: usize = 1024 * 1024;
 
 pub async fn route(parts: &Parts, body: Incoming) -> Option<Response> {
     let response = match (&parts.method, parts.uri.path()) {
-        (&Method::GET, "/api/find") => find_route(parts).await,
         (&Method::POST, "/api/cat") => into_response(cat_route(parts, body).await),
+        (&Method::POST, "/api/find") => into_response(find_route(body).await),
         (&Method::POST, "/api/download") => into_response(download_route(body).await),
         (&Method::POST, "/api/upload") => upload_route(parts, body).await,
         (&Method::POST, "/api/rm") => into_response(rm_route(body).await),
@@ -51,16 +51,16 @@ fn into_response(result: Result<Response, Response>) -> Response {
     }
 }
 
-async fn find_route(parts: &Parts) -> Response {
-    let form = crate::parse_form(parts.uri.query().unwrap_or_default().as_bytes());
-    handle_find(
+async fn find_route(body: Incoming) -> Result<Response, Response> {
+    let form = read_form(body, SMALL_FORM_LIMIT).await?;
+    Ok(handle_find(
         field(&form, "path"),
         field(&form, "query"),
         field(&form, "type"),
         field(&form, "recursive"),
         field(&form, "metadata"),
     )
-    .await
+    .await)
 }
 
 async fn download_route(body: Incoming) -> Result<Response, Response> {

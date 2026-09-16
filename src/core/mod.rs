@@ -11,7 +11,7 @@ mod walk;
 pub(crate) use file::{resolve_path, serve_file};
 pub use server::run;
 #[cfg(feature = "api")]
-pub(crate) use server::{field, parse_form, read_form, require, Form};
+pub(crate) use server::{field, read_form, require, Form};
 #[cfg(feature = "api")]
 pub(crate) use types::path_metadata;
 #[cfg(feature = "api")]

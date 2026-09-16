@@ -112,7 +112,7 @@ async fn read_body(mut body: Incoming, limit: usize) -> Result<Bytes, Response> 
 pub(crate) type Form = Vec<(String, String)>;
 
 #[cfg(feature = "api")]
-pub(crate) fn parse_form(bytes: &[u8]) -> Form {
+fn parse_form(bytes: &[u8]) -> Form {
     bytes
         .split(|&b| b == b'&')
         .filter(|pair| !pair.is_empty())
