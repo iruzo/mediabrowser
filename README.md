@@ -64,13 +64,13 @@ docker-compose --profile pro up
 ### Docker (HTTPD only)
 
 ```bash
-docker build --file containers/httpd.Dockerfile --tag mediabrowser-httpd .
+docker build --build-arg FEATURES=httpd --tag mediabrowser-httpd .
 ```
 
 ### Docker (HTTPD + API)
 
 ```bash
-docker build --file containers/server.Dockerfile --tag mediabrowser-server .
+docker build --build-arg FEATURES=api,httpd --tag mediabrowser-server .
 ```
 
 ### Docker (oneline)
@@ -84,9 +84,6 @@ sudo docker image inspect mediabrowser >/dev/null 2>&1 || sudo docker build -t m
 ### Environment Variables
 
 ```bash
-# Set log level (optional)
-export RUST_LOG=debug
-
 # Custom data directory (optional, defaults to /data)
 export DATA_DIR=/path/to/your/files
 

@@ -107,7 +107,7 @@ fn generate_directory_listing(path: &str, items: &[DirectoryItem]) -> String {
             list_items.push('/');
         }
         list_items.push_str(r#""> "#);
-        list_items.push_str(name);
+        escape_html_into(name, &mut list_items);
         if item.is_dir {
             list_items.push('/');
         }
@@ -115,6 +115,7 @@ fn generate_directory_listing(path: &str, items: &[DirectoryItem]) -> String {
     }
 
     let mut html = String::with_capacity(list_items.len() + display_path.len() * 2 + 128);
+    let escaped_path = escape_html(display_path);
     let _ = write!(
         html,
         r#"<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
@@ -126,14 +127,33 @@ fn generate_directory_listing(path: &str, items: &[DirectoryItem]) -> String {
 <h1>Index of {}</h1>
 <ul>{}</ul>
 </body></html>"#,
-        display_path, display_path, list_items
+        escaped_path, escaped_path, list_items
     );
     html
 }
 
+fn escape_html(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    escape_html_into(value, &mut escaped);
+    escaped
+}
+
+fn escape_html_into(value: &str, output: &mut String) {
+    for character in value.chars() {
+        match character {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            '"' => output.push_str("&quot;"),
+            '\'' => output.push_str("&#39;"),
+            _ => output.push(character),
+        }
+    }
+}
+
 #[cfg(all(test, unix))]
 mod tests {
-    use super::serve_directory;
+    use super::{escape_html, serve_directory};
     use crate::response::Body;
     use hyper::http::StatusCode;
     use std::os::unix::fs::symlink;
@@ -169,5 +189,10 @@ mod tests {
         assert!(!html.contains("broken-link"));
 
         std::fs::remove_dir_all(root).expect("remove test directory");
+    }
+
+    #[test]
+    fn escapes_html_text() {
+        assert_eq!(escape_html("<&>\"'"), "&lt;&amp;&gt;&quot;&#39;");
     }
 }

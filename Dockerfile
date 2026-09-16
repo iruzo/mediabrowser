@@ -18,11 +18,14 @@ COPY --from=minifier /static/index.html ./src/endpoints/ui/index.html
 COPY --from=minifier /static/style.css ./src/endpoints/ui/style.css
 COPY --from=minifier /static/script.js ./src/endpoints/ui/script.js
 
-# ARG FEATURES
+ARG FEATURES=
 
 ENV RUSTFLAGS="-C target-feature=+crt-static"
-# RUN cargo build --release --target x86_64-unknown-linux-musl ${FEATURES:+--features "$FEATURES"}
-RUN cargo build --locked --release --target x86_64-unknown-linux-musl
+RUN if [ -n "$FEATURES" ]; then \
+        cargo build --locked --release --target x86_64-unknown-linux-musl --no-default-features --features "$FEATURES"; \
+    else \
+        cargo build --locked --release --target x86_64-unknown-linux-musl; \
+    fi
 RUN strip /app/target/x86_64-unknown-linux-musl/release/mediabrowser || true
 
 FROM scratch
