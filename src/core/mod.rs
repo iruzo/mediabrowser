@@ -1,3 +1,4 @@
+mod file;
 pub mod mime;
 #[cfg(feature = "api")]
 pub mod multipart;
@@ -7,6 +8,7 @@ pub mod types;
 #[cfg(feature = "api")]
 mod walk;
 
+pub(crate) use file::serve_file;
 pub use server::run;
 #[cfg(feature = "api")]
 pub(crate) use server::{field, parse_form, read_form, require, Form};

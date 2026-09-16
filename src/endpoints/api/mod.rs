@@ -1,3 +1,4 @@
+mod cat;
 mod cp;
 mod download;
 mod find;
@@ -8,6 +9,7 @@ mod upload;
 
 use crate::response::Response;
 use crate::{field, read_form, require, Form};
+use cat::handle_cat;
 use cp::handle_cp;
 use download::handle_download;
 use find::handle_find;
@@ -25,6 +27,7 @@ const DOWNLOAD_FORM_LIMIT: usize = 1024 * 1024;
 pub async fn route(parts: &Parts, body: Incoming) -> Option<Response> {
     let response = match (&parts.method, parts.uri.path()) {
         (&Method::GET, "/api/find") => find_route(parts).await,
+        (&Method::POST, "/api/cat") => into_response(cat_route(parts, body).await),
         (&Method::POST, "/api/download") => into_response(download_route(body).await),
         (&Method::POST, "/api/upload") => upload_route(parts, body).await,
         (&Method::POST, "/api/rm") => into_response(rm_route(body).await),
@@ -35,6 +38,11 @@ pub async fn route(parts: &Parts, body: Incoming) -> Option<Response> {
     };
 
     Some(response)
+}
+
+async fn cat_route(parts: &Parts, body: Incoming) -> Result<Response, Response> {
+    let form = read_form(body, SMALL_FORM_LIMIT).await?;
+    Ok(handle_cat(field(&form, "path"), &parts.headers).await)
 }
 
 fn into_response(result: Result<Response, Response>) -> Response {
