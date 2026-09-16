@@ -112,7 +112,7 @@ async fn resolve_directory(path: Option<&str>) -> FindResult<(PathBuf, PathBuf)>
     }
 
     let root = fs::canonicalize(data_dir()).await.map_err(find_error)?;
-    let path = fs::canonicalize(path).await.map_err(find_error)?;
+    let path = fs::canonicalize(path.as_path()).await.map_err(find_error)?;
 
     if !path.starts_with(&root) {
         return Err((

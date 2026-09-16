@@ -31,6 +31,9 @@ cargo run
 cargo run --all-features
 ```
 
+Use `cargo build --locked --release` for the size-optimized executable.
+See [binary size](docs/binary-size.md) for measurements and implementation notes.
+
 The application runs on **port 30003** with:
 
 - **Apache like httpd at root** when built with `httpd`:

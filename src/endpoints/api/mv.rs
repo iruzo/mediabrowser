@@ -32,7 +32,7 @@ pub(crate) async fn move_path(from: &str, to: &str) -> MvResult<()> {
         ));
     }
 
-    match fs::symlink_metadata(&to).await {
+    match fs::symlink_metadata(to.as_path()).await {
         Ok(_) => {
             return Err((
                 StatusCode::CONFLICT,
@@ -44,7 +44,7 @@ pub(crate) async fn move_path(from: &str, to: &str) -> MvResult<()> {
     }
 
     if metadata.is_dir() {
-        let from = fs::canonicalize(&from).await.map_err(move_error)?;
+        let from = fs::canonicalize(from.as_path()).await.map_err(move_error)?;
         let parent = to.parent().ok_or_else(|| {
             (
                 StatusCode::BAD_REQUEST,

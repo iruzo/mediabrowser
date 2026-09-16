@@ -72,7 +72,7 @@ async fn file_response(path: &Path) -> DownloadResult<Response> {
 }
 
 fn tar_response(sources: Vec<Source>) -> Response {
-    let (tx, rx) = mpsc::channel::<Result<Bytes, std::io::Error>>(STREAM_CHANNEL_CAPACITY);
+    let (tx, mut rx) = mpsc::channel::<Result<Bytes, std::io::Error>>(STREAM_CHANNEL_CAPACITY);
 
     tokio::task::spawn_blocking(move || {
         let result = build_tar_stream(&sources, tx.clone());
@@ -81,9 +81,7 @@ fn tar_response(sources: Vec<Source>) -> Response {
         }
     });
 
-    let stream = stream::unfold(rx, |mut rx| async move {
-        rx.recv().await.map(|item| (item, rx))
-    });
+    let stream = stream::poll_fn(move |cx| rx.poll_recv(cx));
     let body = response::stream(stream);
 
     hyper::http::Response::builder()

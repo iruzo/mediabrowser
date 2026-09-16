@@ -32,7 +32,7 @@ pub(crate) async fn copy_path(from: &str, to: &str) -> CpResult<()> {
         ));
     }
 
-    match fs::symlink_metadata(&to).await {
+    match fs::symlink_metadata(to.as_path()).await {
         Ok(_) => {
             return Err((
                 StatusCode::CONFLICT,
@@ -44,7 +44,7 @@ pub(crate) async fn copy_path(from: &str, to: &str) -> CpResult<()> {
     }
 
     if metadata.is_dir() {
-        let from = fs::canonicalize(&from).await.map_err(copy_error)?;
+        let from = fs::canonicalize(from.as_path()).await.map_err(copy_error)?;
 
         if to.starts_with(&from) {
             return Err((
