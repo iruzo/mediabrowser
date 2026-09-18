@@ -22,6 +22,8 @@ use std::pin::pin;
 #[cfg(feature = "api")]
 use std::pin::Pin;
 use std::task::Poll;
+#[cfg(feature = "https")]
+use std::time::Duration;
 use tokio::net::TcpListener;
 
 const PORT: u16 = 30003;
@@ -202,13 +204,26 @@ pub fn run() {
 }
 
 async fn run_async() {
+    #[cfg(feature = "https")]
+    let tls = match super::tls::acceptor() {
+        Ok(tls) => tls,
+        Err(error) => {
+            eprintln!("Failed to configure HTTPS: {error}");
+            std::process::exit(1);
+        }
+    };
     let bind_addr = get_bind_addr();
     let port = get_port();
     let listener = TcpListener::bind((bind_addr, port))
         .await
         .expect("failed to bind server address");
 
-    println!("Server starting on http://{}:{}", bind_addr, port);
+    let scheme = if cfg!(feature = "https") {
+        "https"
+    } else {
+        "http"
+    };
+    println!("Server starting on {}://{}:{}", scheme, bind_addr, port);
     println!("Serving files from: {}", data_dir().display());
 
     let graceful = GracefulShutdown::new();
@@ -230,12 +245,29 @@ async fn run_async() {
         let Ok((stream, _)) = accepted else {
             continue;
         };
-        let connection = hyper::server::conn::http1::Builder::new()
-            .serve_connection(TokioIo::new(stream), service_fn(serve));
-        let connection = graceful.watch(connection);
+        #[cfg(feature = "https")]
+        let tls = tls.clone();
+        let watcher = graceful.watcher();
 
         tokio::spawn(async move {
-            let _ = connection.await;
+            #[cfg(feature = "https")]
+            let stream = {
+                // Bound idle handshakes so they cannot delay shutdown indefinitely.
+                match tokio::time::timeout(Duration::from_secs(10), tls.accept(stream)).await {
+                    Ok(Ok(stream)) => stream,
+                    Ok(Err(error)) => {
+                        eprintln!("TLS handshake failed: {error}");
+                        return;
+                    }
+                    Err(_) => {
+                        eprintln!("TLS handshake timed out");
+                        return;
+                    }
+                }
+            };
+            let connection = hyper::server::conn::http1::Builder::new()
+                .serve_connection(TokioIo::new(stream), service_fn(serve));
+            let _ = watcher.watch(connection).await;
         });
     }
 

@@ -5,6 +5,8 @@ pub mod mime;
 pub mod multipart;
 pub mod response;
 mod server;
+#[cfg(feature = "https")]
+mod tls;
 pub mod types;
 #[cfg(feature = "api")]
 mod walk;

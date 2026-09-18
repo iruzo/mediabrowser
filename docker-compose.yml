@@ -1,7 +1,10 @@
 services:
 
   pro:
-    build: .
+    build:
+      context: .
+      args:
+        FEATURES: ${FEATURES:-api,ui}
     ports:
       - "30003:30003"
     volumes:
@@ -9,6 +12,7 @@ services:
     restart: unless-stopped
     environment:
       - BIND_ADDR=0.0.0.0
+      - TLS_HOSTS=${TLS_HOSTS:-localhost,127.0.0.1}
     profiles:
       - pro
 
@@ -19,7 +23,7 @@ services:
       - |
         apk add --no-cache musl-dev
         cargo install cargo-watch
-        cargo watch -x run
+        cargo watch -x "run --no-default-features --features $$FEATURES"
     working_dir: /app
     # build:
     #   dockerfile: ./Dockerfile
@@ -35,6 +39,8 @@ services:
     ports:
       - "30003:30003"
     environment:
+      - FEATURES=${FEATURES:-api,ui}
       - BIND_ADDR=0.0.0.0
+      - TLS_HOSTS=${TLS_HOSTS:-localhost,127.0.0.1}
     profiles:
       - dev

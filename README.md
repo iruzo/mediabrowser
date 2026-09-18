@@ -14,7 +14,7 @@
 cargo run
 ```
 
-The default build includes the API and UI. Use these commands for each
+The default build includes the API and UI over HTTP. Use these commands for each
 supported combination:
 
 ```bash
@@ -27,7 +27,10 @@ cargo run --no-default-features --features api
 # API and UI (default)
 cargo run
 
-# HTTPD, API, and UI
+# HTTPD, API, and UI over HTTP
+cargo run --features httpd
+
+# All endpoints over HTTPS
 cargo run --all-features
 ```
 
@@ -48,6 +51,41 @@ The application runs on **port 30003** with:
     `http://localhost:30003/folder/`
   - `http://localhost:30003/ui/folder/file.mp4` obtains the file through
     `POST /api/cat` and opens it in the media viewer
+
+### HTTPS
+
+HTTPS is an opt-in Cargo feature. Enable it at compile time:
+
+```sh
+cargo build --locked --release --features https
+cargo run --locked --features https
+```
+
+Without `https`, the server serves plain HTTP and excludes the TLS and
+certificate-generation dependencies. Use this build behind your own reverse
+proxy. `--all-features` includes HTTPS; there is no runtime protocol switch.
+
+With `https`, the server generates a self-signed certificate and private key automatically
+at startup. Both exist only in memory: no certificate files, database, or
+persistent storage are used. Every restart creates a new certificate.
+The HTTPS listener uses the same `BIND_ADDR` and `PORT`.
+
+The certificate covers `localhost` and `127.0.0.1` by default. For access from
+other devices, set the DNS names and IP addresses clients will use:
+
+```sh
+BIND_ADDR=0.0.0.0 TLS_HOSTS=media.local,192.168.1.10 cargo run --locked --features https
+```
+
+`TLS_HOSTS` is a comma-separated list. `BIND_ADDR=0.0.0.0` controls listening;
+it does not add the device's network addresses to the certificate. The Compose
+profiles also use `TLS_HOSTS` from the environment.
+Browsers show a self-signed certificate warning, and accepting it may be
+necessary again after a restart. For local testing, curl can use `--insecure`:
+
+```sh
+curl --insecure --compressed https://localhost:30003/ui/
+```
 
 ### Docker (Development)
 
@@ -73,6 +111,21 @@ docker build --build-arg FEATURES=httpd --tag mediabrowser-httpd .
 docker build --build-arg FEATURES=api,httpd --tag mediabrowser-server .
 ```
 
+### Docker (HTTPS)
+
+```sh
+docker build --build-arg FEATURES=api,ui,https --tag localhost/mediabrowser-https .
+```
+
+For either Compose profile, set `FEATURES=api,ui,https` to compile HTTPS:
+
+```sh
+FEATURES=api,ui,https docker-compose --profile pro up --build
+FEATURES=api,ui,https docker-compose --profile dev up
+```
+
+Compose defaults to `FEATURES=api,ui` (HTTP).
+
 ### Docker (oneline)
 ```bash
 docker image inspect mediabrowser >/dev/null 2>&1 || docker build -t mediabrowser https://github.com/iruzo/mediabrowser.git && docker run -p 30003:30003 -e BIND_ADDR=0.0.0.0 -v $(pwd)/data:/data mediabrowser
@@ -93,12 +146,16 @@ export BIND_ADDR=127.0.0.1
 
 # Port (optional, defaults to 30003)
 export PORT=30003
+
+# Names and IPs in the in-memory certificate (https feature only)
+export TLS_HOSTS=localhost,127.0.0.1
 ```
 
 ## API Endpoints
 
 Each endpoint is documented with curl and HTML form examples in
-[docs/endpoints/](./docs/endpoints/).
+[docs/endpoints/](./docs/endpoints/). These examples use the default HTTP build;
+for an HTTPS build, use `https://` and add `--insecure` for local curl testing.
 
 All `/api/*` operations accept parameters in POST bodies: URL-encoded forms,
 or multipart forms for uploads. The HTML examples use URLs relative to this
