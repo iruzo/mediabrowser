@@ -191,7 +191,22 @@ async fn route(request: Request<Incoming>) -> Response {
     response::text(StatusCode::NOT_FOUND, "Not found")
 }
 
-async fn serve(request: Request<Incoming>) -> Result<Response, Infallible> {
+async fn serve(
+    request: Request<Incoming>,
+    #[cfg(feature = "cors")] origin: Option<hyper::http::HeaderValue>,
+) -> Result<Response, Infallible> {
+    #[cfg(feature = "cors")]
+    if let Some(origin) = origin {
+        let mut response = match super::cors::preflight(&request) {
+            Some(response) => response,
+            None => route(request).await,
+        };
+        response
+            .headers_mut()
+            .insert(hyper::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
+        return Ok(response);
+    }
+
     Ok(route(request).await)
 }
 
@@ -204,6 +219,14 @@ pub fn run() {
 }
 
 async fn run_async() {
+    #[cfg(feature = "cors")]
+    let origin = match super::cors::origin() {
+        Ok(origin) => origin,
+        Err(error) => {
+            eprintln!("Failed to configure CORS: {error}");
+            std::process::exit(1);
+        }
+    };
     #[cfg(feature = "https")]
     let tls = match super::tls::acceptor() {
         Ok(tls) => tls,
@@ -247,6 +270,8 @@ async fn run_async() {
         };
         #[cfg(feature = "https")]
         let tls = tls.clone();
+        #[cfg(feature = "cors")]
+        let origin = origin.clone();
         let watcher = graceful.watcher();
 
         tokio::spawn(async move {
@@ -265,8 +290,15 @@ async fn run_async() {
                     }
                 }
             };
+            let service = service_fn(move |request| {
+                serve(
+                    request,
+                    #[cfg(feature = "cors")]
+                    origin.clone(),
+                )
+            });
             let connection = hyper::server::conn::http1::Builder::new()
-                .serve_connection(TokioIo::new(stream), service_fn(serve));
+                .serve_connection(TokioIo::new(stream), service);
             let _ = watcher.watch(connection).await;
         });
     }

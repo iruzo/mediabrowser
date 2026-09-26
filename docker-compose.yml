@@ -13,6 +13,7 @@ services:
     environment:
       - BIND_ADDR=0.0.0.0
       - TLS_HOSTS=${TLS_HOSTS:-localhost,127.0.0.1}
+      - CORS_ORIGIN=${CORS_ORIGIN:-}
     profiles:
       - pro
 
@@ -42,5 +43,6 @@ services:
       - FEATURES=${FEATURES:-api,ui}
       - BIND_ADDR=0.0.0.0
       - TLS_HOSTS=${TLS_HOSTS:-localhost,127.0.0.1}
+      - CORS_ORIGIN=${CORS_ORIGIN:-}
     profiles:
       - dev

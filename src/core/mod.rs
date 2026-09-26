@@ -1,3 +1,5 @@
+#[cfg(feature = "cors")]
+mod cors;
 #[cfg(any(feature = "api", feature = "httpd"))]
 mod file;
 pub mod mime;

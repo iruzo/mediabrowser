@@ -87,6 +87,33 @@ necessary again after a restart. For local testing, curl can use `--insecure`:
 curl --insecure --compressed https://localhost:30003/ui/
 ```
 
+### CORS
+
+CORS is an opt-in Cargo feature with no additional dependencies:
+
+```sh
+CORS_ORIGIN=http://localhost:8080 cargo run --locked --features cors
+```
+
+Set `CORS_ORIGIN` to one HTTP(S) origin (scheme, host, and optional port, without
+a trailing slash or path), or `*` to allow any origin. An unset or empty value
+disables CORS. Invalid values stop startup. Without the `cors` feature, the
+environment variable is ignored and CORS code is excluded from the build.
+
+When enabled, all responses include the configured `Access-Control-Allow-Origin`,
+including errors and redirects. CORS preflight requests receive `204 No Content`
+and allow `GET` and `POST` with `Content-Type` and `Range` request headers.
+Credentialed cross-origin requests are not enabled. CORS controls browser access
+to responses; it does not provide authentication.
+
+Combine `cors` with `https` to use both features. `--all-features` includes CORS
+support, but still requires `CORS_ORIGIN` to enable it. Both Compose profiles
+forward `CORS_ORIGIN`:
+
+```sh
+FEATURES=api,ui,cors CORS_ORIGIN=http://localhost:8080 docker-compose --profile pro up --build
+```
+
 ### Docker (Development)
 
 ```bash
@@ -149,6 +176,9 @@ export PORT=30003
 
 # Names and IPs in the in-memory certificate (https feature only)
 export TLS_HOSTS=localhost,127.0.0.1
+
+# Allowed browser origin, or * (cors feature only; unset or empty disables CORS)
+export CORS_ORIGIN=http://localhost:8080
 ```
 
 ## API Endpoints
