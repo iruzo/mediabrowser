@@ -70,7 +70,7 @@ at startup. Both exist only in memory: no certificate files, database, or
 persistent storage are used. Every restart creates a new certificate.
 The HTTPS listener uses the same `BIND_ADDR` and `PORT`.
 
-The certificate covers `localhost` and `127.0.0.1` by default. For access from
+The certificate covers `localhost`, `127.0.0.1`, and `::1` by default. For access from
 other devices, set the DNS names and IP addresses clients will use:
 
 ```sh
@@ -133,8 +133,11 @@ Connections are filtered by socket peer IP before HTTP or TLS handling.
 
 Lists are read once at startup. Without `firewall`, both variables are ignored.
 
-The filter accepts IPv6 entries, such as `WHITELIST=127.0.0.1,::1,2001:db8::/32`,
-but the listener currently accepts IPv4 connections only.
+The filter supports IPv4 and IPv6 entries, such as
+`WHITELIST=127.0.0.1,::1,2001:db8::/32`. On a dual-stack listener, IPv4 peers
+reported as mapped IPv6 addresses (such as `::ffff:127.0.0.1`) are matched against
+IPv4 rules; use IPv4 addresses and CIDRs for these clients. Native IPv6 peers use
+IPv6 rules.
 
 Both Compose profiles forward these variables; set `FEATURES=api,ui,firewall`
 to enable filtering.
@@ -193,14 +196,15 @@ sudo docker image inspect mediabrowser >/dev/null 2>&1 || sudo docker build -t m
 export DATA_DIR=/path/to/your/files
 
 # Bind address (optional, defaults to 127.0.0.1)
-# Use 0.0.0.0 to expose to other devices in the network
+# Use 0.0.0.0 for all IPv4 interfaces or :: for all IPv6 interfaces
+# Use ::1 for IPv6 localhost; dual-stack behavior depends on the OS
 export BIND_ADDR=127.0.0.1
 
 # Port (optional, defaults to 30003)
 export PORT=30003
 
 # Names and IPs in the in-memory certificate (https feature only)
-export TLS_HOSTS=localhost,127.0.0.1
+export TLS_HOSTS=localhost,127.0.0.1,::1
 
 # Allowed browser origin, or * (cors feature only; unset or empty disables CORS)
 export CORS_ORIGIN=http://localhost:8080

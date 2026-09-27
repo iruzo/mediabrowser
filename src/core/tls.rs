@@ -7,7 +7,7 @@ use tokio_rustls::TlsAcceptor;
 pub(super) fn acceptor() -> Result<TlsAcceptor, Box<dyn Error>> {
     let hosts = match std::env::var("TLS_HOSTS") {
         Ok(hosts) => hosts,
-        Err(std::env::VarError::NotPresent) => "localhost,127.0.0.1".to_string(),
+        Err(std::env::VarError::NotPresent) => "localhost,127.0.0.1,::1".to_string(),
         Err(error) => return Err(error.into()),
     };
     let names: Vec<String> = hosts

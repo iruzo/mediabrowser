@@ -17,7 +17,7 @@ use hyper_util::rt::TokioIo;
 use hyper_util::server::graceful::GracefulShutdown;
 use std::convert::Infallible;
 use std::future::{poll_fn, Future};
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::pin::pin;
 #[cfg(feature = "api")]
 use std::pin::Pin;
@@ -27,11 +27,11 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 
 const PORT: u16 = 30003;
-const BIND_ADDR: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+const BIND_ADDR: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
 
-fn get_bind_addr() -> Ipv4Addr {
+fn get_bind_addr() -> IpAddr {
     match std::env::var("BIND_ADDR") {
-        Ok(value) => match value.parse::<Ipv4Addr>() {
+        Ok(value) => match value.parse::<IpAddr>() {
             Ok(addr) => addr,
             Err(_) => {
                 eprintln!("Invalid BIND_ADDR='{}', using default {}", value, BIND_ADDR);
@@ -243,9 +243,8 @@ async fn run_async() {
             std::process::exit(1);
         }
     };
-    let bind_addr = get_bind_addr();
-    let port = get_port();
-    let listener = TcpListener::bind((bind_addr, port))
+    let address = SocketAddr::new(get_bind_addr(), get_port());
+    let listener = TcpListener::bind(address)
         .await
         .expect("failed to bind server address");
 
@@ -254,7 +253,11 @@ async fn run_async() {
     } else {
         "http"
     };
-    println!("Server starting on {}://{}:{}", scheme, bind_addr, port);
+    println!(
+        "Server starting on {}://{}",
+        scheme,
+        listener.local_addr().unwrap()
+    );
     println!("Serving files from: {}", data_dir().display());
 
     let graceful = GracefulShutdown::new();

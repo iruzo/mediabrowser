@@ -75,6 +75,8 @@ impl Firewall {
     }
 
     pub(super) fn allows(&self, ip: IpAddr) -> bool {
+        // Dual-stack sockets report IPv4 peers as mapped IPv6 addresses.
+        let ip = ip.to_canonical();
         match self {
             Self::Whitelist(ranges) => contains(ranges, ip),
             Self::Blacklist(ranges) => !contains(ranges, ip),
@@ -374,6 +376,26 @@ mod tests {
             let ip = ip.parse().unwrap();
             assert_eq!(whitelist.allows(ip), listed);
             assert_eq!(blacklist.allows(ip), !listed);
+        }
+    }
+
+    #[test]
+    fn mapped_ipv4_peers_use_ipv4_rules() {
+        for (value, ip, listed) in [
+            ("127.0.0.1", "::ffff:127.0.0.1", true),
+            ("192.0.2.0/24", "::ffff:192.0.2.42", true),
+            ("192.0.2.0/24", "::ffff:192.0.3.42", false),
+            ("0.0.0.0/0", "::ffff:255.255.255.255", true),
+            ("0.0.0.0/0", "::1", false),
+            ("0.0.0.0/0", "::127.0.0.1", false),
+            ("::/0", "::ffff:127.0.0.1", false),
+            ("::1", "::1", true),
+        ] {
+            let whitelist = Firewall::Whitelist(parse_list("WHITELIST", value).unwrap());
+            let blacklist = Firewall::Blacklist(parse_list("BLACKLIST", value).unwrap());
+            let ip = ip.parse().unwrap();
+            assert_eq!(whitelist.allows(ip), listed, "{value}: {ip}");
+            assert_eq!(blacklist.allows(ip), !listed, "{value}: {ip}");
         }
     }
 
