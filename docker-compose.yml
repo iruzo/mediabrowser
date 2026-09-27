@@ -14,6 +14,8 @@ services:
       - BIND_ADDR=0.0.0.0
       - TLS_HOSTS=${TLS_HOSTS:-localhost,127.0.0.1}
       - CORS_ORIGIN=${CORS_ORIGIN:-}
+      - WHITELIST
+      - BLACKLIST
     profiles:
       - pro
 
@@ -44,5 +46,7 @@ services:
       - BIND_ADDR=0.0.0.0
       - TLS_HOSTS=${TLS_HOSTS:-localhost,127.0.0.1}
       - CORS_ORIGIN=${CORS_ORIGIN:-}
+      - WHITELIST
+      - BLACKLIST
     profiles:
       - dev

@@ -2,6 +2,8 @@
 mod cors;
 #[cfg(any(feature = "api", feature = "httpd"))]
 mod file;
+#[cfg(feature = "firewall")]
+mod firewall;
 pub mod mime;
 #[cfg(feature = "api")]
 pub mod multipart;

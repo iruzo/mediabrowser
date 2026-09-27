@@ -114,6 +114,31 @@ forward `CORS_ORIGIN`:
 FEATURES=api,ui,cors CORS_ORIGIN=http://localhost:8080 docker-compose --profile pro up --build
 ```
 
+### Firewall
+
+Firewall is an opt-in Cargo feature with no additional dependencies:
+
+```sh
+WHITELIST=127.0.0.1,192.168.1.20 cargo run --locked --features firewall
+BLACKLIST=192.168.1.0/24,10.0.0.5 cargo run --locked --features firewall
+```
+
+Connections are filtered by socket peer IP before HTTP or TLS handling.
+`WHITELIST` and `BLACKLIST` accept comma-separated IP addresses or CIDRs.
+
+- If `WHITELIST` is set, only matching clients are allowed; `BLACKLIST` is ignored.
+- An empty `WHITELIST` blocks everyone.
+- Otherwise, `BLACKLIST` blocks matching clients; unset or empty allows everyone.
+- Invalid entries in the active list stop startup.
+
+Lists are read once at startup. Without `firewall`, both variables are ignored.
+
+The filter accepts IPv6 entries, such as `WHITELIST=127.0.0.1,::1,2001:db8::/32`,
+but the listener currently accepts IPv4 connections only.
+
+Both Compose profiles forward these variables; set `FEATURES=api,ui,firewall`
+to enable filtering.
+
 ### Docker (Development)
 
 ```bash

@@ -219,6 +219,14 @@ pub fn run() {
 }
 
 async fn run_async() {
+    #[cfg(feature = "firewall")]
+    let firewall = match super::firewall::Firewall::from_env() {
+        Ok(firewall) => firewall,
+        Err(error) => {
+            eprintln!("Failed to configure firewall: {error}");
+            std::process::exit(1);
+        }
+    };
     #[cfg(feature = "cors")]
     let origin = match super::cors::origin() {
         Ok(origin) => origin,
@@ -265,9 +273,15 @@ async fn run_async() {
         let Some(accepted) = accepted else {
             break;
         };
-        let Ok((stream, _)) = accepted else {
+        let Ok((stream, peer)) = accepted else {
             continue;
         };
+        #[cfg(feature = "firewall")]
+        if !firewall.allows(peer.ip()) {
+            continue;
+        }
+        #[cfg(not(feature = "firewall"))]
+        let _ = peer;
         #[cfg(feature = "https")]
         let tls = tls.clone();
         #[cfg(feature = "cors")]

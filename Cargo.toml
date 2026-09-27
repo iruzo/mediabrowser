@@ -7,6 +7,7 @@ edition = "2021"
 default = ["api", "ui"]
 https = ["dep:rcgen", "dep:tokio-rustls"]
 cors = []
+firewall = []
 httpd = ["dep:tokio-util"]
 api = ["dep:tar", "dep:tokio-util", "tokio/sync"]
 ui = ["api", "dep:flate2"]
