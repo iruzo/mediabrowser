@@ -8,222 +8,28 @@
 
 ## Usage
 
-### Direct Execution
+### Run
 
-```bash
+```sh
 cargo run
 ```
 
-The default build includes the API and UI over HTTP. Use these commands for each
-supported combination:
+The default build enables `api` and `ui` over HTTP. Enable other combinations with
+Cargo features; see the [feature documentation](./docs/features/).
 
-```bash
-# HTTPD only
-cargo run --no-default-features --features httpd
-
-# API only
-cargo run --no-default-features --features api
-
-# API and UI (default)
-cargo run
-
-# HTTPD, API, and UI over HTTP
-cargo run --features httpd
-
-# All endpoints over HTTPS
+```sh
+# All features, including HTTPS, CORS, and firewall
 cargo run --all-features
+
+# Release build
+cargo build --locked --release
 ```
 
-Use `cargo build --locked --release` for the size-optimized executable.
-See [binary size](docs/binary-size.md) for measurements and implementation notes.
+The server listens on `127.0.0.1:30003`. Set `BIND_ADDR` and `PORT`.
 
-The application runs on **port 30003** with:
+For containers: `docker compose --profile pro up --build`.
 
-- **Apache like httpd at root** when built with `httpd`:
-  `http://localhost:30003/`
-  - Examples:
-    - `http://localhost:30003/` - Root directory listing
-    - `http://localhost:30003/folder/` - Folder listing
-    - `http://localhost:30003/folder/file.mp4` - Direct file access
-- **Media browser under `/ui/`** when built with `ui`:
-  `http://localhost:30003/ui/`
-  - `http://localhost:30003/ui/folder/` browses the same directory as
-    `http://localhost:30003/folder/`
-  - `http://localhost:30003/ui/folder/file.mp4` obtains the file through
-    `POST /api/cat` and opens it in the media viewer
-
-### HTTPS
-
-HTTPS is an opt-in Cargo feature. Enable it at compile time:
-
-```sh
-cargo build --locked --release --features https
-cargo run --locked --features https
-```
-
-Without `https`, the server serves plain HTTP and excludes the TLS and
-certificate-generation dependencies. Use this build behind your own reverse
-proxy. `--all-features` includes HTTPS; there is no runtime protocol switch.
-
-With `https`, the server generates a self-signed certificate and private key automatically
-at startup. Both exist only in memory: no certificate files, database, or
-persistent storage are used. Every restart creates a new certificate.
-The HTTPS listener uses the same `BIND_ADDR` and `PORT`.
-
-The certificate covers `localhost`, `127.0.0.1`, and `::1` by default. For access from
-other devices, set the DNS names and IP addresses clients will use:
-
-```sh
-BIND_ADDR=0.0.0.0 TLS_HOSTS=media.local,192.168.1.10 cargo run --locked --features https
-```
-
-`TLS_HOSTS` is a comma-separated list. `BIND_ADDR=0.0.0.0` controls listening;
-it does not add the device's network addresses to the certificate. The Compose
-profiles also use `TLS_HOSTS` from the environment.
-Browsers show a self-signed certificate warning, and accepting it may be
-necessary again after a restart. For local testing, curl can use `--insecure`:
-
-```sh
-curl --insecure --compressed https://localhost:30003/ui/
-```
-
-### CORS
-
-CORS is an opt-in Cargo feature with no additional dependencies:
-
-```sh
-CORS_ORIGIN=http://localhost:8080 cargo run --locked --features cors
-```
-
-Set `CORS_ORIGIN` to one HTTP(S) origin (scheme, host, and optional port, without
-a trailing slash or path), or `*` to allow any origin. An unset or empty value
-disables CORS. Invalid values stop startup. Without the `cors` feature, the
-environment variable is ignored and CORS code is excluded from the build.
-
-When enabled, all responses include the configured `Access-Control-Allow-Origin`,
-including errors and redirects. CORS preflight requests receive `204 No Content`
-and allow `GET` and `POST` with `Content-Type` and `Range` request headers.
-Credentialed cross-origin requests are not enabled. CORS controls browser access
-to responses; it does not provide authentication.
-
-Combine `cors` with `https` to use both features. `--all-features` includes CORS
-support, but still requires `CORS_ORIGIN` to enable it. Both Compose profiles
-forward `CORS_ORIGIN`:
-
-```sh
-FEATURES=api,ui,cors CORS_ORIGIN=http://localhost:8080 docker-compose --profile pro up --build
-```
-
-### Firewall
-
-Firewall is an opt-in Cargo feature with no additional dependencies:
-
-```sh
-WHITELIST=127.0.0.1,192.168.1.20 cargo run --locked --features firewall
-BLACKLIST=192.168.1.0/24,10.0.0.5 cargo run --locked --features firewall
-```
-
-Connections are filtered by socket peer IP before HTTP or TLS handling.
-`WHITELIST` and `BLACKLIST` accept comma-separated IP addresses or CIDRs.
-
-- If `WHITELIST` is set, only matching clients are allowed; `BLACKLIST` is ignored.
-- An empty `WHITELIST` blocks everyone.
-- Otherwise, `BLACKLIST` blocks matching clients; unset or empty allows everyone.
-- Invalid entries in the active list stop startup.
-
-Lists are read once at startup. Without `firewall`, both variables are ignored.
-
-The filter supports IPv4 and IPv6 entries, such as
-`WHITELIST=127.0.0.1,::1,2001:db8::/32`. On a dual-stack listener, IPv4 peers
-reported as mapped IPv6 addresses (such as `::ffff:127.0.0.1`) are matched against
-IPv4 rules; use IPv4 addresses and CIDRs for these clients. Native IPv6 peers use
-IPv6 rules.
-
-Both Compose profiles forward these variables; set `FEATURES=api,ui,firewall`
-to enable filtering.
-
-### Docker (Development)
-
-```bash
-docker-compose --profile dev up
-```
-
-### Docker (Production)
-
-```bash
-docker-compose --profile pro up
-```
-
-### Docker (HTTPD only)
-
-```bash
-docker build --build-arg FEATURES=httpd --tag mediabrowser-httpd .
-```
-
-### Docker (HTTPD + API)
-
-```bash
-docker build --build-arg FEATURES=api,httpd --tag mediabrowser-server .
-```
-
-### Docker (HTTPS)
-
-```sh
-docker build --build-arg FEATURES=api,ui,https --tag localhost/mediabrowser-https .
-```
-
-For either Compose profile, set `FEATURES=api,ui,https` to compile HTTPS:
-
-```sh
-FEATURES=api,ui,https docker-compose --profile pro up --build
-FEATURES=api,ui,https docker-compose --profile dev up
-```
-
-Compose defaults to `FEATURES=api,ui` (HTTP).
-
-### Docker (oneline)
-```bash
-docker image inspect mediabrowser >/dev/null 2>&1 || docker build -t mediabrowser https://github.com/iruzo/mediabrowser.git && docker run -p 30003:30003 -e BIND_ADDR=0.0.0.0 -v $(pwd)/data:/data mediabrowser
-```
-```bash
-sudo docker image inspect mediabrowser >/dev/null 2>&1 || sudo docker build -t mediabrowser https://github.com/iruzo/mediabrowser.git && sudo docker run -p 30003:30003 -e BIND_ADDR=0.0.0.0 -v $(pwd)/data:/data mediabrowser
-```
-
-### Environment Variables
-
-```bash
-# Custom data directory (optional, defaults to /data)
-export DATA_DIR=/path/to/your/files
-
-# Bind address (optional, defaults to 127.0.0.1)
-# Use 0.0.0.0 for all IPv4 interfaces or :: for all IPv6 interfaces
-# Use ::1 for IPv6 localhost; dual-stack behavior depends on the OS
-export BIND_ADDR=127.0.0.1
-
-# Port (optional, defaults to 30003)
-export PORT=30003
-
-# Names and IPs in the in-memory certificate (https feature only)
-export TLS_HOSTS=localhost,127.0.0.1,::1
-
-# Allowed browser origin, or * (cors feature only; unset or empty disables CORS)
-export CORS_ORIGIN=http://localhost:8080
-```
-
-## API Endpoints
-
-Each endpoint is documented with curl and HTML form examples in
-[docs/endpoints/](./docs/endpoints/). These examples use the default HTTP build;
-for an HTTPS build, use `https://` and add `--insecure` for local curl testing.
-
-All `/api/*` operations accept parameters in POST bodies: URL-encoded forms,
-or multipart forms for uploads. The HTML examples use URLs relative to this
-server. Successful upload, copy, move, remove, and mkdir requests return an
-empty `200 OK` response.
-
-`/api/find` and `/api/cat` are the only API endpoints that do not fully support
-an HTML-only UI: use the optional [HTTPD file server](docs/endpoints/httpd.md)
-instead for directory browsing and direct media URLs without JavaScript.
+See the [endpoint documentation](./docs/endpoints/) for details.
 
 ## Security and HTTP Behavior
 
@@ -248,5 +54,5 @@ A client that explicitly rejects gzip receives `406 Not Acceptable`.
 
 ## TODO
 
-- Implement security and user system
+- User management
 - Text file editing (?)
