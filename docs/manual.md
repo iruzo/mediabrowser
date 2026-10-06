@@ -39,6 +39,7 @@ the desired comma-separated list.
 - [HTTPS](./features/https.md)
 - [CORS](./features/cors.md)
 - [Firewall](./features/firewall.md)
+- [Multithreading](./features/multithreading.md)
 
 See the [endpoint documentation](./endpoints/) for individual request formats
 and responses.

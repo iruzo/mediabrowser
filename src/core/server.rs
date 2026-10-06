@@ -270,7 +270,11 @@ async fn serve(
 }
 
 pub fn run() {
-    tokio::runtime::Builder::new_current_thread()
+    #[cfg(feature = "multithreading")]
+    let mut runtime = tokio::runtime::Builder::new_multi_thread();
+    #[cfg(not(feature = "multithreading"))]
+    let mut runtime = tokio::runtime::Builder::new_current_thread();
+    runtime
         .enable_all()
         .build()
         .expect("failed to build runtime")

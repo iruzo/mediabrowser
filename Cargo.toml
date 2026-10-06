@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 default = ["api", "ui"]
+multithreading = ["tokio/rt-multi-thread"]
 https = ["dep:rcgen", "dep:tokio-rustls"]
 cors = []
 firewall = []
