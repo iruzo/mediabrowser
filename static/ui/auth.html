@@ -1,0 +1,33 @@
+<dialog id="auth-dialog" aria-labelledby="auth-title">
+  <form id="auth-form" method="post" action="/api/login">
+    <h2 id="auth-title">login</h2>
+    <input
+      name="username"
+      aria-label="username"
+      placeholder="username"
+      autocomplete="username"
+      required
+    />
+    <input
+      name="password"
+      type="password"
+      aria-label="password"
+      placeholder="password"
+      autocomplete="current-password"
+      required
+    />
+    <input
+      name="new_password"
+      type="password"
+      aria-label="new password"
+      placeholder="new password"
+      autocomplete="new-password"
+      required
+      disabled
+      hidden
+    />
+    <p id="auth-error" role="alert" hidden></p>
+    <button type="submit" id="auth-submit">login</button>
+    <button type="button" id="auth-cancel" hidden>cancel</button>
+  </form>
+</dialog>

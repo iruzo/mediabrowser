@@ -1,4 +1,6 @@
-#[cfg(feature = "api")]
+#[cfg(feature = "auth")]
+use super::auth;
+#[cfg(any(feature = "api", feature = "auth"))]
 use crate::endpoints;
 #[cfg(feature = "httpd")]
 use crate::endpoints::handle_file_server;
@@ -208,25 +210,35 @@ async fn route(request: Request<Incoming>, access: &Access) -> Response {
 
 async fn dispatch(
     request: Request<Incoming>,
-    #[cfg(feature = "auth")] auth: &super::auth::Auth,
+    #[cfg(feature = "auth")] auth: &auth::Auth,
     #[cfg(feature = "cors")] cors: bool,
 ) -> Response {
     #[cfg(feature = "auth")]
     let access = {
         if request.uri().path() == "/api/login" {
-            return auth.login(request).await;
+            return endpoints::api::handle_login(auth, request).await;
         }
         if request.uri().path() == "/api/logout" {
-            return auth.logout(&request);
+            return endpoints::api::handle_logout(auth, &request);
         }
         let Some(access) = auth.session(request.headers()).await else {
-            return super::auth::redirect("/api/login");
+            #[cfg(feature = "ui")]
+            if request.method() == Method::GET {
+                // Serve the application shell so it can display its login form.
+                if request.uri().path() == "/ui" {
+                    return handle_ui_path(request.uri(), request.headers()).await;
+                }
+                if request.uri().path().starts_with("/ui/") {
+                    return crate::endpoints::handle_ui_request(request.headers());
+                }
+            }
+            return auth::login_required();
         };
-        if request.method() == Method::POST && !super::auth::same_origin(request.headers()) {
+        if request.method() == Method::POST && !auth::same_origin(request.headers()) {
             return response::text(StatusCode::FORBIDDEN, "Access denied");
         }
         if request.uri().path() == "/api/password" {
-            return auth.password(request, &access).await;
+            return endpoints::api::handle_password(auth, request, &access).await;
         }
         access
     };
@@ -243,7 +255,7 @@ async fn dispatch(
 
 async fn serve(
     request: Request<Incoming>,
-    #[cfg(feature = "auth")] auth: Arc<super::auth::Auth>,
+    #[cfg(feature = "auth")] auth: Arc<auth::Auth>,
     #[cfg(feature = "cors")] origin: Option<hyper::http::HeaderValue>,
 ) -> Result<Response, Infallible> {
     #[allow(unused_mut)]
@@ -270,7 +282,11 @@ async fn serve(
 }
 
 pub fn run() {
-    tokio::runtime::Builder::new_current_thread()
+    #[cfg(feature = "multithreading")]
+    let mut runtime = tokio::runtime::Builder::new_multi_thread();
+    #[cfg(not(feature = "multithreading"))]
+    let mut runtime = tokio::runtime::Builder::new_current_thread();
+    runtime
         .enable_all()
         .build()
         .expect("failed to build runtime")
@@ -279,7 +295,7 @@ pub fn run() {
 
 async fn run_async() {
     #[cfg(feature = "auth")]
-    let auth = Arc::new(super::auth::Auth::new());
+    let auth = Arc::new(auth::Auth::new());
     #[cfg(feature = "firewall")]
     let firewall = match super::firewall::Firewall::from_env() {
         Ok(firewall) => firewall,

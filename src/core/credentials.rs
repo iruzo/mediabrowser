@@ -1,7 +1,47 @@
+use crate::response::{self, Response};
+use http_body::Body;
+use hyper::body::Incoming;
+use hyper::http::{Request, StatusCode};
 use sha2::{Digest, Sha512};
+use std::future::poll_fn;
+use std::pin::Pin;
+
+pub(crate) async fn read_credentials(
+    request: Request<Incoming>,
+    changing: bool,
+) -> Result<Credentials, Response> {
+    let content_type = request
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if !content_type
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .eq_ignore_ascii_case("application/x-www-form-urlencoded")
+    {
+        return Err(response::status(StatusCode::UNSUPPORTED_MEDIA_TYPE));
+    }
+    let mut body = request.into_body();
+    let mut form = AuthForm::new(changing);
+    while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
+        let Ok(frame) = frame else {
+            return Err(response::status(StatusCode::BAD_REQUEST));
+        };
+        if let Ok(bytes) = frame.into_data() {
+            if form.push(&bytes).is_err() {
+                return Err(response::status(StatusCode::BAD_REQUEST));
+            }
+        }
+    }
+    form.finish()
+        .map_err(|_| response::status(StatusCode::BAD_REQUEST))
+}
 
 // Decode as chunks arrive so password length does not determine memory use.
-pub(super) struct AuthForm {
+struct AuthForm {
     name: Vec<u8>,
     value: bool,
     escape: bool,
@@ -18,7 +58,7 @@ pub(super) struct AuthForm {
 }
 
 impl AuthForm {
-    pub(super) fn new(changing: bool) -> Self {
+    fn new(changing: bool) -> Self {
         Self {
             name: Vec::new(),
             value: false,
@@ -36,7 +76,7 @@ impl AuthForm {
         }
     }
 
-    pub(super) fn push(&mut self, bytes: &[u8]) -> Result<(), ()> {
+    fn push(&mut self, bytes: &[u8]) -> Result<(), ()> {
         for &byte in bytes {
             if byte == b'&' {
                 self.end_field()?;
@@ -115,7 +155,7 @@ impl AuthForm {
         Ok(())
     }
 
-    pub(super) fn finish(mut self) -> Result<Credentials, ()> {
+    fn finish(mut self) -> Result<Credentials, ()> {
         self.end_field()?;
         if !self.has_password
             || self.password_empty
@@ -133,7 +173,7 @@ impl AuthForm {
     }
 }
 
-pub(super) struct Credentials {
+pub(crate) struct Credentials {
     pub username: String,
     pub password: [u8; 64],
     pub new_password: [u8; 64],

@@ -1,10 +1,11 @@
-# GET/POST /api/password
+# POST /api/password
 
 Requires the optional `auth` feature and an active session. The `api` feature
-is not required. Unauthenticated requests redirect with 303 to `/api/login`.
+is not required. Unauthenticated requests return 401. Authenticated GET
+requests return 405; this endpoint never serves HTML.
 
-Visit this endpoint directly in the browser. GET displays a centered form with
-current password, new password, and change password button, in that order.
+With `ui,auth`, choose `change password` from the bundled interface's menu to
+open its password dialog. The dialog submits to this API.
 
 POST accepts `application/x-www-form-urlencoded` fields:
 
@@ -17,9 +18,9 @@ Unicode are preserved.
 
 A successful change atomically replaces `.shadow` with a fresh salt and 512-bit
 hash, invalidates that user's other sessions, and keeps the current session.
-Other users' sessions remain active. The response redirects with 303 to `/ui/`
-when UI is enabled, otherwise `/`. See [authentication](../features/auth.md)
-for password storage details.
+Other users' sessions remain active. The response is `200 OK` with an empty
+body, independently of the `ui` feature, and never redirects. See
+[authentication](../features/auth.md) for password storage details.
 
 A wrong current password returns 401 and leaves the password and sessions
 unchanged. Invalid forms return 400, unsupported content types 415, unsupported

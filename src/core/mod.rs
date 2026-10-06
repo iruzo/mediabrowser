@@ -1,8 +1,10 @@
 pub mod access;
 #[cfg(feature = "auth")]
-mod auth;
+pub(crate) mod auth;
 #[cfg(feature = "cors")]
 mod cors;
+#[cfg(feature = "auth")]
+pub(crate) mod credentials;
 #[cfg(any(feature = "api", feature = "httpd"))]
 mod file;
 #[cfg(feature = "firewall")]

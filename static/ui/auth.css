@@ -1,0 +1,38 @@
+#auth-dialog {
+  width: min(20rem, calc(100% - 2rem));
+  margin: auto;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+#auth-dialog::backdrop {
+  background: var(--bg);
+}
+
+#auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+#auth-form h2 {
+  font-size: 1rem;
+}
+
+#auth-form input,
+#auth-form button {
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+#auth-form button {
+  cursor: pointer;
+}
+
+#auth-error {
+  overflow-wrap: anywhere;
+}

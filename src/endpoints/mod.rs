@@ -1,4 +1,4 @@
-#[cfg(feature = "api")]
+#[cfg(any(feature = "api", feature = "auth"))]
 pub mod api;
 #[cfg(feature = "httpd")]
 pub mod httpd;

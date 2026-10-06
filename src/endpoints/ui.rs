@@ -229,6 +229,13 @@ mod tests {
         assert!(!PAGE.contains("{{CSS}}"));
         assert!(!PAGE.contains("UI_SCRIPT"));
         assert_eq!(PAGE.contains("Login required"), cfg!(feature = "auth"));
+        assert_eq!(
+            attribute_count("id", "auth-dialog"),
+            usize::from(cfg!(feature = "auth"))
+        );
+        assert_eq!(PAGE.contains("/api/password"), cfg!(feature = "auth"));
+        assert_eq!(PAGE.contains("/api/logout"), cfg!(feature = "auth"));
+        assert!(!PAGE.contains("AUTH_UI"));
     }
 
     #[test]

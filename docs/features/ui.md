@@ -21,7 +21,7 @@ UI assets live in `static/ui/`. JavaScript is split by responsibility:
 
 `build.rs` assembles these files in an explicit order into the existing embedded,
 gzipped page. They share the same script scope; no JavaScript bundler or extra
-asset requests are required. It selects `request-auth.js` only with the `auth`
-feature; other builds use `request.js`. When adding a script, update the ordered
-list in `build.rs`. The standalone forms are `static/login.html` and `static/password.html` and
-need no JavaScript. Docker copies and minifies the entire `static/` directory.
+asset requests are required. When adding a script, update the ordered list in
+`build.rs`. Docker copies and minifies the entire `static/` directory.
+
+See [authentication](./auth.md#bundled-ui) for optional account controls.

@@ -1,40 +1,31 @@
-mod form;
-
-use super::access::Access;
-use super::types::{data_dir, path_metadata};
 use crate::response::{self, Response};
+use crate::types::{data_dir, path_metadata};
+use crate::Access;
 use argon2::password_hash::Output;
 use argon2::{Algorithm, Argon2, Params, PasswordHash, PasswordVerifier, Version};
-use form::{AuthForm, Credentials};
-use http_body::Body;
-use hyper::body::Incoming;
-use hyper::http::{HeaderMap, Method, Request, StatusCode};
+use hyper::http::{HeaderMap, StatusCode};
 use std::collections::HashMap;
-use std::future::poll_fn;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use tokio::sync::Semaphore;
 
 const COOKIE: &str = "mediabrowser_session";
-const PAGE: &str = include_str!("../../static/login.html");
-const PASSWORD_PAGE: &str = include_str!("../../static/password.html");
 
-pub(super) struct Auth {
-    sessions: Arc<Mutex<HashMap<String, String>>>,
-    login: Arc<Semaphore>,
+pub(crate) struct Auth {
+    pub(crate) sessions: Arc<Mutex<HashMap<String, String>>>,
+    pub(crate) login: Arc<Semaphore>,
 }
 
 impl Auth {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             login: Arc::new(Semaphore::new(1)),
         }
     }
 
-    pub(super) async fn session(&self, headers: &HeaderMap) -> Option<Access> {
+    pub(crate) async fn session(&self, headers: &HeaderMap) -> Option<Access> {
         let token = cookie(headers)?;
         let username = self.sessions.lock().ok()?.get(token)?.clone();
         let directory = account(&username).await?;
@@ -47,153 +38,9 @@ impl Auth {
         }
         Some(Access { username })
     }
-
-    pub(super) async fn login(&self, request: Request<Incoming>) -> Response {
-        if request.method() == Method::GET {
-            return response::html(PAGE);
-        }
-        if request.method() != Method::POST {
-            return response::status(StatusCode::METHOD_NOT_ALLOWED);
-        }
-        if !same_origin(request.headers()) {
-            return response::text(StatusCode::FORBIDDEN, "Access denied");
-        }
-        let previous = cookie(request.headers()).map(str::to_owned);
-        let Credentials {
-            username, password, ..
-        } = match read_credentials(request, false).await {
-            Ok(form) => form,
-            Err(response) => return response,
-        };
-        let Some(directory) = account(&username).await else {
-            return denied();
-        };
-        // Serialize password setup and hashing to bound memory and avoid competing first logins.
-        let Ok(permit) = self.login.clone().acquire_owned().await else {
-            return denied();
-        };
-        let valid =
-            tokio::task::spawn_blocking(move || (verify(&directory, &password, true), permit))
-                .await;
-        let _permit = match valid {
-            Ok((Ok(true), permit)) => permit,
-            Ok((Ok(false), _)) => return denied(),
-            _ => return response::text(StatusCode::INTERNAL_SERVER_ERROR, "Login unavailable"),
-        };
-        let mut random = [0; 32];
-        if getrandom::fill(&mut random).is_err() {
-            return response::text(StatusCode::INTERNAL_SERVER_ERROR, "Login unavailable");
-        }
-        let mut token = String::with_capacity(64);
-        for byte in random {
-            use std::fmt::Write;
-            write!(token, "{byte:02x}").expect("write token");
-        }
-        let mut sessions = self.sessions.lock().expect("session lock");
-        if let Some(previous) = previous {
-            sessions.remove(&previous);
-        }
-        sessions.insert(token.clone(), username);
-        let destination = if cfg!(feature = "ui") { "/ui/" } else { "/" };
-        let mut response = redirect(destination);
-        set_cookie(&mut response, &token, false);
-        response
-    }
-    pub(super) async fn password(&self, request: Request<Incoming>, access: &Access) -> Response {
-        if request.method() == Method::GET {
-            return response::html(PASSWORD_PAGE);
-        }
-        if request.method() != Method::POST {
-            return response::status(StatusCode::METHOD_NOT_ALLOWED);
-        }
-        let token = cookie(request.headers()).unwrap_or("").to_owned();
-        let form = match read_credentials(request, true).await {
-            Ok(form) => form,
-            Err(response) => return response,
-        };
-        let Some(directory) = account(&access.username).await else {
-            return redirect("/api/login");
-        };
-        let Ok(permit) = self.login.clone().acquire_owned().await else {
-            return response::status(StatusCode::INTERNAL_SERVER_ERROR);
-        };
-        let sessions = self.sessions.clone();
-        let username = access.username.clone();
-        // Complete replacement and session invalidation even if the client disconnects.
-        let changed = tokio::task::spawn_blocking(move || -> io::Result<bool> {
-            let _permit = permit;
-            if sessions.lock().expect("session lock").get(&token) != Some(&username) {
-                return Ok(false);
-            }
-            if !verify(&directory, &form.password, false)? {
-                return Ok(false);
-            }
-            replace_password(&directory, &form.new_password)?;
-            sessions
-                .lock()
-                .expect("session lock")
-                .retain(|key, user| user != &username || key == &token);
-            Ok(true)
-        })
-        .await;
-        match changed {
-            Ok(Ok(true)) => redirect(if cfg!(feature = "ui") { "/ui/" } else { "/" }),
-            Ok(Ok(false)) => response::text(StatusCode::UNAUTHORIZED, "Password change denied"),
-            _ => response::text(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Password change unavailable",
-            ),
-        }
-    }
-
-    pub(super) fn logout(&self, request: &Request<Incoming>) -> Response {
-        if request.method() != Method::GET {
-            return response::status(StatusCode::METHOD_NOT_ALLOWED);
-        }
-        if let Some(token) = cookie(request.headers()) {
-            self.sessions.lock().expect("session lock").remove(token);
-        }
-        let mut response = redirect("/api/login");
-        set_cookie(&mut response, "", true);
-        response
-    }
 }
 
-async fn read_credentials(
-    request: Request<Incoming>,
-    changing: bool,
-) -> Result<Credentials, Response> {
-    let content_type = request
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if !content_type
-        .split(';')
-        .next()
-        .unwrap_or("")
-        .trim()
-        .eq_ignore_ascii_case("application/x-www-form-urlencoded")
-    {
-        return Err(response::status(StatusCode::UNSUPPORTED_MEDIA_TYPE));
-    }
-    let mut body = request.into_body();
-    let mut form = AuthForm::new(changing);
-    while let Some(frame) = poll_fn(|cx| Pin::new(&mut body).poll_frame(cx)).await {
-        let Ok(frame) = frame else {
-            return Err(response::status(StatusCode::BAD_REQUEST));
-        };
-        if let Ok(bytes) = frame.into_data() {
-            if form.push(&bytes).is_err() {
-                return Err(response::status(StatusCode::BAD_REQUEST));
-            }
-        }
-    }
-    form.finish()
-        .map_err(|_| response::status(StatusCode::BAD_REQUEST))
-}
-
-fn set_cookie(response: &mut Response, token: &str, clear: bool) {
+pub(crate) fn set_cookie(response: &mut Response, token: &str, clear: bool) {
     let secure = if cfg!(feature = "https") {
         "; Secure"
     } else {
@@ -208,7 +55,7 @@ fn set_cookie(response: &mut Response, token: &str, clear: bool) {
     );
 }
 
-fn cookie(headers: &HeaderMap) -> Option<&str> {
+pub(crate) fn cookie(headers: &HeaderMap) -> Option<&str> {
     headers
         .get_all("cookie")
         .iter()
@@ -221,7 +68,7 @@ fn cookie(headers: &HeaderMap) -> Option<&str> {
         })
 }
 
-pub(super) fn same_origin(headers: &HeaderMap) -> bool {
+pub(crate) fn same_origin(headers: &HeaderMap) -> bool {
     let Some(origin) = headers.get("origin") else {
         return true;
     };
@@ -255,7 +102,7 @@ fn account_path(username: &str) -> Option<PathBuf> {
     })
 }
 
-async fn account(username: &str) -> Option<PathBuf> {
+pub(crate) async fn account(username: &str) -> Option<PathBuf> {
     let directory = account_path(username)?;
     path_metadata(&directory)
         .await
@@ -292,7 +139,7 @@ fn save_password(path: &Path, record: &[u8; 80]) -> io::Result<()> {
     file.sync_all()
 }
 
-fn replace_password(directory: &Path, password: &[u8; 64]) -> io::Result<()> {
+pub(crate) fn replace_password(directory: &Path, password: &[u8; 64]) -> io::Result<()> {
     let record = password_record(password)?;
     let temporary = directory.join(".shadow.new");
     save_password(&temporary, &record)?;
@@ -303,7 +150,7 @@ fn replace_password(directory: &Path, password: &[u8; 64]) -> io::Result<()> {
     result
 }
 
-fn verify(directory: &Path, password: &[u8; 64], setup: bool) -> io::Result<bool> {
+pub(crate) fn verify(directory: &Path, password: &[u8; 64], setup: bool) -> io::Result<bool> {
     let path = directory.join(".shadow");
     match std::fs::symlink_metadata(&path) {
         Ok(metadata) if metadata.is_file() => {
@@ -353,18 +200,8 @@ fn verify(directory: &Path, password: &[u8; 64], setup: bool) -> io::Result<bool
     }
 }
 
-fn denied() -> Response {
-    let mut response = response::html(PAGE);
-    *response.status_mut() = StatusCode::UNAUTHORIZED;
-    response
-}
-
-pub(super) fn redirect(path: &'static str) -> Response {
-    hyper::http::Response::builder()
-        .status(StatusCode::SEE_OTHER)
-        .header("location", path)
-        .body(response::empty())
-        .expect("valid redirect")
+pub(crate) fn login_required() -> Response {
+    response::text(StatusCode::UNAUTHORIZED, "Login required")
 }
 
 #[cfg(test)]

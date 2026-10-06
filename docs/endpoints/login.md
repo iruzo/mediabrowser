@@ -1,12 +1,12 @@
-# GET/POST /api/login
+# POST /api/login
 
 Requires the optional `auth` feature; the `api` feature is not required.
 See [authentication](../features/auth.md) for account provisioning, password
 storage, cookies, and access rules.
 
-GET displays a centered form with username, password, and login button.
-The endpoint is public. Unauthenticated requests to protected endpoints
-redirect here with `303 See Other`.
+The endpoint is public and accepts POST only. GET returns 405; it never serves
+HTML. Unauthenticated requests to protected endpoints return `401 Unauthorized`.
+With `ui,auth`, the bundled interface displays its own login dialog at `/ui/`.
 
 POST accepts `application/x-www-form-urlencoded` fields:
 
@@ -20,11 +20,11 @@ after verification. An invalid or linked `.shadow` prevents login. New password
 files have mode `0600` on Unix. There is no registration option.
 
 Successful login creates an in-memory session, sets its `HttpOnly` cookie, and
-redirects with 303 to `/ui/` when UI is enabled, otherwise `/`. If the request
-contains an existing session cookie, that session is replaced. Responses use
-`Cache-Control: no-store`.
+returns `200 OK` with an empty body. If the request contains an existing session
+cookie, that session is replaced. Responses use `Cache-Control: no-store`.
+The response does not depend on the `ui` feature and never redirects.
 
-Invalid credentials return 401 with the login form. Malformed forms return 400,
+Invalid credentials return 401 with plain text. Malformed forms return 400,
 unsupported content types 415, unsupported methods 405, and login failures
 caused by storage or internal errors 500. An Origin header, when supplied,
 must match the server's scheme and Host; otherwise POST returns 403.

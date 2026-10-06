@@ -20,3 +20,5 @@ CORS_ORIGIN='http://[::1]:8080' cargo run --locked --features cors
 Responses include `Access-Control-Allow-Origin`, including errors and redirects.
 CORS preflight requests receive `204 No Content` and allow `GET` and `POST`
 with `Content-Type` and `Range` request headers. Credentialed requests are not
+supported. See [authentication](./auth.md#custom-frontend-and-origin-checks) for
+its origin and proxy requirements.

@@ -30,6 +30,8 @@ const REQUEST_PATH: &str = "static/ui/request.js";
 const CSS_MARKER: &str = "{{CSS}}";
 #[cfg(feature = "ui")]
 const SCRIPT_MARKER: &str = "UI_SCRIPT";
+#[cfg(feature = "ui")]
+const AUTH_MARKER: &str = "AUTH_UI";
 
 #[cfg(feature = "ui")]
 fn invalid(message: &'static str) -> io::Error {
@@ -84,6 +86,28 @@ fn main() -> io::Result<()> {
     let template = fs::read_to_string(TEMPLATE_PATH)?;
     let css = fs::read_to_string(CSS_PATH)?;
     let mut script = fs::read_to_string(REQUEST_PATH)?;
+    #[cfg(feature = "auth")]
+    let (auth, css) = {
+        for path in [
+            "static/ui/auth.html",
+            "static/ui/auth.css",
+            "static/ui/auth.js",
+        ] {
+            println!("cargo:rerun-if-changed={path}");
+        }
+        script.push_str("\n;\n");
+        script.push_str(&fs::read_to_string("static/ui/auth.js")?);
+        (
+            fs::read_to_string("static/ui/auth.html")?,
+            format!("{css}\n{}", fs::read_to_string("static/ui/auth.css")?),
+        )
+    };
+    #[cfg(not(feature = "auth"))]
+    let auth = "";
+    if template.matches(AUTH_MARKER).count() != 1 {
+        return Err(invalid("UI template must contain one auth marker"));
+    }
+    let template = template.replace(AUTH_MARKER, &auth);
     for path in SCRIPT_PATHS {
         println!("cargo:rerun-if-changed={path}");
         // Separate files even when minification removes their final semicolon.

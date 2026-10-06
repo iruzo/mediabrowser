@@ -39,6 +39,7 @@ the desired comma-separated list.
 - [HTTPS](./features/https.md)
 - [CORS](./features/cors.md)
 - [Firewall](./features/firewall.md)
+- [Multithreading](./features/multithreading.md)
 
 See the [endpoint documentation](./endpoints/) for individual request formats
 and responses.
@@ -50,13 +51,6 @@ from listings and searches. Direct paths to a link, or through one, behave as
 missing paths. Recursive copy and download skip links; moving or removing a
 real directory may move or remove link entries contained by that directory,
 but their targets are never followed.
-
-The optional `auth` feature provides directory-based accounts, private user
-homes, and sessions held only in memory. Without it, there is no login or
-account access control. See [authentication](./features/auth.md) for account
-setup and permissions. Endpoint usage is documented under
-[login](./endpoints/login.md), [logout](./endpoints/logout.md), and
-[password changes](./endpoints/password.md).
 
 ## HTTP behavior
 
