@@ -26,31 +26,21 @@ Accounts are provisioned by creating directories inside `DATA_DIR` (the mounted
 exists; `.home/root/` does not create it. Account directories must be real
 directories, not symbolic links. Usernames are case-sensitive.
 
-Visit `/login`. The page contains username and password fields and a login
-button. The first successful login to an existing account creates its `.shadow`
-file using that password. Later logins must match it. Password setup is serialized,
-and existing passwords are never replaced by login. An invalid or linked
-`.shadow` file prevents login. On Unix, new password files have mode `0600`.
+Use the authentication endpoints:
+
+- [GET/POST /api/login](../endpoints/login.md): log in or set the first password.
+- [GET/POST /api/password](../endpoints/password.md): change your own password.
+- [GET /api/logout](../endpoints/logout.md): end the current session.
+
+These routes require only `auth`, even though their URLs are under `/api`.
+With `auth` disabled, they have no special routing. The former `/login`,
+`/password`, and `/logout` paths have no special routing either.
 
 Create account directories and set their first passwords before exposing the
 server to other people: anyone who can reach an account without `.shadow` can
 set its initial password. For an administrator reset, remove its `.shadow` file
 from the mounted volume and log in again before exposing the account. Restart
 the server to invalidate all sessions.
-
-Visit `/password` while logged in to change your own password, including for root.
-GET displays current-password and new-password fields and a change button.
-POST accepts `application/x-www-form-urlencoded` fields `password` (current)
-and `new_password`. The account comes from the session; no username is accepted.
-Both passwords are required and have no configured length limit. A wrong current
-password returns 401 and leaves the password and sessions unchanged. Invalid
-forms return 400, unsupported content types 415, and other methods 405.
-A successful change atomically replaces `.shadow` with a fresh salt and 512-bit
-hash, invalidates that user's other sessions, and keeps the current session.
-It redirects with 303 to `/ui/` when enabled, otherwise `/`. Other users' sessions
-remain active. No navigation button is added; visit the endpoint directly.
-Unauthenticated requests redirect to `/login`; browser POSTs require a matching
-Origin when supplied, as with other authenticated endpoints.
 
 Regular users can read and modify shared files and their own `.home/<username>/`
 contents. They cannot access `.root/`, another user's home, or any `.shadow` or
@@ -87,15 +77,9 @@ Restarting the app requires everyone to log in again. Cookies use `HttpOnly`,
 Use HTTPS to protect passwords and cookies in transit. The browser cookie has no
 persistent expiration. There is no session timeout.
 
-Visit `/logout` directly in the browser to end the current session. It removes
-that session from memory, expires its cookie, and redirects to `/login`. Other
-sessions remain valid. This endpoint accepts GET and has no UI button. With
-`auth` disabled, `/login`, `/logout`, and `/password` have no special routing.
-
-Unauthenticated requests receive `303 See Other` to `/login`, including API and
-CORS preflight requests. Login itself is public. Successful login redirects to
-`/ui/` when UI is enabled, otherwise `/`. Authenticated responses and the login
-page use `Cache-Control: no-store`. Browser POST requests must have a matching
+Unauthenticated requests receive `303 See Other` to `/api/login`, including API and
+CORS preflight requests. Authenticated responses and the login page use
+`Cache-Control: no-store`. Browser POST requests must have a matching
 Origin when supplied; direct API clients can omit Origin. Cross-origin browser
 sessions are not supported, even with `cors` enabled. A reverse proxy must
 preserve the public Host and scheme used by the server's HTTP/HTTPS listener.

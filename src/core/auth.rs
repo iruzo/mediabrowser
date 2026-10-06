@@ -112,7 +112,7 @@ impl Auth {
             Err(response) => return response,
         };
         let Some(directory) = account(&access.username).await else {
-            return redirect("/login");
+            return redirect("/api/login");
         };
         let Ok(permit) = self.login.clone().acquire_owned().await else {
             return response::status(StatusCode::INTERNAL_SERVER_ERROR);
@@ -153,7 +153,7 @@ impl Auth {
         if let Some(token) = cookie(request.headers()) {
             self.sessions.lock().expect("session lock").remove(token);
         }
-        let mut response = redirect("/login");
+        let mut response = redirect("/api/login");
         set_cookie(&mut response, "", true);
         response
     }

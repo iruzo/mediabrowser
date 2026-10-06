@@ -54,7 +54,9 @@ but their targets are never followed.
 The optional `auth` feature provides directory-based accounts, private user
 homes, and sessions held only in memory. Without it, there is no login or
 account access control. See [authentication](./features/auth.md) for account
-setup, permissions, login, logout, and password changes.
+setup and permissions. Endpoint usage is documented under
+[login](./endpoints/login.md), [logout](./endpoints/logout.md), and
+[password changes](./endpoints/password.md).
 
 ## HTTP behavior
 

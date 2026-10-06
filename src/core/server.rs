@@ -213,19 +213,19 @@ async fn dispatch(
 ) -> Response {
     #[cfg(feature = "auth")]
     let access = {
-        if request.uri().path() == "/login" {
+        if request.uri().path() == "/api/login" {
             return auth.login(request).await;
         }
-        if request.uri().path() == "/logout" {
+        if request.uri().path() == "/api/logout" {
             return auth.logout(&request);
         }
         let Some(access) = auth.session(request.headers()).await else {
-            return super::auth::redirect("/login");
+            return super::auth::redirect("/api/login");
         };
         if request.method() == Method::POST && !super::auth::same_origin(request.headers()) {
             return response::text(StatusCode::FORBIDDEN, "Access denied");
         }
-        if request.uri().path() == "/password" {
+        if request.uri().path() == "/api/password" {
             return auth.password(request, &access).await;
         }
         access

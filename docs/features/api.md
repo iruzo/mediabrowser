@@ -15,3 +15,8 @@ The endpoint reference is available in [docs/endpoints](../endpoints/).
 The API includes file discovery, reads, downloads, uploads, copies, moves,
 removal, and directory creation. Successful mutation requests return `200 OK`
 with an empty response body.
+
+The optional `auth` feature adds [login](../endpoints/login.md),
+[password changes](../endpoints/password.md), and [logout](../endpoints/logout.md)
+under `/api`. These authentication endpoints work independently of the `api`
+feature; see [authentication](./auth.md) for account setup and access rules.
