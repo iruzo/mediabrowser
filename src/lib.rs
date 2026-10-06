@@ -1,4 +1,5 @@
 mod core;
+pub use core::access::Access;
 pub mod endpoints;
 
 #[cfg(feature = "api")]

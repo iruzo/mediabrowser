@@ -8,7 +8,7 @@ pub(crate) struct WalkEntry {
 }
 
 // Iterative (not recursive) so traversal depth can never overflow the native stack
-pub(crate) fn walk(root: &Path) -> io::Result<Vec<WalkEntry>> {
+pub(crate) fn walk(root: &Path, allowed: impl Fn(&Path) -> bool) -> io::Result<Vec<WalkEntry>> {
     if std::fs::symlink_metadata(root)?.file_type().is_symlink() {
         return Err(io::Error::from(io::ErrorKind::NotFound));
     }
@@ -22,6 +22,9 @@ pub(crate) fn walk(root: &Path) -> io::Result<Vec<WalkEntry>> {
         for entry in read_dir {
             let entry = entry.map_err(|error| with_path(error, &dir))?;
             let path = entry.path();
+            if !allowed(&path) {
+                continue;
+            }
             let file_type = entry_file_type(&entry).map_err(|error| with_path(error, &path))?;
 
             if file_type.is_symlink() {
@@ -71,7 +74,7 @@ mod tests {
         symlink("file.txt", root.join("file-link")).expect("create file link");
         symlink("directory", root.join("directory-link")).expect("create directory link");
 
-        let mut paths = walk(&root)
+        let mut paths = walk(&root, |_| true)
             .expect("walk test directory")
             .into_iter()
             .map(|entry| {
@@ -88,7 +91,7 @@ mod tests {
         assert_eq!(paths, ["directory", "directory/nested.txt", "file.txt"]);
 
         assert_eq!(
-            walk(&root.join("directory-link"))
+            walk(&root.join("directory-link"), |_| true)
                 .err()
                 .expect("linked root must be missing")
                 .kind(),

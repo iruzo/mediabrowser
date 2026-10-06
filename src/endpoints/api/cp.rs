@@ -9,14 +9,14 @@ const MAX_PATH_SIZE: usize = 4096;
 
 pub(crate) type CpResult<T> = Result<T, (StatusCode, String)>;
 
-pub async fn handle_cp(from: &str, to: &str) -> Response {
-    match copy_path(from, to).await {
+pub async fn handle_cp(from: &str, to: &str, access: &crate::Access) -> Response {
+    match copy_path(from, to, access).await {
         Ok(()) => response::status(StatusCode::OK),
         Err((status, message)) => response::text(status, message),
     }
 }
 
-pub(crate) async fn copy_path(from: &str, to: &str) -> CpResult<()> {
+pub(crate) async fn copy_path(from: &str, to: &str, access: &crate::Access) -> CpResult<()> {
     let from = cp_path(from, "source")?;
     let to = cp_path(to, "destination")?;
     let metadata = path_metadata(&from).await.map_err(copy_error)?;
@@ -53,7 +53,8 @@ pub(crate) async fn copy_path(from: &str, to: &str) -> CpResult<()> {
             ));
         }
 
-        return tokio::task::spawn_blocking(move || copy_directory(&from, &to))
+        let access = access.clone();
+        return tokio::task::spawn_blocking(move || copy_directory(&from, &to, &root, &access))
             .await
             .map_err(|error| {
                 (
@@ -73,10 +74,10 @@ pub(crate) async fn copy_path(from: &str, to: &str) -> CpResult<()> {
     fs::copy(from, to).await.map(|_| ()).map_err(copy_error)
 }
 
-fn copy_directory(from: &Path, to: &Path) -> CpResult<()> {
+fn copy_directory(from: &Path, to: &Path, root: &Path, access: &crate::Access) -> CpResult<()> {
     std::fs::create_dir_all(to).map_err(copy_error)?;
 
-    for entry in walk(from).map_err(walk_error)? {
+    for entry in walk(from, |path| access.entry(root, path)).map_err(walk_error)? {
         let target = match entry.path.strip_prefix(from) {
             Ok(relative) => to.join(relative),
             Err(_) => continue,

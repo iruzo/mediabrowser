@@ -20,8 +20,9 @@ pub async fn handle_find(
     path_type: Option<&str>,
     recursive: Option<&str>,
     metadata: Option<&str>,
+    access: &crate::Access,
 ) -> Response {
-    match find(path, query, path_type, recursive, metadata).await {
+    match find(path, query, path_type, recursive, metadata, access).await {
         Ok(json) => response::json(json),
         Err((status, message)) => response::text(status, message),
     }
@@ -33,6 +34,7 @@ async fn find(
     path_type: Option<&str>,
     recursive: Option<&str>,
     metadata: Option<&str>,
+    access: &crate::Access,
 ) -> FindResult<String> {
     let (path, root) = resolve_directory(path).await?;
     let query = query.unwrap_or_default().trim().to_string();
@@ -50,11 +52,12 @@ async fn find(
         return Err((StatusCode::BAD_REQUEST, "query is too long".to_string()));
     }
 
+    let access = access.clone();
     tokio::task::spawn_blocking(move || {
         let mut paths = if recursive {
-            list_paths(&path, &root)?
+            list_paths(&path, &root, &access)?
         } else {
-            list_direct_paths(&path, &root)?
+            list_direct_paths(&path, &root, &access)?
         };
         filter_path_type(&mut paths, &path_type);
         filter_paths(&mut paths, &query);
@@ -134,10 +137,10 @@ fn directory_path(path: Option<&str>) -> FindResult<PathBuf> {
     data_path(path).ok_or_else(|| (StatusCode::BAD_REQUEST, "invalid path".to_string()))
 }
 
-fn list_paths(path: &Path, root: &Path) -> FindResult<Vec<String>> {
+fn list_paths(path: &Path, root: &Path, access: &crate::Access) -> FindResult<Vec<String>> {
     let mut paths = Vec::new();
 
-    for entry in walk(path).map_err(walk_error)? {
+    for entry in walk(path, |path| access.entry(root, path)).map_err(walk_error)? {
         if !entry.file_type.is_file() && !entry.file_type.is_dir() {
             continue;
         }
@@ -150,12 +153,15 @@ fn list_paths(path: &Path, root: &Path) -> FindResult<Vec<String>> {
     Ok(paths)
 }
 
-fn list_direct_paths(path: &Path, root: &Path) -> FindResult<Vec<String>> {
+fn list_direct_paths(path: &Path, root: &Path, access: &crate::Access) -> FindResult<Vec<String>> {
     let mut paths = Vec::new();
     let entries = std::fs::read_dir(path).map_err(walk_error)?;
 
     for entry in entries {
         let entry = entry.map_err(walk_error)?;
+        if !access.entry(root, &entry.path()) {
+            continue;
+        }
         let file_type = {
             #[cfg(windows)]
             {
@@ -470,7 +476,8 @@ mod tests {
                 .expect("create directory link");
         }
 
-        let mut paths = list_direct_paths(&root, &root).expect("list direct paths");
+        let mut paths = list_direct_paths(&root, &root, &crate::Access::test_root())
+            .expect("list direct paths");
         paths.sort_unstable();
 
         assert_eq!(paths, ["child/", "root.txt"]);

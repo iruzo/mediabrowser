@@ -10,11 +10,22 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 
 #[cfg(feature = "ui")]
-const TEMPLATE_PATH: &str = "src/endpoints/ui/index.html";
+const TEMPLATE_PATH: &str = "static/ui/index.html";
 #[cfg(feature = "ui")]
-const CSS_PATH: &str = "src/endpoints/ui/style.css";
+const CSS_PATH: &str = "static/ui/style.css";
 #[cfg(feature = "ui")]
-const SCRIPT_PATH: &str = "src/endpoints/ui/script.js";
+const SCRIPT_PATHS: &[&str] = &[
+    "static/ui/common.js",
+    "static/ui/state.js",
+    "static/ui/gallery.js",
+    "static/ui/actions.js",
+    "static/ui/viewer.js",
+    "static/ui/init.js",
+];
+#[cfg(all(feature = "ui", feature = "auth"))]
+const REQUEST_PATH: &str = "static/ui/request-auth.js";
+#[cfg(all(feature = "ui", not(feature = "auth")))]
+const REQUEST_PATH: &str = "static/ui/request.js";
 #[cfg(feature = "ui")]
 const CSS_MARKER: &str = "{{CSS}}";
 #[cfg(feature = "ui")]
@@ -68,11 +79,17 @@ fn assemble(template: &str, css: &str, script: &str) -> io::Result<String> {
 fn main() -> io::Result<()> {
     println!("cargo:rerun-if-changed={TEMPLATE_PATH}");
     println!("cargo:rerun-if-changed={CSS_PATH}");
-    println!("cargo:rerun-if-changed={SCRIPT_PATH}");
+    println!("cargo:rerun-if-changed={REQUEST_PATH}");
 
     let template = fs::read_to_string(TEMPLATE_PATH)?;
     let css = fs::read_to_string(CSS_PATH)?;
-    let script = fs::read_to_string(SCRIPT_PATH)?;
+    let mut script = fs::read_to_string(REQUEST_PATH)?;
+    for path in SCRIPT_PATHS {
+        println!("cargo:rerun-if-changed={path}");
+        // Separate files even when minification removes their final semicolon.
+        script.push_str("\n;\n");
+        script.push_str(&fs::read_to_string(path)?);
+    }
     let page = assemble(&template, &css, &script)?;
     let output = PathBuf::from(
         env::var_os("OUT_DIR").ok_or_else(|| invalid("Cargo did not provide OUT_DIR"))?,

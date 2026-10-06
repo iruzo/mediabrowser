@@ -38,6 +38,7 @@ services:
       - ./Cargo.lock:/app/Cargo.lock:z
       - ./build.rs:/app/build.rs:z
       - ./src:/app/src:z
+      - ./static:/app/static:z
       - ./data:/data:z
     ports:
       - "30003:30003"

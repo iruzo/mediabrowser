@@ -13,20 +13,32 @@ struct DirectoryItem {
     is_dir: bool,
 }
 
-pub async fn handle_file_server(requested_path: &str, headers: &HeaderMap) -> Response {
+pub async fn handle_file_server(
+    requested_path: &str,
+    headers: &HeaderMap,
+    access: &crate::Access,
+) -> Response {
+    let decoded = percent_encoding::percent_decode_str(requested_path).decode_utf8_lossy();
+    if let Err(response) = access.check(&decoded, false) {
+        return response;
+    }
     let (file_path, metadata) = match resolve_path(requested_path).await {
         Ok(path) => path,
         Err(response) => return response,
     };
 
     if metadata.is_dir() {
-        serve_directory(&file_path, requested_path).await
+        serve_directory(&file_path, requested_path, access).await
     } else {
         serve_file(&file_path, headers, metadata.len()).await
     }
 }
 
-async fn serve_directory(dir_path: &Path, requested_path: &str) -> Response {
+async fn serve_directory(
+    dir_path: &Path,
+    requested_path: &str,
+    access: &crate::Access,
+) -> Response {
     if !requested_path.is_empty() && !requested_path.ends_with('/') {
         let location = format!("/{}/", requested_path.trim_start_matches('/'));
         return hyper::http::Response::builder()
@@ -46,6 +58,10 @@ async fn serve_directory(dir_path: &Path, requested_path: &str) -> Response {
     let mut items = Vec::new();
 
     while let Ok(Some(entry)) = entries.next_entry().await {
+        let relative = percent_encoding::percent_decode_str(requested_path).decode_utf8_lossy();
+        if !access.allows(&Path::new(relative.as_ref()).join(entry.file_name())) {
+            continue;
+        }
         let file_type = {
             #[cfg(windows)]
             {
@@ -184,7 +200,7 @@ mod tests {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .build()
             .expect("create runtime");
-        let response = runtime.block_on(serve_directory(&root, ""));
+        let response = runtime.block_on(serve_directory(&root, "", &crate::Access::test_root()));
         assert_eq!(response.status(), StatusCode::OK);
         let Body::Full(Some(body)) = response.body() else {
             panic!("expected directory listing body");
@@ -198,7 +214,8 @@ mod tests {
         assert!(!html.contains("broken-link"));
 
         for path in ["folder", "nested/folder", "folder%20name", "/folder"] {
-            let response = runtime.block_on(serve_directory(&root, path));
+            let response =
+                runtime.block_on(serve_directory(&root, path, &crate::Access::test_root()));
             assert_eq!(response.status(), StatusCode::PERMANENT_REDIRECT);
             assert_eq!(
                 response.headers()["location"],
@@ -207,7 +224,11 @@ mod tests {
             assert!(matches!(response.body(), Body::Empty));
         }
 
-        let response = runtime.block_on(serve_directory(&root, "folder/"));
+        let response = runtime.block_on(serve_directory(
+            &root,
+            "folder/",
+            &crate::Access::test_root(),
+        ));
         assert_eq!(response.status(), StatusCode::OK);
 
         std::fs::remove_dir_all(root).expect("remove test directory");

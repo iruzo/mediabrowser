@@ -18,7 +18,7 @@ The default build enables `api` and `ui` over HTTP. Enable other combinations wi
 Cargo features; see the [feature documentation](./docs/features/).
 
 ```sh
-# All features, including HTTPS, CORS, and firewall
+# All features, including authentication, HTTPS, CORS, and firewall
 cargo run --all-features
 
 # Release build
@@ -39,6 +39,15 @@ Direct paths to a link, or through one, behave as missing paths. Recursive copy
 and download skip links; moving or removing a real directory may move or remove
 link entries contained by that directory, but their targets are never followed.
 
+Enable the optional [`auth` feature](./docs/features/auth.md) for directory-based
+accounts, a `/login` page, private user homes, and sessions held only in memory.
+Accounts are provisioned in `.home/<username>/`, with `.root/` for `root`.
+The first login sets the password when the account has no `.shadow` file.
+Root can access all files in the mounted data directory, including `.shadow` files.
+Visit `/logout` to end the current session.
+Visit `/password` to change your password and invalidate your other sessions.
+Without `auth`, there is no login or account access control.
+
 UI and HTTPD directory paths end with `/`. A missing trailing slash on a
 directory is redirected to its canonical path. The UI obtains regular files through
 `POST /api/cat`; unsupported media is displayed as the endpoint response.
@@ -54,5 +63,4 @@ A client that explicitly rejects gzip receives `406 Not Acceptable`.
 
 ## TODO
 
-- User management
 - Text file editing (?)

@@ -24,14 +24,14 @@ struct Source {
     name: PathBuf,
 }
 
-pub async fn handle_download(form: Form) -> Response {
-    match download(form).await {
+pub async fn handle_download(form: Form, access: &crate::Access) -> Response {
+    match download(form, access).await {
         Ok(response) => response,
         Err((status, message)) => response::text(status, message),
     }
 }
 
-async fn download(form: Form) -> DownloadResult<Response> {
+async fn download(form: Form, access: &crate::Access) -> DownloadResult<Response> {
     let sources = source_paths(form)?;
     let root = fs::canonicalize(data_dir()).await.map_err(download_error)?;
     let sources = resolve_sources(sources, &root).await?;
@@ -43,7 +43,7 @@ async fn download(form: Form) -> DownloadResult<Response> {
         }
     }
 
-    Ok(tar_response(sources))
+    Ok(tar_response(sources, root, access.clone()))
 }
 
 async fn is_file(path: &Path) -> bool {
@@ -71,11 +71,11 @@ async fn file_response(path: &Path) -> DownloadResult<Response> {
         .unwrap())
 }
 
-fn tar_response(sources: Vec<Source>) -> Response {
+fn tar_response(sources: Vec<Source>, root: PathBuf, access: crate::Access) -> Response {
     let (tx, mut rx) = mpsc::channel::<Result<Bytes, std::io::Error>>(STREAM_CHANNEL_CAPACITY);
 
     tokio::task::spawn_blocking(move || {
-        let result = build_tar_stream(&sources, tx.clone());
+        let result = build_tar_stream(&sources, tx.clone(), &root, &access);
         if let Err(error) = result {
             let _ = tx.blocking_send(Err(error));
         }
@@ -231,19 +231,26 @@ impl Write for ChannelWriter {
 fn build_tar_stream(
     sources: &[Source],
     tx: mpsc::Sender<Result<Bytes, std::io::Error>>,
+    root: &Path,
+    access: &crate::Access,
 ) -> std::io::Result<()> {
     let writer = ChannelWriter { tx };
     let buffered = BufWriter::with_capacity(STREAM_CHUNK_SIZE, writer);
     let mut tar = Builder::new(buffered);
     tar.follow_symlinks(false);
 
-    append_sources(&mut tar, sources)?;
+    append_sources(&mut tar, sources, root, access)?;
 
     let mut output = tar.into_inner()?;
     output.flush()
 }
 
-fn append_sources<W: Write>(tar: &mut Builder<W>, sources: &[Source]) -> std::io::Result<()> {
+fn append_sources<W: Write>(
+    tar: &mut Builder<W>,
+    sources: &[Source],
+    root: &Path,
+    access: &crate::Access,
+) -> std::io::Result<()> {
     for source in sources {
         let metadata = std::fs::symlink_metadata(&source.path)?;
 
@@ -252,7 +259,7 @@ fn append_sources<W: Write>(tar: &mut Builder<W>, sources: &[Source]) -> std::io
                 tar.append_dir(&source.name, &source.path)?;
             }
 
-            for entry in walk(&source.path)? {
+            for entry in walk(&source.path, |path| access.entry(root, path))? {
                 let Ok(relative) = entry.path.strip_prefix(&source.path) else {
                     continue;
                 };
@@ -397,7 +404,8 @@ mod tests {
         };
         let mut tar = tar::Builder::new(Vec::new());
         tar.follow_symlinks(false);
-        append_sources(&mut tar, &[source]).expect("build archive");
+        append_sources(&mut tar, &[source], &root, &crate::Access::test_root())
+            .expect("build archive");
         let bytes = tar.into_inner().expect("finish archive");
         let mut archive = tar::Archive::new(bytes.as_slice());
         let mut paths = archive

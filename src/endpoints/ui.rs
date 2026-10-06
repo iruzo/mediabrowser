@@ -228,6 +228,7 @@ mod tests {
         assert!(!PAGE.contains("function fileUrl"));
         assert!(!PAGE.contains("{{CSS}}"));
         assert!(!PAGE.contains("UI_SCRIPT"));
+        assert_eq!(PAGE.contains("Login required"), cfg!(feature = "auth"));
     }
 
     #[test]

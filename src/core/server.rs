@@ -6,6 +6,7 @@ use crate::endpoints::handle_file_server;
 use crate::endpoints::handle_ui_path;
 use crate::response::{self, Response};
 use crate::types::data_dir;
+use crate::Access;
 #[cfg(feature = "api")]
 use bytes::Bytes;
 #[cfg(feature = "api")]
@@ -21,6 +22,8 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::pin::pin;
 #[cfg(feature = "api")]
 use std::pin::Pin;
+#[cfg(feature = "auth")]
+use std::sync::Arc;
 use std::task::Poll;
 #[cfg(feature = "https")]
 use std::time::Duration;
@@ -163,12 +166,12 @@ pub(crate) async fn read_form(body: Incoming, limit: usize) -> Result<Form, Resp
     Ok(parse_form(&bytes))
 }
 
-async fn route(request: Request<Incoming>) -> Response {
+async fn route(request: Request<Incoming>, access: &Access) -> Response {
     let (parts, body) = request.into_parts();
     let path = parts.uri.path();
 
     #[cfg(feature = "api")]
-    if let Some(response) = endpoints::api::route(&parts, body).await {
+    if let Some(response) = endpoints::api::route(&parts, body, access).await {
         return response;
     }
 
@@ -177,6 +180,15 @@ async fn route(request: Request<Incoming>) -> Response {
 
     #[cfg(feature = "ui")]
     if parts.method == Method::GET && (path == "/ui" || path.starts_with("/ui/")) {
+        let path = percent_encoding::percent_decode_str(
+            path.strip_prefix("/ui")
+                .unwrap_or("")
+                .trim_start_matches('/'),
+        )
+        .decode_utf8_lossy();
+        if let Err(response) = access.check(&path, false) {
+            return response;
+        }
         return handle_ui_path(&parts.uri, &parts.headers).await;
     }
 
@@ -185,29 +197,76 @@ async fn route(request: Request<Incoming>) -> Response {
     }
 
     #[cfg(feature = "httpd")]
-    return handle_file_server(path.trim_start_matches('/'), &parts.headers).await;
+    return handle_file_server(path.trim_start_matches('/'), &parts.headers, access).await;
 
     #[cfg(not(feature = "httpd"))]
-    response::text(StatusCode::NOT_FOUND, "Not found")
+    {
+        let _ = access;
+        response::text(StatusCode::NOT_FOUND, "Not found")
+    }
+}
+
+async fn dispatch(
+    request: Request<Incoming>,
+    #[cfg(feature = "auth")] auth: &super::auth::Auth,
+    #[cfg(feature = "cors")] cors: bool,
+) -> Response {
+    #[cfg(feature = "auth")]
+    let access = {
+        if request.uri().path() == "/login" {
+            return auth.login(request).await;
+        }
+        if request.uri().path() == "/logout" {
+            return auth.logout(&request);
+        }
+        let Some(access) = auth.session(request.headers()).await else {
+            return super::auth::redirect("/login");
+        };
+        if request.method() == Method::POST && !super::auth::same_origin(request.headers()) {
+            return response::text(StatusCode::FORBIDDEN, "Access denied");
+        }
+        if request.uri().path() == "/password" {
+            return auth.password(request, &access).await;
+        }
+        access
+    };
+    #[cfg(not(feature = "auth"))]
+    let access = Access::default();
+    #[cfg(feature = "cors")]
+    if cors {
+        if let Some(response) = super::cors::preflight(&request) {
+            return response;
+        }
+    }
+    route(request, &access).await
 }
 
 async fn serve(
     request: Request<Incoming>,
+    #[cfg(feature = "auth")] auth: Arc<super::auth::Auth>,
     #[cfg(feature = "cors")] origin: Option<hyper::http::HeaderValue>,
 ) -> Result<Response, Infallible> {
+    #[allow(unused_mut)]
+    let mut response = dispatch(
+        request,
+        #[cfg(feature = "auth")]
+        &auth,
+        #[cfg(feature = "cors")]
+        origin.is_some(),
+    )
+    .await;
     #[cfg(feature = "cors")]
     if let Some(origin) = origin {
-        let mut response = match super::cors::preflight(&request) {
-            Some(response) => response,
-            None => route(request).await,
-        };
         response
             .headers_mut()
             .insert(hyper::http::header::ACCESS_CONTROL_ALLOW_ORIGIN, origin);
-        return Ok(response);
     }
-
-    Ok(route(request).await)
+    #[cfg(feature = "auth")]
+    response.headers_mut().insert(
+        "cache-control",
+        hyper::http::HeaderValue::from_static("no-store"),
+    );
+    Ok(response)
 }
 
 pub fn run() {
@@ -219,6 +278,8 @@ pub fn run() {
 }
 
 async fn run_async() {
+    #[cfg(feature = "auth")]
+    let auth = Arc::new(super::auth::Auth::new());
     #[cfg(feature = "firewall")]
     let firewall = match super::firewall::Firewall::from_env() {
         Ok(firewall) => firewall,
@@ -290,6 +351,8 @@ async fn run_async() {
         #[cfg(feature = "cors")]
         let origin = origin.clone();
         let watcher = graceful.watcher();
+        #[cfg(feature = "auth")]
+        let auth = auth.clone();
 
         tokio::spawn(async move {
             #[cfg(feature = "https")]
@@ -310,6 +373,8 @@ async fn run_async() {
             let service = service_fn(move |request| {
                 serve(
                     request,
+                    #[cfg(feature = "auth")]
+                    auth.clone(),
                     #[cfg(feature = "cors")]
                     origin.clone(),
                 )

@@ -1,3 +1,6 @@
+pub mod access;
+#[cfg(feature = "auth")]
+mod auth;
 #[cfg(feature = "cors")]
 mod cors;
 #[cfg(any(feature = "api", feature = "httpd"))]

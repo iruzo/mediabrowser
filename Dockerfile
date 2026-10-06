@@ -2,9 +2,7 @@ FROM docker.io/library/alpine:3.24.1 AS minifier
 
 RUN apk add --no-cache minify
 
-COPY src/endpoints/ui/index.html /static/
-COPY src/endpoints/ui/style.css /static/
-COPY src/endpoints/ui/script.js /static/
+COPY static/ /static/
 RUN find /static -type f \( -name '*.html' -o -name '*.css' -o -name '*.js' \) \
     -exec minify -o {} {} \;
 
@@ -14,9 +12,7 @@ RUN apk add --no-cache musl-dev binutils
 
 WORKDIR /app
 COPY . .
-COPY --from=minifier /static/index.html ./src/endpoints/ui/index.html
-COPY --from=minifier /static/style.css ./src/endpoints/ui/style.css
-COPY --from=minifier /static/script.js ./src/endpoints/ui/script.js
+COPY --from=minifier /static/ ./static/
 
 ARG FEATURES=
 

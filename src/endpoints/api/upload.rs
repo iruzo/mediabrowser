@@ -16,7 +16,11 @@ static UPLOAD_SEMAPHORE: Semaphore = Semaphore::const_new(MAX_UPLOADS);
 
 type UploadResult<T> = Result<T, (StatusCode, String)>;
 
-pub async fn handle_upload(content_type: &str, body: hyper::body::Incoming) -> Response {
+pub async fn handle_upload(
+    content_type: &str,
+    body: hyper::body::Incoming,
+    access: &crate::Access,
+) -> Response {
     let _permit = UPLOAD_SEMAPHORE.acquire().await.unwrap();
 
     let Some(boundary) = parse_boundary(content_type) else {
@@ -36,9 +40,20 @@ pub async fn handle_upload(content_type: &str, body: hyper::body::Incoming) -> R
                 Ok(path) => path,
                 Err((status, message)) => return response::text(status, message),
             };
+            if let Err(response) = access.check(&path, false) {
+                return response;
+            }
             let Some(path) = data_path(path.trim()) else {
                 return response::text(StatusCode::BAD_REQUEST, "Invalid upload path");
             };
+            let relative = path.strip_prefix(crate::types::data_dir()).unwrap_or(&path);
+            if access.check(&relative.to_string_lossy(), true).is_err()
+                && !crate::path_metadata(&path)
+                    .await
+                    .is_ok_and(|metadata| metadata.is_dir())
+            {
+                return response::text(StatusCode::FORBIDDEN, "Access denied");
+            }
             if let Err((status, message)) = create_data_dirs(&path).await.map_err(upload_dir_error)
             {
                 return response::text(status, message);
@@ -60,6 +75,13 @@ pub async fn handle_upload(content_type: &str, body: hyper::body::Incoming) -> R
         let Some(filename) = part.filename else {
             continue;
         };
+        let target = target_dir.join(&filename);
+        let relative = target
+            .strip_prefix(crate::types::data_dir())
+            .unwrap_or(&target);
+        if let Err(response) = access.check(&relative.to_string_lossy(), true) {
+            return response;
+        }
         if !valid_upload_filename(&filename) {
             return response::text(StatusCode::BAD_REQUEST, "Invalid filename");
         }
