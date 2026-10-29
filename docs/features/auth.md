@@ -111,6 +111,8 @@ passwords and cookies in transit. There is no session timeout or persistent
 cookie expiration.
 
 Protected requests without a session return 401, including CORS preflights.
+Denied access and origin mismatches return 404 with a generic `Not found` body
+to avoid describing protected resources.
 All responses with `auth` enabled use `Cache-Control: no-store`.
 
 ## Custom frontend and origin checks
@@ -120,7 +122,7 @@ An origin consists of scheme, hostname, and port; paths do not matter.
 origin. Changing the port, hostname, subdomain, or HTTP/HTTPS scheme changes it.
 
 For browser POST requests, the server compares a supplied `Origin` with its
-listener scheme and the request's `Host`. A mismatch returns 403. This helps
+listener scheme and the request's `Host`. A mismatch returns 404. This helps
 prevent another website from submitting actions using a user's session.
 Direct API clients may omit `Origin`, but protected endpoints still require a
 valid session cookie.

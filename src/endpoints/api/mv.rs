@@ -77,10 +77,7 @@ fn mv_path(path: &str, name: &str) -> MvResult<PathBuf> {
         data_path(path).ok_or_else(|| (StatusCode::BAD_REQUEST, format!("invalid {name} path")))?;
 
     if path.as_path() == data_dir() {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "data root cannot be moved or replaced".to_string(),
-        ));
+        return Err((StatusCode::NOT_FOUND, "Not found".to_string()));
     }
 
     Ok(path)
@@ -93,10 +90,7 @@ async fn contained_path(path: PathBuf, root: &Path) -> MvResult<PathBuf> {
     let parent = fs::canonicalize(parent).await.map_err(move_error)?;
 
     if !parent.starts_with(root) {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "path escapes data directory".to_string(),
-        ));
+        return Err((StatusCode::NOT_FOUND, "Not found".to_string()));
     }
 
     let name = path
@@ -141,10 +135,7 @@ mod tests {
         for path in ["/", "///", ".", "./", "/./"] {
             assert_eq!(
                 mv_path(path, "destination"),
-                Err((
-                    StatusCode::FORBIDDEN,
-                    "data root cannot be moved or replaced".to_string()
-                ))
+                Err((StatusCode::NOT_FOUND, "Not found".to_string()))
             );
         }
 

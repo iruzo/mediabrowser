@@ -40,7 +40,7 @@ fn rm_path(path: &str) -> Result<PathBuf, (StatusCode, &'static str)> {
 
     let path = data_path(path).ok_or((StatusCode::BAD_REQUEST, "invalid path"))?;
     if path.as_path() == data_dir() {
-        return Err((StatusCode::FORBIDDEN, "data root cannot be removed"));
+        return Err((StatusCode::NOT_FOUND, "Not found"));
     }
 
     Ok(path)
@@ -54,10 +54,7 @@ async fn contained_path(path: PathBuf) -> RmResult<PathBuf> {
     let parent = fs::canonicalize(parent).await.map_err(remove_error)?;
 
     if !parent.starts_with(&root) {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "path escapes data directory".to_string(),
-        ));
+        return Err((StatusCode::NOT_FOUND, "Not found".to_string()));
     }
 
     let name = path
@@ -97,10 +94,7 @@ mod tests {
         }
 
         for path in ["/", "///", ".", "./", "/./"] {
-            assert_eq!(
-                rm_path(path),
-                Err((StatusCode::FORBIDDEN, "data root cannot be removed"))
-            );
+            assert_eq!(rm_path(path), Err((StatusCode::NOT_FOUND, "Not found")));
         }
 
         for path in ["..", "../file", "folder/../file", "a\\b", "a\nb", "a\0b"] {

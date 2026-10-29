@@ -25,7 +25,7 @@ body, independently of the `ui` feature, and never redirects. See
 A wrong current password returns 401 and leaves the password and sessions
 unchanged. Invalid forms return 400, unsupported content types 415, unsupported
 methods 405, and storage or internal failures 500. An Origin header, when
-supplied, must match the server's scheme and Host; otherwise POST returns 403.
+supplied, must match the server's scheme and Host; otherwise POST returns 404.
 Responses use `Cache-Control: no-store`.
 
 Using cookies saved by [login](./login.md):

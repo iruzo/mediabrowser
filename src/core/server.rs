@@ -235,7 +235,7 @@ async fn dispatch(
             return auth::login_required();
         };
         if request.method() == Method::POST && !auth::same_origin(request.headers()) {
-            return response::text(StatusCode::FORBIDDEN, "Access denied");
+            return response::text(StatusCode::NOT_FOUND, "Not found");
         }
         if request.uri().path() == "/api/password" {
             return endpoints::api::handle_password(auth, request, &access).await;

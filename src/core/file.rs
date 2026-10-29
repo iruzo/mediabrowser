@@ -19,7 +19,7 @@ pub(crate) async fn resolve_path(
     let decoded_path = percent_decode_str(requested_path).decode_utf8_lossy();
 
     let Some(file_path) = data_path(decoded_path.as_ref()) else {
-        return Err(response::text(StatusCode::FORBIDDEN, "Access denied"));
+        return Err(response::text(StatusCode::NOT_FOUND, "Not found"));
     };
 
     let metadata = match path_metadata(&file_path).await {

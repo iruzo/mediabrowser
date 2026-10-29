@@ -27,7 +27,7 @@ The response does not depend on the `ui` feature and never redirects.
 Invalid credentials return 401 with plain text. Malformed forms return 400,
 unsupported content types 415, unsupported methods 405, and login failures
 caused by storage or internal errors 500. An Origin header, when supplied,
-must match the server's scheme and Host; otherwise POST returns 403.
+must match the server's scheme and Host; otherwise POST returns 404.
 
 For a command-line session:
 

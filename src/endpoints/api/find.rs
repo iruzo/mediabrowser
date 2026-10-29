@@ -118,10 +118,7 @@ async fn resolve_directory(path: Option<&str>) -> FindResult<(PathBuf, PathBuf)>
     let path = fs::canonicalize(path.as_path()).await.map_err(find_error)?;
 
     if !path.starts_with(&root) {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "path escapes data directory".to_string(),
-        ));
+        return Err((StatusCode::NOT_FOUND, "Not found".to_string()));
     }
 
     Ok((path, root))

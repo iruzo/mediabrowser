@@ -9,7 +9,7 @@ pub(crate) async fn handle_login(auth: &Auth, request: Request<Incoming>) -> Res
         return response::status(StatusCode::METHOD_NOT_ALLOWED);
     }
     if !same_origin(request.headers()) {
-        return response::text(StatusCode::FORBIDDEN, "Access denied");
+        return response::text(StatusCode::NOT_FOUND, "Not found");
     }
     let previous = cookie(request.headers()).map(str::to_owned);
     let Credentials {

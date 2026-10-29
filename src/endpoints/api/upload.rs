@@ -52,7 +52,7 @@ pub async fn handle_upload(
                     .await
                     .is_ok_and(|metadata| metadata.is_dir())
             {
-                return response::text(StatusCode::FORBIDDEN, "Access denied");
+                return response::text(StatusCode::NOT_FOUND, "Not found");
             }
             if let Err((status, message)) = create_data_dirs(&path).await.map_err(upload_dir_error)
             {

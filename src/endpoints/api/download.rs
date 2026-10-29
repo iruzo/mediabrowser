@@ -190,10 +190,7 @@ async fn contained_path(path: PathBuf, root: &Path) -> DownloadResult<PathBuf> {
     let parent = fs::canonicalize(parent).await.map_err(download_error)?;
 
     if !parent.starts_with(root) {
-        return Err((
-            StatusCode::FORBIDDEN,
-            "path escapes data directory".to_string(),
-        ));
+        return Err((StatusCode::NOT_FOUND, "Not found".to_string()));
     }
 
     let name = path

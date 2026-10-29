@@ -60,7 +60,7 @@ impl Access {
     pub fn check(&self, path: &str, write: bool) -> Result<(), Response> {
         let path = Path::new(path.trim().trim_start_matches('/'));
         if !self.allows(path) || (write && self.protected(path)) {
-            return Err(response::text(StatusCode::FORBIDDEN, "Access denied"));
+            return Err(response::text(StatusCode::NOT_FOUND, "Not found"));
         }
         Ok(())
     }
@@ -119,6 +119,15 @@ mod tests {
             ".home/alice/../bob",
         ] {
             assert!(!user.allows(Path::new(path)), "{path}");
+            let response = user.check(path, false).unwrap_err();
+            assert_eq!(
+                response.status(),
+                hyper::http::StatusCode::NOT_FOUND,
+                "{path}"
+            );
+            assert!(
+                matches!(response.body(), crate::response::Body::Full(Some(body)) if body.as_ref() == b"Not found")
+            );
         }
         let root = Access {
             username: "root".into(),
@@ -137,7 +146,11 @@ mod tests {
         ] {
             assert!(root.check(path, false).is_ok(), "{path}");
             assert!(root.check(path, true).is_ok(), "{path}");
-            assert!(user.check(path, true).is_err(), "{path}");
+            assert_eq!(
+                user.check(path, true).unwrap_err().status(),
+                hyper::http::StatusCode::NOT_FOUND,
+                "{path}"
+            );
         }
         assert!(user.check(".home/alice/file", true).is_ok());
         assert!(!Access::default().allows(Path::new("shared")));
